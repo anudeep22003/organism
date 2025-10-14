@@ -1,0 +1,185 @@
+{
+  "$ref": "#/definitions/TwitterBackendPayload",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "Link": {
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "type": "object"
+    },
+    "Media": {
+      "additionalProperties": false,
+      "properties": {
+        "alt": {
+          "type": "string"
+        },
+        "height": {
+          "type": "number"
+        },
+        "media_type": {
+          "enum": [
+            "photo",
+            "video",
+            "gif"
+          ],
+          "type": "string"
+        },
+        "preview_url": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "width": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "media_type",
+        "url"
+      ],
+      "type": "object"
+    },
+    "ThreadExtract": {
+      "additionalProperties": false,
+      "properties": {
+        "author_handle": {
+          "type": "string"
+        },
+        "author_user_id": {
+          "type": "string"
+        },
+        "root_tweet_id": {
+          "type": "string"
+        },
+        "tweets": {
+          "items": {
+            "$ref": "#/definitions/Tweet"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "root_tweet_id",
+        "author_handle",
+        "tweets"
+      ],
+      "type": "object"
+    },
+    "Tweet": {
+      "additionalProperties": false,
+      "properties": {
+        "author_handle": {
+          "type": "string"
+        },
+        "author_user_id": {
+          "type": "string"
+        },
+        "created_at": {
+          "type": "string"
+        },
+        "html": {
+          "type": "string"
+        },
+        "is_reply": {
+          "type": "boolean"
+        },
+        "is_retweet": {
+          "type": "boolean"
+        },
+        "links": {
+          "items": {
+            "$ref": "#/definitions/Link"
+          },
+          "type": "array"
+        },
+        "media": {
+          "items": {
+            "$ref": "#/definitions/Media"
+          },
+          "type": "array"
+        },
+        "quoted_status_url": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "tweet_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "tweet_id",
+        "author_handle",
+        "text",
+        "links",
+        "media",
+        "is_retweet",
+        "is_reply"
+      ],
+      "type": "object"
+    },
+    "TwitterBackendPayload": {
+      "additionalProperties": false,
+      "properties": {
+        "extracted": {
+          "$ref": "#/definitions/ThreadExtract"
+        },
+        "page_title": {
+          "type": "string"
+        },
+        "stats": {
+          "$ref": "#/definitions/TwitterParsingStats"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "url",
+        "page_title",
+        "extracted"
+      ],
+      "type": "object"
+    },
+    "TwitterParsingStats": {
+      "additionalProperties": false,
+      "properties": {
+        "links_extracted": {
+          "type": "number"
+        },
+        "media_extracted": {
+          "type": "number"
+        },
+        "parsing_time_ms": {
+          "type": "number"
+        },
+        "scroll_passes": {
+          "type": "number"
+        },
+        "tweets_found": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "tweets_found",
+        "media_extracted",
+        "links_extracted",
+        "scroll_passes",
+        "parsing_time_ms"
+      ],
+      "type": "object"
+    }
+  }
+}

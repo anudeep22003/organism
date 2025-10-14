@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64">
+  <circle cx="32" cy="32" r="30" fill="#22223b"/>
+  <text
+    x="32"
+    y="34"
+    text-anchor="middle"
+    dominant-baseline="middle"
+    font-size="28"
+    font-family="Arial, sans-serif"
+    fill="#f2e9e4"
+    font-weight="bold"
+    letter-spacing="-2"
+  >AY</text>
+</svg> 
