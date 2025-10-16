@@ -1,28 +1,26 @@
 import asyncio
-from dataclasses import replace
-from datetime import datetime, timezone
 
-from core.observation_manager import ObservationManager
+from agents.manager import Manager
 from core.sockets.types.envelope import AliasedBaseModel, Envelope
+from core.universe.timeline import primary_timeline 
+from core.universe.events import BaseEvent
 
 from .. import sio
 
 
 class DirectorRequest(AliasedBaseModel):
+    # context: str
+    # output: str
     prompt: str
 
+primary_timeline.subscribe(BaseEvent[DirectorRequest], Manager.handle_event)
 
 @sio.on("c2s.director.stream.start")
 async def handle_chat_stream_start(sid: str, envelope: dict) -> str:
-    manager = ObservationManager()
-    request = Envelope[DirectorRequest].model_validate(envelope)
-    observation = manager.get_observation(sid)
-
-    new_observation = replace(
-        observation,
-        user_prompt=request.data.prompt,
-        updated_at=datetime.now(timezone.utc),
+    validated_envelope = Envelope[DirectorRequest].model_validate(envelope)
+    new_task_event = BaseEvent[DirectorRequest](
+        sid=sid,
+        data=validated_envelope.data,
     )
-
-    asyncio.create_task(manager.update_observation(sid, new_observation, sio))
+    asyncio.create_task(primary_timeline.add_event(new_task_event))
     return "ack"
