@@ -399,6 +399,63 @@ wheels = [
 ]
 
 [[package]]
+name = "eventengine"
+version = "0.0.1"
+source = { virtual = "." }
+dependencies = [
+    { name = "claude-code-sdk" },
+    { name = "click" },
+    { name = "dotenv" },
+    { name = "fastapi" },
+    { name = "gitpython" },
+    { name = "google-cloud-storage" },
+    { name = "instructor" },
+    { name = "loguru" },
+    { name = "openai" },
+    { name = "pulumi" },
+    { name = "pulumi-gcp" },
+    { name = "pydantic" },
+    { name = "pygithub" },
+    { name = "python-socketio" },
+    { name = "pyyaml" },
+    { name = "uvicorn" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "mypy" },
+    { name = "ruff" },
+    { name = "types-pyyaml" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "claude-code-sdk", git = "https://github.com/anthropics/claude-code-sdk-python.git" },
+    { name = "click", specifier = ">=8.2.1" },
+    { name = "dotenv", specifier = ">=0.9.9" },
+    { name = "fastapi", specifier = ">=0.116.1" },
+    { name = "gitpython", specifier = ">=3.1.45" },
+    { name = "google-cloud-storage", specifier = ">=3.4.0" },
+    { name = "instructor", specifier = ">=1.10.0" },
+    { name = "loguru", specifier = ">=0.7.3" },
+    { name = "openai", specifier = ">=1.99.6" },
+    { name = "pulumi", specifier = ">=3.0.0,<4.0.0" },
+    { name = "pulumi-gcp", specifier = ">=8.0.0,<9.0.0" },
+    { name = "pydantic", specifier = ">=2.11.7" },
+    { name = "pygithub", specifier = ">=2.8.1" },
+    { name = "python-socketio", specifier = ">=5.13.0" },
+    { name = "pyyaml", specifier = ">=6.0.2" },
+    { name = "uvicorn", specifier = ">=0.27.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "mypy", specifier = ">=1.17.1" },
+    { name = "ruff", specifier = ">=0.12.8" },
+    { name = "types-pyyaml", specifier = ">=6.0.12.20250822" },
+]
+
+[[package]]
 name = "fastapi"
 version = "0.116.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1648,63 +1705,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/04/57/d062573f391d062710d4088fa1369428c38d51460ab6fedff920efef932e/starlette-0.47.2.tar.gz", hash = "sha256:6ae9aa5db235e4846decc1e7b79c4f346adf41e9777aebeb49dfd09bbd7023d8", size = 2583948, upload-time = "2025-07-20T17:31:58.522Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f7/1f/b876b1f83aef204198a42dc101613fefccb32258e5428b5f9259677864b4/starlette-0.47.2-py3-none-any.whl", hash = "sha256:c5847e96134e5c5371ee9fac6fdf1a67336d5815e09eb2a01fdb57a351ef915b", size = 72984, upload-time = "2025-07-20T17:31:56.738Z" },
-]
-
-[[package]]
-name = "storyengine"
-version = "0.0.1"
-source = { virtual = "." }
-dependencies = [
-    { name = "claude-code-sdk" },
-    { name = "click" },
-    { name = "dotenv" },
-    { name = "fastapi" },
-    { name = "gitpython" },
-    { name = "google-cloud-storage" },
-    { name = "instructor" },
-    { name = "loguru" },
-    { name = "openai" },
-    { name = "pulumi" },
-    { name = "pulumi-gcp" },
-    { name = "pydantic" },
-    { name = "pygithub" },
-    { name = "python-socketio" },
-    { name = "pyyaml" },
-    { name = "uvicorn" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "mypy" },
-    { name = "ruff" },
-    { name = "types-pyyaml" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "claude-code-sdk", git = "https://github.com/anthropics/claude-code-sdk-python.git" },
-    { name = "click", specifier = ">=8.2.1" },
-    { name = "dotenv", specifier = ">=0.9.9" },
-    { name = "fastapi", specifier = ">=0.116.1" },
-    { name = "gitpython", specifier = ">=3.1.45" },
-    { name = "google-cloud-storage", specifier = ">=3.4.0" },
-    { name = "instructor", specifier = ">=1.10.0" },
-    { name = "loguru", specifier = ">=0.7.3" },
-    { name = "openai", specifier = ">=1.99.6" },
-    { name = "pulumi", specifier = ">=3.0.0,<4.0.0" },
-    { name = "pulumi-gcp", specifier = ">=8.0.0,<9.0.0" },
-    { name = "pydantic", specifier = ">=2.11.7" },
-    { name = "pygithub", specifier = ">=2.8.1" },
-    { name = "python-socketio", specifier = ">=5.13.0" },
-    { name = "pyyaml", specifier = ">=6.0.2" },
-    { name = "uvicorn", specifier = ">=0.27.0" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "mypy", specifier = ">=1.17.1" },
-    { name = "ruff", specifier = ">=0.12.8" },
-    { name = "types-pyyaml", specifier = ">=6.0.12.20250822" },
 ]
 
 [[package]]
