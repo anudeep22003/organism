@@ -1,5 +1,5 @@
 import type { BaseMessage } from "@/store/useMessageStore";
-import type { Actor } from "@/socket/envelopeType";
+import { ACTORS, type Actor } from "@/socket/envelopeType";
 import { WriterMessage } from "./WriterMessage";
 import { ClaudeMessage } from "./ClaudeMessage";
 import { CodeMessage } from "./CodeMessage";
@@ -15,16 +15,26 @@ interface ActorRegistryConfig {
   messageSelector: (allMessages: BaseMessage[]) => BaseMessage[];
 }
 
+// Create a helper function to reduce repetition
+const createActorConfig = (actor: Actor): ActorRegistryConfig => ({
+  label: actor,
+  component: WriterMessage,
+  messageSelector: (allMessages: BaseMessage[]) =>
+    allMessages.filter((m: BaseMessage) => m.type === actor),
+});
+
+// Much cleaner default registry
+const defaultActorRegistry: Record<Actor, ActorRegistryConfig> =
+  Object.fromEntries(
+    ACTORS.map((actor) => [actor, createActorConfig(actor)])
+  ) as Record<Actor, ActorRegistryConfig>;
+
+// Now override only what you need
 export const actorRegistry: Record<
   streamingActors,
   ActorRegistryConfig
 > = {
-  writer: {
-    label: "writer",
-    component: WriterMessage,
-    messageSelector: (allMessages) =>
-      allMessages.filter((m) => m.type === "writer"),
-  },
+  ...defaultActorRegistry,
   claude: {
     label: "claude",
     component: ClaudeMessage,
@@ -36,23 +46,5 @@ export const actorRegistry: Record<
     component: CodeMessage,
     messageSelector: (allMessages) =>
       allMessages.filter((m) => m.type === "coder"),
-  },
-  scriptwriter: {
-    label: "scriptwriter",
-    component: WriterMessage,
-    messageSelector: (allMessages) =>
-      allMessages.filter((m) => m.type === "scriptwriter"),
-  },
-  director: {
-    label: "director",
-    component: WriterMessage,
-    messageSelector: (allMessages) =>
-      allMessages.filter((m) => m.type === "director"),
-  },
-  manager: {
-    label: "manager",
-    component: WriterMessage,
-    messageSelector: (allMessages) =>
-      allMessages.filter((m) => m.type === "manager"),
   },
 };
