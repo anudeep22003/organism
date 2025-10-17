@@ -1,9 +1,13 @@
 import asyncio
 from collections import defaultdict
 from typing import Any, Awaitable, Callable, Type
+from agents.types import DirectorRequest
 from core.singleton import SingletonMeta
 from core.universe.events import BaseEvent
 
+from loguru import logger
+
+logger = logger.bind(name=__name__)
 
 class Timeline(metaclass=SingletonMeta):
     def __init__(self) -> None:
@@ -11,6 +15,7 @@ class Timeline(metaclass=SingletonMeta):
         self.subscribers: defaultdict[Type[Any], list[Callable[[BaseEvent], Awaitable[None]]]] = defaultdict(list)
     
     def subscribe(self, event: Type[Any], handler: Callable[[BaseEvent], Awaitable[None]]) -> None:
+        logger.info(f"Timeline: subscribing to event: {event} with handler: {handler}")
         self.subscribers[event].append(handler)
 
     def unsubscribe(self, handler: Callable[[BaseEvent], Awaitable[None]], event: Type[Any] | None = None) -> None:
@@ -23,10 +28,20 @@ class Timeline(metaclass=SingletonMeta):
                 self.subscribers[event].remove(handler)
 
     async def add_event(self, event: Any) -> None:
+        logger.info(f"Timeline: adding event: {event}")
         await self.events.put(event)
-        handlers_subscribed_to_event = self.subscribers[type(event)]
+        logger.info(f"Timeline: subscribers: {self.subscribers}")
+        logger.info(f"Timeline: event type: {type(event)}")
+        # handlers_subscribed_to_event = self.subscribers[type(event)]
+        handlers_subscribed_to_event = self.subscribers[BaseEvent[DirectorRequest]]
+        logger.info(f"Timeline: handlers subscribed to event: {handlers_subscribed_to_event}")
         for handler in handlers_subscribed_to_event:
-            await handler(event)
+            logger.info(f"Timeline: calling handler: {handler}")
+            try:
+                await handler(event)
+            except Exception as e:
+                logger.error(f"Timeline: error calling handler: {e}")
+                raise e
 
     async def get_events(self) -> list[Any]:
         events = []

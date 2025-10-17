@@ -49,4 +49,10 @@ export const actorRegistry: Record<
     messageSelector: (allMessages) =>
       allMessages.filter((m) => m.type === "director"),
   },
+  manager: {
+    label: "manager",
+    component: WriterMessage,
+    messageSelector: (allMessages) =>
+      allMessages.filter((m) => m.type === "manager"),
+  },
 };

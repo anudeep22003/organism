@@ -8,6 +8,9 @@ from core.sockets.types.envelope import Actor, Envelope
 from core.sockets.types.message import Message
 
 from .. import async_openai_client
+from loguru import logger
+
+logger = logger.bind(name=__name__)
 
 MODELS = Literal["gpt-4o", "gpt-5"]
 
@@ -56,7 +59,18 @@ async def stream_chunks_openai(
     actor: Actor,
     model: MODELS,
     sio: "AsyncServer",
+    send_start: bool = False,
 ) -> str:
+    logger.info(f"Streamer: streaming chunks for {sid} with data {data}")
+
+    if send_start:
+        logger.info(f"Streamer: sending start for {sid} with data {data}")
+        await _emit_envelope(
+            sio, sid, actor, "start",
+            Envelope(request_id=request_id, stream_id=stream_id, direction="s2c",
+                     actor=actor, action="stream", modifier="start", data={"delta": "start"}),
+        )
+
     kwargs: dict[str, Any] = {"temperature": 0.7} if model == "gpt-4o" else {"reasoning_effort": "high"}
 
     stream = await async_openai_client.chat.completions.create(
@@ -66,10 +80,12 @@ async def stream_chunks_openai(
         **kwargs,
     )
 
+
     accumulated_content = ""
     seq = 0
 
     async for chunk in stream:
+        logger.info(f"Streamer: streaming chunk {seq}")
         seq += 1
         choice = chunk.choices[0]
 

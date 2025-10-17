@@ -10,6 +10,11 @@ logger = logger.bind(name=__name__)
 
 _PROMPT_CACHE: dict[str, dict[str, Any]] = {}
 
+def load_yaml(file_name: str) -> dict[str, Any]:
+    path = Path("core/prompts") / file_name
+    with open(path, "r") as f:
+        return yaml.safe_load(f)
+
 
 def load_prompt(file_name: str, key: str) -> str:
     """Load a prompt from a YAML file with caching.
@@ -21,9 +26,10 @@ def load_prompt(file_name: str, key: str) -> str:
     Returns:
         The prompt string
     """
-    if file_name not in _PROMPT_CACHE:
-        path = Path("core/prompts") / file_name
-        with open(path, "r") as f:
-            _PROMPT_CACHE[file_name] = yaml.safe_load(f)
+    return load_yaml(file_name)[key]
 
-    return _PROMPT_CACHE[file_name][key]
+def load_prompt_list(file_name: str, key: str) -> list[str]:
+    return load_yaml(file_name)[key]
+
+if __name__ == "__main__":
+    print(load_prompt("manager.yaml", "task_list"))
