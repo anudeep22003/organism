@@ -7,10 +7,20 @@ export const ACTORS = [
   "scriptwriter",
   "director",
   "manager",
+  "tasknotifier",
 ] as const;
 export type Actor = (typeof ACTORS)[number];
 export type Action = "stream";
 export type Modifier = "start" | "chunk" | "end";
+
+export const HumanAreaActorsList = [
+  "assistant",
+  "human",
+  "tasknotifier",
+] as const;
+export type HumanAreaActors = (typeof HumanAreaActorsList)[number];
+
+export type StreamingActors = Exclude<Actor, HumanAreaActors>;
 
 export type Envelope<T = unknown> = {
   // protocol

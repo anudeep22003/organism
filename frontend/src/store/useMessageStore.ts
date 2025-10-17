@@ -1,4 +1,9 @@
-import type { Actor, Envelope } from "@/socket/envelopeType";
+import {
+  HumanAreaActorsList,
+  type Actor,
+  type Envelope,
+  type HumanAreaActors,
+} from "@/socket/envelopeType";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { useShallow } from "zustand/react/shallow";
@@ -183,8 +188,8 @@ export const useCodeMessages = () =>
 export const useHumanAreaMessages = () =>
   useMessageStore(
     useShallow((state) =>
-      state.allMessages.filter(
-        (m) => m.type === "human" || m.type === "assistant"
+      state.allMessages.filter((m) =>
+        HumanAreaActorsList.includes(m.type as HumanAreaActors)
       )
     )
   );

@@ -1,10 +1,12 @@
 import type { BaseMessage } from "@/store/useMessageStore";
-import { ACTORS, type Actor } from "@/socket/envelopeType";
+import {
+  ACTORS,
+  type Actor,
+  type StreamingActors,
+} from "@/socket/envelopeType";
 import { WriterMessage } from "./WriterMessage";
 import { ClaudeMessage } from "./ClaudeMessage";
 import { CodeMessage } from "./CodeMessage";
-
-export type streamingActors = Exclude<Actor, "assistant" | "human">;
 
 interface ActorRegistryConfig {
   label: Actor;
@@ -31,7 +33,7 @@ const defaultActorRegistry: Record<Actor, ActorRegistryConfig> =
 
 // Now override only what you need
 export const actorRegistry: Record<
-  streamingActors,
+  StreamingActors,
   ActorRegistryConfig
 > = {
   ...defaultActorRegistry,
