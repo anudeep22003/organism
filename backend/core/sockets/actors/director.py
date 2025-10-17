@@ -6,6 +6,7 @@ from core.universe.timeline import primary_timeline
 from core.universe.events import BaseEvent
 from agents.types import DirectorRequest
 
+
 from .. import sio
 from loguru import logger
 
@@ -23,5 +24,6 @@ async def handle_chat_stream_start(sid: str, envelope: dict) -> str:
         sio=sio,
         data=validated_envelope.data,
     )
+    logger.info(f"new_task_event metadata:", **new_task_event.__dict__)
     asyncio.create_task(primary_timeline.add_event(new_task_event))
     return "ack"
