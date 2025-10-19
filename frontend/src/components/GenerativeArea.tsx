@@ -5,7 +5,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { TabControls } from "./generative/TabControls";
 import { TabLabel } from "./generative/TabLabel";
-import type { Actor } from "@/socket/types/actors";
+import type { StreamingActors } from "@/socket/types/actors";
 import { ActorContent } from "./generative/ActorContent";
 
 const GenerativeHeader = () => {
@@ -41,7 +41,7 @@ export const GenerativeArea = () => {
   const availableTabs = Array.from(useAvailableActors());
 
   const handleTabChange = (value: string) => {
-    setActiveTab(value as Actor, true);
+    setActiveTab(value as StreamingActors, true);
   };
 
   const currentTab = activeTab || availableTabs[0] || "coder";

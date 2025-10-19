@@ -1,6 +1,6 @@
 import { useEffect, useRef, useMemo, memo, useCallback } from "react";
 import type { BaseMessage } from "@/store/useMessageStore";
-import type { Actor } from "@/socket/types/actors";
+import { type Actor } from "@/socket/types/actors";
 import { actorRegistry } from "./Registry";
 import { TabsContent } from "../ui/tabs";
 
