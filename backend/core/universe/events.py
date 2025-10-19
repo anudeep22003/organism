@@ -18,6 +18,5 @@ T = TypeVar("T")
 @dataclass(frozen=True)
 class BaseEvent(Generic[T]):
     sid: str 
-    sio: "AsyncServer" 
     data: T
     created_at: int = field(default_factory=get_current_timestamp)
