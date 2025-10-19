@@ -1,5 +1,5 @@
 export type Direction = "c2s" | "s2c";
-export const ACTORS = [
+export const ActorListConst = [
   "assistant",
   "coder",
   "writer",
@@ -9,16 +9,16 @@ export const ACTORS = [
   "manager",
   "tasknotifier",
 ] as const;
-export type Actor = (typeof ACTORS)[number];
+export type Actor = (typeof ActorListConst)[number];
 export type Action = "stream";
 export type Modifier = "start" | "chunk" | "end";
 
-export const HumanAreaActorsList = [
+export const HumanAreaActorsListConst = [
   "assistant",
   "human",
   "tasknotifier",
 ] as const;
-export type HumanAreaActors = (typeof HumanAreaActorsList)[number];
+export type HumanAreaActors = (typeof HumanAreaActorsListConst)[number];
 
 export type StreamingActors = Exclude<Actor, HumanAreaActors>;
 

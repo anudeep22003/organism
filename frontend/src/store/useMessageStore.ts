@@ -1,8 +1,9 @@
 import {
-  HumanAreaActorsList,
+  HumanAreaActorsListConst,
   type Actor,
   type Envelope,
   type HumanAreaActors,
+  type StreamingActors,
 } from "@/socket/envelopeType";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
@@ -20,7 +21,7 @@ export interface BaseMessage {
   type: MessageType;
 }
 
-export type MessageType = "human" | Actor;
+export type MessageType = Actor | "human";
 
 export type TypedMessage = BaseMessage;
 
@@ -189,7 +190,7 @@ export const useHumanAreaMessages = () =>
   useMessageStore(
     useShallow((state) =>
       state.allMessages.filter((m) =>
-        HumanAreaActorsList.includes(m.type as HumanAreaActors)
+        HumanAreaActorsListConst.includes(m.type as HumanAreaActors)
       )
     )
   );
@@ -214,7 +215,12 @@ export const useAvailableActors = () =>
       return new Set(
         state.allMessages
           .map((m) => m.type)
-          .filter((type) => type !== "human")
-      ) as Set<Exclude<Actor, "human">>;
+          .filter(
+            (type) =>
+              !HumanAreaActorsListConst.includes(
+                type as HumanAreaActors
+              )
+          )
+      ) as Set<StreamingActors>;
     })
   );

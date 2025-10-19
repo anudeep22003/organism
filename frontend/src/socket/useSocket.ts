@@ -3,7 +3,7 @@ import io from "socket.io-client";
 import { BACKEND_URL } from "@/constants";
 import { Socket } from "socket.io-client";
 import {
-  ACTORS,
+  ActorListConst,
   type Actor,
   type Envelope,
 } from "@/socket/envelopeType";
@@ -97,7 +97,7 @@ export const useSocket = () => {
       setIsConnected(false);
     });
 
-    for (const actor of ACTORS) {
+    for (const actor of ActorListConst) {
       socket.on(`s2c.${actor}.stream.chunk`, (rawMessage: string) => {
         onStreamChunk(rawMessage);
       });

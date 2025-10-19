@@ -1,8 +1,8 @@
 import type { BaseMessage } from "@/store/useMessageStore";
 import {
-  ACTORS,
+  ActorListConst,
   type Actor,
-  type StreamingActors,
+  // type StreamingActors,
 } from "@/socket/envelopeType";
 import { WriterMessage } from "./WriterMessage";
 import { ClaudeMessage } from "./ClaudeMessage";
@@ -28,12 +28,13 @@ const createActorConfig = (actor: Actor): ActorRegistryConfig => ({
 // Much cleaner default registry
 const defaultActorRegistry: Record<Actor, ActorRegistryConfig> =
   Object.fromEntries(
-    ACTORS.map((actor) => [actor, createActorConfig(actor)])
+    ActorListConst.map((actor) => [actor, createActorConfig(actor)])
   ) as Record<Actor, ActorRegistryConfig>;
 
 // Now override only what you need
 export const actorRegistry: Record<
-  StreamingActors,
+  // StreamingActors,
+  Actor,
   ActorRegistryConfig
 > = {
   ...defaultActorRegistry,
