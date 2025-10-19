@@ -1,10 +1,10 @@
+import { type Envelope } from "@/socket/types/envelope";
 import {
   HumanAreaActorsListConst,
-  type Actor,
-  type Envelope,
   type HumanAreaActors,
   type StreamingActors,
-} from "@/socket/envelopeType";
+} from "@/socket/types/actors";
+import { type Actor } from "@/socket/types/actors";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { useShallow } from "zustand/react/shallow";

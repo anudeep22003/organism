@@ -1,4 +1,5 @@
-import type { Actor, Envelope } from "@/socket/envelopeType";
+import type { Envelope } from "@/socket/types/envelope";
+import type { Actor } from "./types/actors";
 import {
   constructChatStreamMessages,
   prepareCodeMessage,

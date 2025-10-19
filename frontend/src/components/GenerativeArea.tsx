@@ -5,7 +5,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { TabControls } from "./generative/TabControls";
 import { TabLabel } from "./generative/TabLabel";
-import type { Actor } from "@/socket/envelopeType";
+import type { Actor } from "@/socket/types/actors";
 import { ActorContent } from "./generative/ActorContent";
 
 const GenerativeHeader = () => {

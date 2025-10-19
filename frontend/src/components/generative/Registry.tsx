@@ -1,9 +1,5 @@
 import type { BaseMessage } from "@/store/useMessageStore";
-import {
-  ActorListConst,
-  type Actor,
-  // type StreamingActors,
-} from "@/socket/envelopeType";
+import { ActorListConst, type Actor } from "@/socket/types/actors";
 import { WriterMessage } from "./WriterMessage";
 import { ClaudeMessage } from "./ClaudeMessage";
 import { CodeMessage } from "./CodeMessage";

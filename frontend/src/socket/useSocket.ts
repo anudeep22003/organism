@@ -2,11 +2,8 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import io from "socket.io-client";
 import { BACKEND_URL } from "@/constants";
 import { Socket } from "socket.io-client";
-import {
-  ActorListConst,
-  type Actor,
-  type Envelope,
-} from "@/socket/envelopeType";
+import { type Envelope } from "@/socket/types/envelope";
+import { ActorListConst, type Actor } from "./types/actors";
 import { useMessageStore } from "@/store/useMessageStore";
 
 export const useSocket = () => {
