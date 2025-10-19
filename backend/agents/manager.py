@@ -160,7 +160,7 @@ class Manager:
             actor=Manager.actor_name,
             model=cast(Literal["gpt-4o", "gpt-5"], Manager.model.value),
             sio=event.sio,
-            send_start=True,
+            send_start=False,
             dummy_mode=True,
         )
         await Manager.update_task(

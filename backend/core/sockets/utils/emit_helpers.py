@@ -5,7 +5,7 @@ if TYPE_CHECKING:
 
 from loguru import logger
 
-from core.sockets.types.envelope import Action, Actor, Direction, Envelope, Modifier
+from core.sockets.types.envelope import Actor, Envelope
 
 logger = logger.bind(name=__name__)
 
