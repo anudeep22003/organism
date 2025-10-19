@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 
 from agents.manager import Manager
 from agents.types import DirectorRequest
+from core.singleton import SingletonMeta
 from core.universe.timeline import SubscriptionKey, primary_timeline
 
 if TYPE_CHECKING:
@@ -15,7 +16,7 @@ class Session:
     timeline_subscription_key: SubscriptionKey
 
 
-class SessionManager:
+class SessionManager(metaclass=SingletonMeta):
     def __init__(self) -> None:
         self.sessions: dict[str, Session] = {}
 

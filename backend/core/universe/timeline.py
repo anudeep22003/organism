@@ -5,7 +5,6 @@ from typing import Any, Awaitable, Callable, Type
 
 from loguru import logger
 
-from agents.types import DirectorRequest
 from core.singleton import SingletonMeta
 from core.universe.events import BaseEvent
 
@@ -48,12 +47,17 @@ class Timeline(metaclass=SingletonMeta):
         ] = defaultdict(list)
 
     def subscribe(
-        self, event_data_type: Type[T], handler: Callable[[BaseEvent], Awaitable[None]], sid: str | None = None
+        self,
+        event_data_type: Type[T],
+        handler: Callable[[BaseEvent], Awaitable[None]],
+        sid: str | None = None,
     ) -> SubscriptionKey:
         subscription_key = SubscriptionKey(event_data_type, sid)
-        logger.info(f"Timeline: subscribing to event: {event_data_type.__name__} for sid: {sid} with handler: {handler}")
+        logger.info(
+            f"Timeline: subscribing to event: {event_data_type.__name__} for sid: {sid} with handler: {handler}"
+        )
         self.subscribers[subscription_key].append(handler)
-        return subscription_key # return this so can unsubscribe later
+        return subscription_key  # return this so can unsubscribe later
 
     def unsubscribe(
         self,
@@ -64,12 +68,17 @@ class Timeline(metaclass=SingletonMeta):
             # Remove all handlers for this key
             self.subscribers.pop(subscription_key)
         else:
-            if subscription_key in self.subscribers and handler in self.subscribers[subscription_key]:
+            if (
+                subscription_key in self.subscribers
+                and handler in self.subscribers[subscription_key]
+            ):
                 self.subscribers[subscription_key].remove(handler)
 
     async def add_event(self, event: BaseEvent[Any]) -> None:
         """Add event and route to matching handlers"""
-        logger.info(f"Timeline: adding event: {event.data.__class__.__name__} for sid: {event.sid}")
+        logger.info(
+            f"Timeline: adding event: {event.data.__class__.__name__} for sid: {event.sid}"
+        )
         await self.events.put(event)
         for subscription_key, handlers in self.subscribers.items():
             if subscription_key.matches(event):
