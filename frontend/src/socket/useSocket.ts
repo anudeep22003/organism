@@ -83,6 +83,9 @@ export const useSocket = () => {
       autoConnect: true,
       timeout: 20000,
       reconnection: true,
+      auth: {
+        sessionId: "auth_1234567890",
+      },
     });
 
     socket.on("connect", () => {

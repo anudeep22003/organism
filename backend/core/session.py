@@ -9,16 +9,19 @@ from core.universe.timeline import SubscriptionKey, primary_timeline
 if TYPE_CHECKING:
     from socketio import AsyncServer  # type: ignore[import-untyped]
 
+SessionId = str
 
 @dataclass(frozen=True)
 class Session:
-    manager: Manager
+    session_id: SessionId
+    sids: set[str]
     timeline_subscription_key: SubscriptionKey
+    manager: Manager
 
 
 class SessionManager(metaclass=SingletonMeta):
     def __init__(self) -> None:
-        self.sessions: dict[str, Session] = {}
+        self.sessions: dict[SessionId, Session] = {}
 
     def create_session(
         self, sid: str, sio: "AsyncServer", notify_user: bool, dummy_mode: bool = False
