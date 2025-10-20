@@ -20,3 +20,62 @@ async def emit_envelope(
     envelope: Envelope,
 ) -> None:
     await sio.emit(f"s2c.{actor}.stream.{modifier}", envelope.model_dump_json(), to=sid)
+
+
+async def emit_text_start_chunk_end_events(
+    sio: "AsyncServer",
+    sid: str,
+    actor: Actor,
+    request_id: str,
+    stream_id: str,
+    text: str,
+) -> None:
+    seq = 0
+    await emit_envelope(
+        sio,
+        sid,
+        actor,
+        "start",
+        Envelope(
+            request_id=request_id,
+            stream_id=stream_id,
+            seq=seq,
+            direction="s2c",
+            actor=actor,
+            action="stream",
+            modifier="start",
+            data={"delta": "start"},
+        ),
+    )
+    await emit_envelope(
+        sio,
+        sid,
+        actor,
+        "chunk",
+        Envelope(
+            request_id=request_id,
+            stream_id=stream_id,
+            seq=seq,
+            direction="s2c",
+            actor=actor,
+            action="stream",
+            modifier="chunk",
+            data={"delta": text},
+        ),
+    )
+    await emit_envelope(
+        sio,
+        sid,
+        actor,
+        "end",
+        Envelope(
+            request_id=request_id,
+            stream_id=stream_id,
+            seq=seq,
+            direction="s2c",
+            actor=actor,
+            action="stream",
+            modifier="end",
+            data={"delta": "end"},
+        ),
+    )
