@@ -15,26 +15,29 @@ T = TypeVar("T")
 
 
 class SubscriptionKey:
-    """Composite key for routing: (event_type, sid)"""
+    """Composite key for routing: (event_type, target_room)"""
 
-    def __init__(self, event_type: Type[Any], sid: str | None) -> None:
+    def __init__(self, event_type: Type[Any], target_room: str | None) -> None:
         self.event_type = event_type
-        self.sid = sid
+        self.target_room = target_room
 
     def __hash__(self) -> int:
-        return hash((self.event_type, self.sid))
+        return hash((self.event_type, self.target_room))
 
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, SubscriptionKey):
             return False
-        return self.event_type == other.event_type and self.sid == other.sid
+        return (
+            self.event_type == other.event_type
+            and self.target_room == other.target_room
+        )
 
     def matches(self, event: BaseEvent) -> bool:
         """Check if this subscription key matches the given event"""
         if not isinstance(event.data, self.event_type):
             return False
-        # Check if sid matches (None means match all)
-        if self.sid is None or self.sid == event.sid:
+        # Check if target_room matches (None means match all)
+        if self.target_room is None or self.target_room == event.target_room:
             return True
         return False
 
@@ -50,11 +53,11 @@ class Timeline(metaclass=SingletonMeta):
         self,
         event_data_type: Type[T],
         handler: Callable[[BaseEvent], Awaitable[None]],
-        sid: str | None = None,
+        target_room: str | None = None,
     ) -> SubscriptionKey:
-        subscription_key = SubscriptionKey(event_data_type, sid)
-        logger.info(
-            f"Timeline: subscribing to event: {event_data_type.__name__} for sid: {sid} with handler: {handler}"
+        subscription_key = SubscriptionKey(event_data_type, target_room)
+        logger.debug(
+            f"Timeline: subscribing to event: {event_data_type.__name__} for target_room: {target_room} with handler: {handler}"
         )
         self.subscribers[subscription_key].append(handler)
         return subscription_key  # return this so can unsubscribe later
@@ -77,7 +80,7 @@ class Timeline(metaclass=SingletonMeta):
     async def add_event(self, event: BaseEvent[Any]) -> None:
         """Add event and route to matching handlers"""
         logger.info(
-            f"Timeline: adding event: {event.data.__class__.__name__} for sid: {event.sid}"
+            f"Timeline: adding event: {event.data.__class__.__name__} for target_room: {event.target_room}"
         )
         await self.events.put(event)
         for subscription_key, handlers in self.subscribers.items():

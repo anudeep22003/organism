@@ -27,7 +27,11 @@ async def connect(sid: str, environ: dict, auth: dict) -> None:
         notify_user=True,
         dummy_mode=False,
     )
+    target_room = session.get_target_room()
+    await sio.enter_room(sid, target_room)
+    logger.debug(f"joined room: {target_room}")
     logger.debug(f"session: {session}")
+
 
 @sio.event
 async def hello(sid: str, message: str) -> None:
@@ -43,3 +47,4 @@ async def hello(sid: str, message: str) -> None:
 async def disconnect(sid: str) -> None:
     print(f"connection closed {sid}")
     del active_connections[sid]
+    primary_session_manager.remove_sid_from_session(sid)

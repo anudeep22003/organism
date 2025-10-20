@@ -32,9 +32,13 @@ class Task(AliasedBaseModel):
 
 class Manager:
     def __init__(
-        self, sid: str, sio: "AsyncServer", notify_user: bool, dummy_mode: bool = False
+        self,
+        target_room: str,
+        sio: "AsyncServer",
+        notify_user: bool,
+        dummy_mode: bool = False,
     ) -> None:
-        self.sid = sid
+        self.target_room = target_room
         self.sio = sio
         self.actor_name: Actor = "manager"
         self.model: ModelsEnum = ModelsEnum.GPT_4O
@@ -101,7 +105,12 @@ class Manager:
         task_string = f"The task {task.task} status has changed to {task.status}."
         actor = "tasknotifier"
         await emit_text_start_chunk_end_events(
-            self.sio, self.sid, actor, self.request_id, stream_id, task_string
+            sio=self.sio,
+            target_room=self.target_room,
+            actor=actor,
+            request_id=self.request_id,
+            stream_id=stream_id,
+            text=task_string,
         )
 
     async def handle_task(self, task: Task, event: BaseEvent[DirectorRequest]) -> None:
@@ -113,7 +122,7 @@ class Manager:
         stream_id = str(uuid.uuid4())
         messages = self.prepare_messages(event.data.prompt, task)
         result = await stream_chunks_openai(
-            sid=event.sid,
+            target_room=self.target_room,
             data=messages,
             request_id=self.request_id,
             stream_id=stream_id,

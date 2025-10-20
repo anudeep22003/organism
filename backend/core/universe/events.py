@@ -1,22 +1,20 @@
-
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Generic, TYPE_CHECKING, TypeVar
-
-from pydantic import Field
-
-from core.sockets.types.envelope import AliasedBaseModel
+from typing import TYPE_CHECKING, Generic, TypeVar
 
 if TYPE_CHECKING:
-    from socketio import AsyncServer  # type: ignore[import-untyped]
+    pass  # type: ignore[import-untyped]
+
 
 def get_current_timestamp() -> int:
     return int(datetime.now(timezone.utc).timestamp() * 1000)
 
+
 T = TypeVar("T")
+
 
 @dataclass(frozen=True)
 class BaseEvent(Generic[T]):
-    sid: str 
+    target_room: str
     data: T
     created_at: int = field(default_factory=get_current_timestamp)

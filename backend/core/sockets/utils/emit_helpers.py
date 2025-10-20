@@ -14,17 +14,19 @@ MODELS = Literal["gpt-4o", "gpt-5"]
 
 async def emit_envelope(
     sio: "AsyncServer",
-    sid: str,
+    target_room: str,
     actor: Actor,
     modifier: Literal["start", "chunk", "end"],
     envelope: Envelope,
 ) -> None:
-    await sio.emit(f"s2c.{actor}.stream.{modifier}", envelope.model_dump_json(), to=sid)
+    await sio.emit(
+        f"s2c.{actor}.stream.{modifier}", envelope.model_dump_json(), to=target_room
+    )
 
 
 async def emit_text_start_chunk_end_events(
     sio: "AsyncServer",
-    sid: str,
+    target_room: str,
     actor: Actor,
     request_id: str,
     stream_id: str,
@@ -33,7 +35,7 @@ async def emit_text_start_chunk_end_events(
     seq = 0
     await emit_envelope(
         sio,
-        sid,
+        target_room,
         actor,
         "start",
         Envelope(
@@ -49,7 +51,7 @@ async def emit_text_start_chunk_end_events(
     )
     await emit_envelope(
         sio,
-        sid,
+        target_room,
         actor,
         "chunk",
         Envelope(
@@ -65,7 +67,7 @@ async def emit_text_start_chunk_end_events(
     )
     await emit_envelope(
         sio,
-        sid,
+        target_room,
         actor,
         "end",
         Envelope(

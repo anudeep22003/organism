@@ -19,14 +19,14 @@ MODELS = Literal["gpt-4o", "gpt-5"]
 
 
 async def stream_chunks_static_text(
-    sid: str, request_id: str, text: str, actor: Actor, sio: "AsyncServer"
+    target_room: str, request_id: str, text: str, actor: Actor, sio: "AsyncServer"
 ) -> str:
     stream_id = str(uuid.uuid4())
     text_chunks = text.split("\n")
 
     await emit_envelope(
         sio,
-        sid,
+        target_room,
         actor,
         "start",
         Envelope(
@@ -44,7 +44,7 @@ async def stream_chunks_static_text(
     for seq, chunk in enumerate(text_chunks):
         await emit_envelope(
             sio,
-            sid,
+            target_room,
             actor,
             "chunk",
             Envelope(
@@ -61,7 +61,7 @@ async def stream_chunks_static_text(
 
     await emit_envelope(
         sio,
-        sid,
+        target_room,
         actor,
         "end",
         Envelope(
@@ -80,7 +80,7 @@ async def stream_chunks_static_text(
 
 
 async def stream_chunks_openai(
-    sid: str,
+    target_room: str,
     data: list[Message],
     request_id: str,
     stream_id: str,
@@ -89,11 +89,11 @@ async def stream_chunks_openai(
     sio: "AsyncServer",
     dummy_mode: bool = False,
 ) -> str:
-    logger.info(f"Streamer: streaming chunks for {sid} with data {data}")
+    logger.info(f"Streamer: streaming chunks for {target_room} with data {data}")
 
     if dummy_mode:
         return await stream_chunks_static_text(
-            sid, request_id, "This is a test stream", actor, sio
+            target_room, request_id, "This is a test stream", actor, sio
         )
 
     kwargs: dict[str, Any] = (
@@ -103,7 +103,7 @@ async def stream_chunks_openai(
     # send start envelope
     await emit_envelope(
         sio,
-        sid,
+        target_room,
         actor,
         "start",
         Envelope(
@@ -135,7 +135,7 @@ async def stream_chunks_openai(
             accumulated_content += choice.delta.content
             await emit_envelope(
                 sio,
-                sid,
+                target_room,
                 actor,
                 "chunk",
                 Envelope(
@@ -152,7 +152,7 @@ async def stream_chunks_openai(
         elif choice.finish_reason is not None:
             await emit_envelope(
                 sio,
-                sid,
+                target_room,
                 actor,
                 "end",
                 Envelope(
