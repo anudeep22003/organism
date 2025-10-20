@@ -127,7 +127,7 @@ async def stream_chunks_openai(
     seq = 0
 
     async for chunk in stream:
-        logger.info(f"Streamer: streaming chunk {seq}")
+        logger.trace(f"Streamer: streaming chunk {seq}")
         seq += 1
         choice = chunk.choices[0]
 

@@ -20,7 +20,7 @@ async def handle_chat_stream_start(sid: str, envelope: dict) -> str:
 
     # get or create session
     _ = primary_session_manager.get_session(
-        sid=sid, sio=sio, notify_user=True, dummy_mode=True
+        sid=sid, sio=sio, notify_user=True, dummy_mode=False
     )
 
     new_task_event = BaseEvent[DirectorRequest](
