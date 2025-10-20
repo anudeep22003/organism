@@ -19,9 +19,9 @@ MODELS = Literal["gpt-4o", "gpt-5"]
 
 
 async def stream_chunks_static_text(
-    sid: str, text: str, actor: Actor, sio: "AsyncServer"
+    sid: str, request_id: str, text: str, actor: Actor, sio: "AsyncServer"
 ) -> str:
-    stream_id, request_id = str(uuid.uuid4()), str(uuid.uuid4())
+    stream_id = str(uuid.uuid4())
     text_chunks = text.split("\n")
 
     await emit_envelope(
@@ -87,41 +87,41 @@ async def stream_chunks_openai(
     actor: Actor,
     model: MODELS,
     sio: "AsyncServer",
-    send_start: bool = False,
     dummy_mode: bool = False,
 ) -> str:
     logger.info(f"Streamer: streaming chunks for {sid} with data {data}")
 
-    if send_start:
-        logger.info(f"Streamer: sending start for {sid} with data {data}")
-        await emit_envelope(
-            sio,
-            sid,
-            actor,
-            "start",
-            Envelope(
-                request_id=request_id,
-                stream_id=stream_id,
-                direction="s2c",
-                actor=actor,
-                action="stream",
-                modifier="start",
-                data={"delta": "start"},
-            ),
+    if dummy_mode:
+        return await stream_chunks_static_text(
+            sid, request_id, "This is a test stream", actor, sio
         )
 
     kwargs: dict[str, Any] = (
         {"temperature": 0.7} if model == "gpt-4o" else {"reasoning_effort": "high"}
     )
-    if dummy_mode:
-        return await stream_chunks_static_text(sid, "This is a test stream", actor, sio)
-    else:
-        stream = await async_openai_client.chat.completions.create(
-            model=model,
-            messages=[msg.to_openai_message() for msg in data],
-            stream=True,
-            **kwargs,
-        )
+
+    # send start envelope
+    await emit_envelope(
+        sio,
+        sid,
+        actor,
+        "start",
+        Envelope(
+            request_id=request_id,
+            stream_id=stream_id,
+            direction="s2c",
+            actor=actor,
+            action="stream",
+            modifier="start",
+            data={"delta": "start"},
+        ),
+    )
+    stream = await async_openai_client.chat.completions.create(
+        model=model,
+        messages=[msg.to_openai_message() for msg in data],
+        stream=True,
+        **kwargs,
+    )
 
     accumulated_content = ""
     seq = 0

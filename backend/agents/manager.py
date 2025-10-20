@@ -31,7 +31,9 @@ class Task(AliasedBaseModel):
 
 
 class Manager:
-    def __init__(self, sid: str, sio: "AsyncServer", notify_user: bool) -> None:
+    def __init__(
+        self, sid: str, sio: "AsyncServer", notify_user: bool, dummy_mode: bool = False
+    ) -> None:
         self.sid = sid
         self.sio = sio
         self.actor_name: Actor = "manager"
@@ -39,6 +41,8 @@ class Manager:
         self.task_list: list[Task] = []
         self.task_list_initialized: bool = False
         self.notify_user = notify_user
+        self.dummy_mode = dummy_mode
+        self.request_id = str(uuid.uuid4())
 
     def build_task_list(self, task: str) -> None:
         if self.task_list_initialized:
@@ -93,11 +97,11 @@ class Manager:
         logger.debug("self: updated task:", **task.model_dump())
 
     async def notify_user_of_task_update(self, task: Task) -> None:
-        request_id, stream_id = str(uuid.uuid4()), str(uuid.uuid4())
+        stream_id = str(uuid.uuid4())
         task_string = f"The task {task.task} status has changed to {task.status}."
         actor = "tasknotifier"
         await emit_text_start_chunk_end_events(
-            self.sio, self.sid, actor, request_id, stream_id, task_string
+            self.sio, self.sid, actor, self.request_id, stream_id, task_string
         )
 
     async def handle_task(self, task: Task, event: BaseEvent[DirectorRequest]) -> None:
@@ -106,19 +110,17 @@ class Manager:
             task=task,
             status="in_progress",
         )
-        request_id = str(uuid.uuid4())
         stream_id = str(uuid.uuid4())
         messages = self.prepare_messages(event.data.prompt, task)
         result = await stream_chunks_openai(
             sid=event.sid,
             data=messages,
-            request_id=request_id,
+            request_id=self.request_id,
             stream_id=stream_id,
             actor=self.actor_name,
             model=cast(Literal["gpt-4o", "gpt-5"], self.model.value),
             sio=self.sio,
-            send_start=False,
-            dummy_mode=True,
+            dummy_mode=self.dummy_mode,
         )
         await self.update_task(
             task=task,

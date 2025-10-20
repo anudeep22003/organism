@@ -17,7 +17,12 @@ logger = logger.bind(name=__name__)
 async def handle_chat_stream_start(sid: str, envelope: dict) -> str:
     validated_envelope = Envelope[DirectorRequest].model_validate(envelope)
     logger.info(f"Director: received request: {validated_envelope.data.prompt}")
-    session = primary_session_manager.get_session(sid=sid, sio=sio, notify_user=True)
+
+    # get or create session
+    _ = primary_session_manager.get_session(
+        sid=sid, sio=sio, notify_user=True, dummy_mode=True
+    )
+
     new_task_event = BaseEvent[DirectorRequest](
         sid=sid,
         data=validated_envelope.data,

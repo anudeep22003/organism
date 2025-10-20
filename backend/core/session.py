@@ -21,10 +21,12 @@ class SessionManager(metaclass=SingletonMeta):
         self.sessions: dict[str, Session] = {}
 
     def create_session(
-        self, sid: str, sio: "AsyncServer", notify_user: bool
+        self, sid: str, sio: "AsyncServer", notify_user: bool, dummy_mode: bool = False
     ) -> Session:
         timeline_subscription_key = SubscriptionKey(DirectorRequest, sid)
-        manager = Manager(sid=sid, sio=sio, notify_user=notify_user)
+        manager = Manager(
+            sid=sid, sio=sio, notify_user=notify_user, dummy_mode=dummy_mode
+        )
         primary_timeline.subscribe(
             event_data_type=DirectorRequest, handler=manager.handle_event, sid=sid
         )
@@ -34,9 +36,13 @@ class SessionManager(metaclass=SingletonMeta):
         self.sessions[sid] = session
         return session
 
-    def get_session(self, sid: str, sio: "AsyncServer", notify_user: bool) -> Session:
+    def get_session(
+        self, sid: str, sio: "AsyncServer", notify_user: bool, dummy_mode: bool = False
+    ) -> Session:
         if sid not in self.sessions:
-            return self.create_session(sid=sid, sio=sio, notify_user=notify_user)
+            return self.create_session(
+                sid=sid, sio=sio, notify_user=notify_user, dummy_mode=dummy_mode
+            )
         return self.sessions[sid]
 
     def destroy_session(self, sid: str) -> None:
