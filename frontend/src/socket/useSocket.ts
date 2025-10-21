@@ -9,6 +9,7 @@ import { useMessageStore } from "@/store/useMessageStore";
 export const useSocket = () => {
   const [isConnected, setIsConnected] = useState(false);
   const socketRef = useRef<Socket | null>(null);
+  const [connectionError, setConnectionError] = useState(false);
 
   const updateStreamingMessage = useMessageStore(
     (state) => state.updateStreamingMessage
@@ -94,6 +95,12 @@ export const useSocket = () => {
       setIsConnected(false);
     });
 
+    socket.on("connect_error", (error) => {
+      console.error("Connection error:", error);
+      setIsConnected(false);
+      setConnectionError(true);
+    });
+
     for (const actor of ActorListConst) {
       socket.on(`s2c.${actor}.stream.chunk`, (rawMessage: string) => {
         onStreamChunk(rawMessage);
@@ -119,5 +126,6 @@ export const useSocket = () => {
     isConnected,
     emit,
     socket: socketRef.current,
+    connectionError,
   };
 };

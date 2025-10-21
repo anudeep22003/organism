@@ -1,9 +1,18 @@
 import { HumanArea } from "@/components/HumanArea";
 import { GenerativeArea } from "@/components/GenerativeArea";
 import { useAppContext } from "@/context/AppContext";
+import { useNavigate } from "react-router";
+import { useEffect } from "react";
 
 export default function HumanAiWorkspace() {
-  const { showGenerative } = useAppContext();
+  const { showGenerative, connectionError } = useAppContext();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (connectionError) {
+      navigate("/login");
+    }
+  }, [connectionError, navigate]);
 
   return (
     <div className="h-screen flex flex-col bg-background">

@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { httpClient } from "@/lib/httpClient";
+import { useNavigate } from "react-router";
 
 interface LoginCredentials {
   email: string;
@@ -26,6 +27,7 @@ export default function Login() {
   const [password, setPassword] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
+  const navigate = useNavigate();
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -36,11 +38,12 @@ export default function Login() {
       const credentials: LoginCredentials = { email, password };
       const response = await httpClient.post<LoginResponse>(
         "/api/auth/login",
-        credentials,
+        credentials
       );
 
       // Handle successful login
       console.log("Login successful:", response);
+      navigate("/");
       // Navigate to dashboard or handle token storage here
     } catch (err) {
       const errorMessage =

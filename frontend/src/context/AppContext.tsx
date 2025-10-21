@@ -38,6 +38,7 @@ interface AppContextType {
   emit: (event: string, data?: unknown) => void;
   socket: Socket | null;
   mediaManager: MediaManager | null;
+  connectionError: boolean;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -54,7 +55,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const humanAreaMessages = useHumanAreaMessages();
   const { clearOldMessages } = useMessageStore();
 
-  const { isConnected, emit, socket } = useSocket();
+  const { isConnected, emit, socket, connectionError } = useSocket();
 
   const createMessageHandler = useCallback(
     (sendFn: typeof sendChatMessage) => async () => {
@@ -127,6 +128,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         emit,
         socket,
         mediaManager,
+        connectionError,
       }}
     >
       {children}
