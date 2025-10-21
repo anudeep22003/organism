@@ -1,5 +1,6 @@
 from loguru import logger
 
+from core.auth import verify_session_token
 from core.session import primary_session_manager
 from core.sockets.types.envelope import AliasedBaseModel
 
@@ -13,15 +14,29 @@ class Auth(AliasedBaseModel):
 
 
 @sio.event
-async def connect(sid: str, environ: dict, auth: dict) -> None:
+async def connect(sid: str, environ: dict) -> bool:
     logger.debug("connection established")
     active_connections[sid] = environ
-    auth_model = Auth.model_validate(auth)
-    logger.debug(f"session_id: {auth_model.session_id}")
     logger.debug(f"# of active connections: {len(active_connections)}")
 
+    # we get cookies as a raw string, so it needs to be manually parsed
+    cookies = {}
+    if "HTTP_COOKIE" in environ:
+        cookie_header = environ["HTTP_COOKIE"]
+        for cookie in cookie_header.split("; "):
+            name, value = cookie.strip().split("=", 1)
+            cookies[name] = value
+
+    session_token = cookies.get("session_token", None)
+    if not session_token:
+        logger.debug("No session token found in cookies", sid=sid)
+        return False
+    if not verify_session_token(session_token):
+        logger.debug("Invalid session token", sid=sid)
+        return False
+
     session = primary_session_manager.get_session(
-        session_id=auth_model.session_id,
+        session_id=session_token,
         sid=sid,
         sio=sio,
         notify_user=True,
@@ -31,6 +46,7 @@ async def connect(sid: str, environ: dict, auth: dict) -> None:
     await sio.enter_room(sid, target_room)
     logger.debug(f"joined room: {target_room}")
     logger.debug(f"session: {session}")
+    return True
 
 
 @sio.event
