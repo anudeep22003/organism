@@ -14,7 +14,7 @@ class Auth(AliasedBaseModel):
 
 
 @sio.event
-async def connect(sid: str, environ: dict) -> bool:
+async def connect(sid: str, environ: dict, auth: dict) -> bool:
     logger.debug("connection established")
     active_connections[sid] = environ
     logger.debug(f"# of active connections: {len(active_connections)}")
@@ -35,8 +35,8 @@ async def connect(sid: str, environ: dict) -> bool:
         logger.debug("Invalid session token", sid=sid)
         return False
 
-    session = primary_session_manager.get_session(
-        session_id=session_token,
+    session = primary_session_manager.get_or_create_session_for_token(
+        session_token=session_token,
         sid=sid,
         sio=sio,
         notify_user=True,

@@ -42,8 +42,36 @@ class SessionManager(metaclass=SingletonMeta):
     def __init__(self) -> None:
         self.sessions: dict[SessionId, Session] = {}
         self.sid_to_session: dict[str, Session] = {}
+        self.token_to_session_id: dict[str, SessionId] = {}
 
-    def get_session(
+    def get_or_create_session_for_token(
+        self,
+        session_token: str,
+        sid: str,
+        sio: "AsyncServer",
+        notify_user: bool,
+        dummy_mode: bool = False,
+    ) -> Session:
+        session_id = self.token_to_session_id.get(session_token)
+        if session_id is None:
+            logger.debug(
+                f"No session found for token {session_token}, creating new session"
+            )
+        else:
+            logger.debug(
+                f"Session {session_id} found for token {session_token}, reusing existing session"
+            )
+        session = self.get_or_create_session(
+            session_id=session_id,
+            sid=sid,
+            sio=sio,
+            notify_user=notify_user,
+            dummy_mode=dummy_mode,
+        )
+        self.token_to_session_id[session_token] = session.session_id
+        return session
+
+    def get_or_create_session(
         self,
         session_id: SessionId | None,
         sid: str,
@@ -68,13 +96,15 @@ class SessionManager(metaclass=SingletonMeta):
         logger.debug(f"Current active sessions: {self.sessions.keys()}")
         if session_id is None:
             logger.debug("Creating new session")
-            return self.create_new_session(
+            session = self.create_new_session(
                 session_id=session_id,
                 sid=sid,
                 sio=sio,
                 notify_user=notify_user,
                 dummy_mode=dummy_mode,
             )
+            self.add_sid_to_session(session.session_id, sid)
+            return session
         if session_id and session_id in self.sessions:
             logger.debug(f"Session {session_id} found, adding sid {sid}")
             return self.add_sid_to_session(session_id, sid)
@@ -82,19 +112,21 @@ class SessionManager(metaclass=SingletonMeta):
             logger.debug(
                 f"Session {session_id} not found, creating new session with id: {session_id}"
             )
-            return self.create_new_session(
+            session = self.create_new_session(
                 sid=sid,
                 sio=sio,
                 notify_user=notify_user,
                 dummy_mode=dummy_mode,
                 session_id=session_id,
             )
+            self.add_sid_to_session(session.session_id, sid)
+            return session
 
     def get_session_id_from_sid(self, sid: str) -> SessionId:
         if sid not in self.sid_to_session:
             raise SessionNotFoundError(sid)
         return self.sid_to_session[sid]
-    
+
     def get_target_room_from_session_id(self, session_id: SessionId) -> str:
         if session_id not in self.sessions:
             raise SessionNotFoundError(session_id)
