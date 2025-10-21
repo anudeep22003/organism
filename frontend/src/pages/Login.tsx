@@ -36,7 +36,7 @@ export default function Login() {
       const credentials: LoginCredentials = { email, password };
       const response = await httpClient.post<LoginResponse>(
         "/api/auth/login",
-        credentials
+        credentials,
       );
 
       // Handle successful login
