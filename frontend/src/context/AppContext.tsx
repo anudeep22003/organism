@@ -12,10 +12,6 @@ import { SocketProvider } from "./SocketContext";
 import { ChatProvider } from "./ChatContext";
 
 interface AppContextType {
-  inputText: string;
-  setInputText: (
-    inputText: string | ((prevText: string) => string)
-  ) => void;
   showGenerative: boolean;
   setShowGenerative: (showGenerative: boolean) => void;
   mediaManager: MediaManager | null;
@@ -24,7 +20,6 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | null>(null);
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
-  const [inputText, setInputText] = useState("");
   const [showGenerative, setShowGenerative] = useState(false);
   const { mediaManager } = useAudio();
   // Get store functions
@@ -42,8 +37,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   return (
     <AppContext.Provider
       value={{
-        inputText,
-        setInputText,
         showGenerative,
         setShowGenerative,
         mediaManager,
