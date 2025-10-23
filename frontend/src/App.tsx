@@ -1,11 +1,11 @@
 import { RouterProvider } from "react-router";
-import { AppProvider } from "@/context/AppContext";
+import { RootProvider } from "@/context/RootProvider";
 import { router } from "@/router";
 
 export default function App() {
   return (
-    <AppProvider>
+    <RootProvider>
       <RouterProvider router={router} />
-    </AppProvider>
+    </RootProvider>
   );
 }

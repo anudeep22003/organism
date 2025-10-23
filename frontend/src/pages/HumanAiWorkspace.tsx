@@ -1,12 +1,12 @@
 import { HumanArea } from "@/components/HumanArea";
 import { GenerativeArea } from "@/components/GenerativeArea";
-import { useAppContext } from "@/context/AppContext";
+import { useUIContext } from "@/context/UIContext";
 import { useNavigate } from "react-router";
 import { useEffect } from "react";
 import { useSocketContext } from "@/context/SocketContext";
 
 export default function HumanAiWorkspace() {
-  const { showGenerative } = useAppContext();
+  const { showGenerative } = useUIContext();
   const { connectionError } = useSocketContext();
   const navigate = useNavigate();
 

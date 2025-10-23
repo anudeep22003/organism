@@ -6,12 +6,12 @@ import AudioWaveform, {
 } from "../audio/components/AudioWaveform";
 import { mediaLogger } from "@/lib/logger";
 import { useChatContext } from "@/context/ChatContext";
-import { useAppContext } from "@/context/AppContext";
+import { useMediaContext } from "@/context/MediaContext";
 
 export const MessageInput = () => {
   const { inputText, setInputText, handleDirectorSendClick } =
     useChatContext();
-  const { mediaManager } = useAppContext();
+  const { mediaManager } = useMediaContext();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isRecording, setIsRecording] = useState(false);
   const waveformRef = useRef<AudioWaveformHandle>(null);
