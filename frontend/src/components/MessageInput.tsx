@@ -1,4 +1,3 @@
-import { useAppContext } from "@/context/AppContext";
 import { Button } from "@/components/ui/button";
 import { useRef, useEffect, useCallback, useState } from "react";
 import { MicIcon } from "lucide-react";
@@ -6,15 +5,13 @@ import AudioWaveform, {
   type AudioWaveformHandle,
 } from "../audio/components/AudioWaveform";
 import { mediaLogger } from "@/lib/logger";
+import { useChatContext } from "@/context/ChatContext";
+import { useAppContext } from "@/context/AppContext";
 
 export const MessageInput = () => {
-  const {
-    inputText,
-    setInputText,
-    handleInputSendClick,
-    handleDirectorSendClick,
-    mediaManager,
-  } = useAppContext();
+  const { inputText, setInputText, handleDirectorSendClick } =
+    useChatContext();
+  const { mediaManager } = useAppContext();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isRecording, setIsRecording] = useState(false);
   const waveformRef = useRef<AudioWaveformHandle>(null);

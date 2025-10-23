@@ -2,25 +2,14 @@ import {
   createContext,
   useContext,
   useState,
-  useCallback,
   useEffect,
   type ReactNode,
 } from "react";
-import { useSocket } from "@/socket/useSocket";
-import { Socket } from "socket.io-client";
-import {
-  useHumanAreaMessages,
-  useMessageStore,
-} from "@/store/useMessageStore";
-import {
-  sendChatMessage,
-  sendClaudeMessage,
-  sendCodeMessage,
-  sendDirectorMessage,
-  sendWriterMessage,
-} from "../socket/messageSendHandlers";
+import { useMessageStore } from "@/store/useMessageStore";
 import type { MediaManager } from "@/audio/services/mediaManager";
 import useAudio from "@/audio/hooks/useAudio";
+import { SocketProvider } from "./SocketContext";
+import { ChatProvider } from "./ChatContext";
 
 interface AppContextType {
   inputText: string;
@@ -29,16 +18,7 @@ interface AppContextType {
   ) => void;
   showGenerative: boolean;
   setShowGenerative: (showGenerative: boolean) => void;
-  handleInputSendClick: () => Promise<void>;
-  handleCodeSendClick: () => Promise<void>;
-  handleWriterSendClick: () => Promise<void>;
-  handleClaudeSendClick: () => Promise<void>;
-  handleDirectorSendClick: () => Promise<void>;
-  isConnected: boolean;
-  emit: (event: string, data?: unknown) => void;
-  socket: Socket | null;
   mediaManager: MediaManager | null;
-  connectionError: boolean;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -48,56 +28,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [showGenerative, setShowGenerative] = useState(false);
   const { mediaManager } = useAudio();
   // Get store functions
-  const createStreamMessage = useMessageStore(
-    (state) => state.createStreamMessage
-  );
-  const addMessage = useMessageStore((state) => state.addMessage);
-  const humanAreaMessages = useHumanAreaMessages();
+
   const { clearOldMessages } = useMessageStore();
-
-  const { isConnected, emit, socket, connectionError } = useSocket();
-
-  const createMessageHandler = useCallback(
-    (sendFn: typeof sendChatMessage) => async () => {
-      await sendFn(
-        inputText,
-        setInputText,
-        emit,
-        addMessage,
-        humanAreaMessages,
-        createStreamMessage
-      );
-    },
-    [
-      inputText,
-      setInputText,
-      emit,
-      addMessage,
-      humanAreaMessages,
-      createStreamMessage,
-    ]
-  );
-
-  const handleCodeSendClick = useCallback(
-    () => createMessageHandler(sendCodeMessage)(),
-    [createMessageHandler]
-  );
-
-  const handleDirectorSendClick = useCallback(
-    () => createMessageHandler(sendDirectorMessage)(),
-    [createMessageHandler]
-  );
-
-  const handleWriterSendClick = useCallback(
-    () => createMessageHandler(sendWriterMessage)(),
-    [createMessageHandler]
-  );
-
-  const handleClaudeSendClick = useCallback(
-    () => createMessageHandler(sendClaudeMessage)(),
-    [createMessageHandler]
-  );
-
   // Periodic cleanup of old messages
   useEffect(() => {
     const interval = setInterval(() => {
@@ -107,11 +39,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     return () => clearInterval(interval);
   }, [clearOldMessages]);
 
-  const handleInputSendClick = useCallback(
-    () => createMessageHandler(sendChatMessage)(),
-    [createMessageHandler]
-  );
-
   return (
     <AppContext.Provider
       value={{
@@ -119,19 +46,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setInputText,
         showGenerative,
         setShowGenerative,
-        handleCodeSendClick,
-        handleWriterSendClick,
-        handleClaudeSendClick,
-        handleInputSendClick,
-        handleDirectorSendClick,
-        isConnected,
-        emit,
-        socket,
         mediaManager,
-        connectionError,
       }}
     >
-      {children}
+      <SocketProvider>
+        <ChatProvider>{children}</ChatProvider>
+      </SocketProvider>
     </AppContext.Provider>
   );
 };

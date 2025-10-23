@@ -3,9 +3,11 @@ import { GenerativeArea } from "@/components/GenerativeArea";
 import { useAppContext } from "@/context/AppContext";
 import { useNavigate } from "react-router";
 import { useEffect } from "react";
+import { useSocketContext } from "@/context/SocketContext";
 
 export default function HumanAiWorkspace() {
-  const { showGenerative, connectionError } = useAppContext();
+  const { showGenerative } = useAppContext();
+  const { connectionError } = useSocketContext();
   const navigate = useNavigate();
 
   useEffect(() => {
