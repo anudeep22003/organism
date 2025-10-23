@@ -6,22 +6,19 @@ import {
   type ReactNode,
 } from "react";
 import { useMessageStore } from "@/store/useMessageStore";
-import type { MediaManager } from "@/audio/services/mediaManager";
-import useAudio from "@/audio/hooks/useAudio";
 import { SocketProvider } from "./SocketContext";
-import { ChatProvider } from "./ChatContext";
+import MediaContextProvider from "./MediaContext";
+import ChatProvider from "./ChatContext";
 
 interface AppContextType {
   showGenerative: boolean;
   setShowGenerative: (showGenerative: boolean) => void;
-  mediaManager: MediaManager | null;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [showGenerative, setShowGenerative] = useState(false);
-  const { mediaManager } = useAudio();
   // Get store functions
 
   const { clearOldMessages } = useMessageStore();
@@ -39,11 +36,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       value={{
         showGenerative,
         setShowGenerative,
-        mediaManager,
       }}
     >
       <SocketProvider>
-        <ChatProvider>{children}</ChatProvider>
+        <MediaContextProvider>
+          <ChatProvider>{children}</ChatProvider>
+        </MediaContextProvider>
       </SocketProvider>
     </AppContext.Provider>
   );

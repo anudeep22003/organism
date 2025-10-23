@@ -32,7 +32,7 @@ interface ChatContextType {
 
 const ChatContext = createContext<ChatContextType | null>(null);
 
-export const ChatProvider = ({ children }: { children: ReactNode }) => {
+const ChatProvider = ({ children }: { children: ReactNode }) => {
   const [inputText, setInputText] = useState("");
 
   const { emit } = useSocketContext();
@@ -116,3 +116,5 @@ export const useChatContext = () => {
   }
   return chatContext;
 };
+
+export default ChatProvider;
