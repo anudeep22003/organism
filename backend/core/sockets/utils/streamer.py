@@ -1,21 +1,20 @@
 import uuid
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any
 
 from core.sockets.utils.emit_helpers import emit_envelope
 
 if TYPE_CHECKING:
-    from socketio import AsyncServer  # type: ignore[import-untyped]
+    from socketio import AsyncServer
 
 from loguru import logger
 
 from core.sockets.types.envelope import Actor, Envelope
+from core.sockets.types.intlligence_models import ModelsEnum
 from core.sockets.types.message import Message
 
 from .. import async_openai_client
 
 logger = logger.bind(name=__name__)
-
-MODELS = Literal["gpt-4o", "gpt-5"]
 
 
 async def stream_chunks_static_text(
@@ -85,11 +84,13 @@ async def stream_chunks_openai(
     request_id: str,
     stream_id: str,
     actor: Actor,
-    model: MODELS,
+    model: ModelsEnum,
     sio: "AsyncServer",
     dummy_mode: bool = False,
 ) -> str:
     logger.info(f"Streamer: streaming chunks for {target_room} with data {data}")
+
+    model_str = model.value
 
     if dummy_mode:
         return await stream_chunks_static_text(
@@ -97,7 +98,7 @@ async def stream_chunks_openai(
         )
 
     kwargs: dict[str, Any] = (
-        {"temperature": 0.7} if model == "gpt-4o" else {"reasoning_effort": "high"}
+        {"temperature": 0.7} if model_str == "gpt-4o" else {"reasoning_effort": "high"}
     )
 
     # send start envelope
@@ -117,7 +118,7 @@ async def stream_chunks_openai(
         ),
     )
     stream = await async_openai_client.chat.completions.create(
-        model=model,
+        model=model_str,
         messages=[msg.to_openai_message() for msg in data],
         stream=True,
         **kwargs,

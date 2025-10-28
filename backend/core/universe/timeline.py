@@ -1,7 +1,6 @@
 import asyncio
-from ast import TypeVar
 from collections import defaultdict
-from typing import Any, Awaitable, Callable, Type
+from typing import Any, Awaitable, Callable, Type, TypeVar
 
 from loguru import logger
 

@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
-    from socketio import AsyncServer  # type: ignore[import-untyped]
+    from socketio import AsyncServer
 
 from loguru import logger
 

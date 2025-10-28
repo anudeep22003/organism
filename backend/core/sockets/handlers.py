@@ -1,6 +1,6 @@
 from loguru import logger
 
-from core.auth import verify_session_token
+from core.auth.token_manager import verify_session_token
 from core.session import primary_session_manager
 from core.sockets.types.envelope import AliasedBaseModel
 

@@ -146,6 +146,7 @@ class StorageBucketClient:
         try:
             content = blob.download_as_text()
             logger.info(f"Read text from: gs://{self.bucket_name}/{blob_name}")
+            content = content if isinstance(content, str) else "None"
             return content
         except NotFound:
             logger.warning(f"Blob not found: gs://{self.bucket_name}/{blob_name}")
@@ -166,7 +167,7 @@ class StorageBucketClient:
         logger.debug(
             f"Existence check for gs://{self.bucket_name}/{blob_name}: {exists}"
         )
-        return exists
+        return bool(exists)
 
     def list_blobs(
         self, prefix: str = "", delimiter: Optional[str] = None

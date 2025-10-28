@@ -19,7 +19,7 @@ def setup_logging(
 
     if is_cloud_run:
         # Cloud Run: Use structured JSON logging to stdout
-        def json_formatter(record):
+        def json_formatter(record: dict) -> str:
             """Format log record as JSON for Cloud Run."""
             severity_mapping = {
                 "TRACE": "DEBUG",
@@ -55,7 +55,7 @@ def setup_logging(
 
         logger.add(
             sys.stdout,
-            format=json_formatter,
+            format=json_formatter,  # type: ignore[arg-type]
             level=level.upper(),
             backtrace=True,
             diagnose=True,
@@ -96,7 +96,7 @@ def setup_logging(
                 )
 
 
-def get_logger(name: Optional[str] = None):
+def get_logger(name: Optional[str] = None):  # type: ignore[no-untyped-def]
     """Get a logger instance for the given name."""
     if name:
         return logger.bind(name=name)

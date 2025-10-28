@@ -1,9 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Generic, TypeVar
-
-if TYPE_CHECKING:
-    pass  # type: ignore[import-untyped]
+from typing import Generic, TypeVar
 
 
 def get_current_timestamp() -> int:

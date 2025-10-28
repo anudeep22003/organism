@@ -1,7 +1,7 @@
 import os
 from typing import AsyncGenerator
 
-import socketio  # type: ignore[import-untyped]
+import socketio
 from fastapi import FastAPI
 from fastapi.concurrency import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
@@ -44,7 +44,7 @@ def set_default_env_vars() -> None:
 
 
 @asynccontextmanager
-async def lifecycle_manager(self) -> AsyncGenerator[None, None]:
+async def lifecycle_manager(app: FastAPI) -> AsyncGenerator[None, None]:
     # Setup logging first
     setup_logging(level="DEBUG", json_format=True)
 
@@ -69,7 +69,7 @@ fastapi_app = FastAPI(lifespan=lifecycle_manager)
 
 fastapi_app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

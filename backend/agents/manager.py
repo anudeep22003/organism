@@ -16,7 +16,7 @@ from core.sockets.utils.streamer import stream_chunks_openai
 from core.universe.events import BaseEvent
 
 if TYPE_CHECKING:
-    from socketio import AsyncServer  # type: ignore[import-untyped]
+    from socketio import AsyncServer
 
 logger = logger.bind(name=__name__)
 
@@ -64,7 +64,7 @@ class Manager:
 
     def get_next_task(
         self,
-    ) -> Task:
+    ) -> Task | None:
         for task in self.task_list:
             if task.status != "completed":
                 return task
@@ -95,7 +95,7 @@ class Manager:
     ) -> None:
         """Update the task status and result. Notify the user if self.notify_user is True."""
         task.status = status
-        task.result = result
+        task.result = result or ""
         if self.notify_user:
             await self.notify_user_of_task_update(task=task)
         logger.debug("self: updated task:", **task.model_dump())
@@ -103,7 +103,7 @@ class Manager:
     async def notify_user_of_task_update(self, task: Task) -> None:
         stream_id = str(uuid.uuid4())
         task_string = f"The task {task.task} status has changed to {task.status}."
-        actor = "tasknotifier"
+        actor: Actor = "tasknotifier"
         await emit_text_start_chunk_end_events(
             sio=self.sio,
             target_room=self.target_room,
@@ -127,7 +127,7 @@ class Manager:
             request_id=self.request_id,
             stream_id=stream_id,
             actor=self.actor_name,
-            model=cast(Literal["gpt-4o", "gpt-5"], self.model.value),
+            model=self.model,
             sio=self.sio,
             dummy_mode=self.dummy_mode,
         )

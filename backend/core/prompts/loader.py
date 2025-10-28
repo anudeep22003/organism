@@ -10,10 +10,11 @@ logger = logger.bind(name=__name__)
 
 _PROMPT_CACHE: dict[str, dict[str, Any]] = {}
 
+
 def load_yaml(file_name: str) -> dict[str, Any]:
     path = Path("core/prompts") / file_name
     with open(path, "r") as f:
-        return yaml.safe_load(f)
+        return yaml.safe_load(f)  # type: ignore[no-any-return]
 
 
 def load_prompt(file_name: str, key: str) -> str:
@@ -26,10 +27,20 @@ def load_prompt(file_name: str, key: str) -> str:
     Returns:
         The prompt string
     """
-    return load_yaml(file_name)[key]
+    prompt = load_yaml(file_name)[key]
+    if isinstance(prompt, str):
+        return prompt
+    else:
+        raise ValueError(f"Prompt {key} is not a string")
+
 
 def load_prompt_list(file_name: str, key: str) -> list[str]:
-    return load_yaml(file_name)[key]
+    prompt_list = load_yaml(file_name)[key]
+    if isinstance(prompt_list, list):
+        return prompt_list
+    else:
+        raise ValueError(f"Prompt list {key} is not a list")
+
 
 if __name__ == "__main__":
     print(load_prompt("manager.yaml", "task_list"))

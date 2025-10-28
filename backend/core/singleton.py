@@ -8,7 +8,7 @@ class SingletonMeta(type):
     _instances: dict[type, Any] = {}
     _lock = threading.Lock()
 
-    def __call__(cls, *args, **kwargs):
+    def __call__(cls, *args: Any, **kwargs: Any) -> Any:
         if cls not in cls._instances:
             with cls._lock:
                 if cls not in cls._instances:

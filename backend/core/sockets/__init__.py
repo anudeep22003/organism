@@ -1,5 +1,5 @@
 import instructor
-import socketio  # type: ignore[import-untyped]
+import socketio
 from loguru import logger
 from openai import AsyncOpenAI
 

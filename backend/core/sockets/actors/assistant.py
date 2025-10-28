@@ -1,18 +1,15 @@
-from typing import Literal
-
 from loguru import logger
 from pydantic import Field
 
 from core.sockets.actors.base import BaseActor
 from core.sockets.types.envelope import AliasedBaseModel
+from core.sockets.types.intlligence_models import ModelsEnum
 from core.sockets.types.message import Message
 from core.sockets.utils.streamer import stream_chunks_openai
 
 from .. import sio
 
 logger = logger.bind(name=__name__)
-
-MODEL: Literal["gpt-4o", "gpt-5"] = "gpt-4o"
 
 
 class AssistantRequest(AliasedBaseModel):
@@ -22,9 +19,11 @@ class AssistantRequest(AliasedBaseModel):
 
 
 class AssistantActor(BaseActor[AssistantRequest]):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
-            actor_name="assistant", model=MODEL, stream_chunks=stream_chunks_openai
+            actor_name="assistant",
+            stream_chunks=stream_chunks_openai,
+            model=ModelsEnum.GPT_4O,
         )
 
     def prepare_messages(self, validated_request: AssistantRequest) -> list[Message]:

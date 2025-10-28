@@ -4,7 +4,7 @@ import os
 import tempfile
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import Any, AsyncIterator
 
 from claude_code_sdk import (
     ClaudeCodeOptions,
@@ -14,10 +14,17 @@ from claude_code_sdk import (
     ToolUseBlock,
 )
 from claude_code_sdk import Message as ClaudeSDKMessage
+from claude_code_sdk.types import Message
 from loguru import logger
 from pydantic import Field, ValidationError
 
-from core.sockets.types.envelope import AckFail, AckOk, AliasedBaseModel, Envelope, Error
+from core.sockets.types.envelope import (
+    AckFail,
+    AckOk,
+    AliasedBaseModel,
+    Envelope,
+    Error,
+)
 
 from .. import sio
 
@@ -45,7 +52,7 @@ class ClaudeSDKActor:
 
     def handle_stream_start(self, sid: str, envelope: dict) -> str:
         try:
-            validated_envelope = Envelope[ClaudeSDKRequest].model_validate(envelope)  # type: ignore
+            validated_envelope = Envelope[ClaudeSDKRequest].model_validate(envelope)
 
             if validated_envelope.request_id is None:
                 return self._ack_fail("The envelope is missing request_id")
@@ -118,7 +125,11 @@ class ClaudeSDKActor:
         )
 
     async def _process_stream(
-        self, stream, request_id: str, stream_id: str, sid: str
+        self,
+        stream: AsyncIterator[Message],
+        request_id: str,
+        stream_id: str,
+        sid: str,
     ) -> None:
         """Process the stream of chunks from Claude SDK."""
         seq = 0
@@ -190,7 +201,12 @@ class ClaudeSDKActor:
         return "\n```json\n" + json.dumps(tool_input) + "\n```\n"
 
     def _create_chunk_envelope(
-        self, request_id: str, stream_id: str, seq: int, sid: str, data: dict
+        self,
+        request_id: str,
+        stream_id: str,
+        seq: int,
+        sid: str,
+        data: dict,
     ) -> str:
         """Create a standardized chunk envelope."""
         envelope = Envelope(

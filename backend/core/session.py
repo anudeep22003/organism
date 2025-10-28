@@ -10,7 +10,7 @@ from core.singleton import SingletonMeta
 from core.universe.timeline import SubscriptionKey, primary_timeline
 
 if TYPE_CHECKING:
-    from socketio import AsyncServer  # type: ignore[import-untyped]
+    from socketio import AsyncServer
 
 SessionId = str
 
@@ -41,7 +41,7 @@ class SessionAlreadyExistsError(Exception):
 class SessionManager(metaclass=SingletonMeta):
     def __init__(self) -> None:
         self.sessions: dict[SessionId, Session] = {}
-        self.sid_to_session: dict[str, Session] = {}
+        self.sid_to_session_id: dict[str, SessionId] = {}
         self.token_to_session_id: dict[str, SessionId] = {}
 
     def get_or_create_session_for_token(
@@ -121,11 +121,12 @@ class SessionManager(metaclass=SingletonMeta):
             )
             self.add_sid_to_session(session.session_id, sid)
             return session
+        raise SessionNotFoundError(session_id)
 
     def get_session_id_from_sid(self, sid: str) -> SessionId:
-        if sid not in self.sid_to_session:
+        if sid not in self.sid_to_session_id:
             raise SessionNotFoundError(sid)
-        return self.sid_to_session[sid]
+        return self.sid_to_session_id[sid]
 
     def get_target_room_from_session_id(self, session_id: SessionId) -> str:
         if session_id not in self.sessions:
@@ -137,14 +138,14 @@ class SessionManager(metaclass=SingletonMeta):
             raise SessionNotFoundError(session_id)
         session = self.sessions[session_id]
         session.sids.add(sid)
-        self.sid_to_session[sid] = session_id
+        self.sid_to_session_id[sid] = session_id
         return session
 
     def remove_sid_from_session(self, sid: str) -> None:
-        if sid not in self.sid_to_session:
+        if sid not in self.sid_to_session_id:
             raise SessionNotFoundError(sid)
 
-        session_id = self.sid_to_session.pop(sid)
+        session_id = self.sid_to_session_id.pop(sid)
         logger.debug(f"removed sid: {sid} from sid_to_session")
         session = self.sessions[session_id]
         session.sids.discard(sid)
@@ -190,7 +191,6 @@ class SessionManager(metaclass=SingletonMeta):
             primary_timeline.unsubscribe(
                 subscription_key=session.timeline_subscription_key
             )
-            return session
 
 
 primary_session_manager = SessionManager()

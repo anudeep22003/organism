@@ -1,7 +1,7 @@
 import asyncio
 import uuid
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Generic, Literal, Protocol, Type, TypeVar
+from typing import TYPE_CHECKING, Generic, Protocol, Type, TypeVar
 
 from loguru import logger
 from pydantic import BaseModel, ValidationError
@@ -13,12 +13,14 @@ from core.sockets.types.envelope import (
     Envelope,
     Error,
 )
+from core.sockets.types.intlligence_models import ModelsEnum
 from core.sockets.types.message import Message
 
-if TYPE_CHECKING:
-    from socketio import AsyncServer  # type: ignore[import-untyped]
+DEFAULT_MODEL = ModelsEnum.GPT_4O
 
-MODEL_TYPE = Literal["gpt-4o", "gpt-5"]
+if TYPE_CHECKING:
+    from socketio import AsyncServer
+
 logger = logger.bind(name=__name__)
 
 T = TypeVar("T", bound=BaseModel)
@@ -27,19 +29,22 @@ T = TypeVar("T", bound=BaseModel)
 class StreamChunks(Protocol):
     async def __call__(
         self,
-        sid: str,
-        messages: list[Message],
+        target_room: str,
+        data: list[Message],
         request_id: str,
         stream_id: str,
         actor: Actor,
-        model: MODEL_TYPE,
+        model: ModelsEnum,
         sio: "AsyncServer",
-    ) -> None: ...
+    ) -> str: ...
 
 
 class BaseActor(ABC, Generic[T]):
     def __init__(
-        self, actor_name: Actor, model: MODEL_TYPE, stream_chunks: StreamChunks
+        self,
+        actor_name: Actor,
+        stream_chunks: StreamChunks,
+        model: ModelsEnum = DEFAULT_MODEL,
     ):
         self.actor_name = actor_name
         self.model = model

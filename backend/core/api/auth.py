@@ -4,7 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, Cookie, Request, Response
 from loguru import logger
 
-from core.auth import register_session_token, verify_session_token
+from core.auth.token_manager import register_session_token, verify_session_token
 from core.sockets.types.envelope import AliasedBaseModel
 
 router = APIRouter(prefix="/auth", tags=["auth"])
