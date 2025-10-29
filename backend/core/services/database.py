@@ -1,6 +1,7 @@
 import asyncio
 import random
 
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -22,7 +23,9 @@ class DummyTest(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     dummy_text: Mapped[str] = mapped_column(
-        default=lambda: " ".join(random.choices(seed_text.split(), k=random.randint(10, 1000)))
+        default=lambda: " ".join(
+            random.choices(seed_text.split(), k=random.randint(10, 1000))
+        )
     )
 
     def __repr__(self) -> str:
@@ -42,6 +45,14 @@ async def create_dummy_data() -> None:
             await session.commit()
 
 
+async def drop_dummy_tables() -> None:
+    async with AsyncSession(async_db_engine) as session:
+        statement = delete(DummyTest).where(DummyTest.id.between(1, 38))
+        await session.execute(statement)
+        await session.commit()
+
+
 if __name__ == "__main__":
     asyncio.run(create_dummy_tables())
     asyncio.run(create_dummy_data())
+    asyncio.run(drop_dummy_tables())
