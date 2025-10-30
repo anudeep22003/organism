@@ -16,8 +16,18 @@ class UserSchemaCreate(UserSchemaBase):
     password: str
 
 
+class UserSchemaSignin(UserSchemaBase):
+    password: str
+
+
 class UserSchema(UserSchemaBase):
     id: uuid.UUID
     created_at: datetime
     updated_at: datetime
     meta: dict
+
+
+class UserResponse(UserSchemaBase):
+    email: str
+    id: uuid.UUID
+    updated_at: datetime

@@ -1,3 +1,5 @@
+from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from loguru import logger
 from passlib.context import CryptContext  # type: ignore[import-untyped]
@@ -5,9 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import select
 
 from core.services.database import get_async_db_session
+from core.sockets.types.envelope import AliasedBaseModel
 
 from .models import User
-from .schemas import UserSchema, UserSchemaCreate
+from .schemas import UserResponse, UserSchemaCreate, UserSchemaSignin
 
 logger = logger.bind(name=__name__)
 
@@ -25,6 +28,17 @@ SAFE_HEADERS_TO_STORE = {
 }
 
 
+class LoginResponse(AliasedBaseModel):
+    user: UserResponse | None = None
+    status_code: Literal[
+        "SUCCESS",
+        "USER_NOT_FOUND",
+        "INVALID_CREDENTIALS",
+        "USER_ALREADY_EXISTS",
+        "INTERNAL_ERROR",
+    ]
+
+
 def get_safe_headers(request: Request) -> dict:
     """Extract only safe, non-sensitive headers from the request."""
     return {
@@ -34,35 +48,54 @@ def get_safe_headers(request: Request) -> dict:
     }
 
 
-@router.post("/login2", response_model=UserSchema)
+@router.post("/signin", response_model=LoginResponse)
 async def login(
     response: Response,
     request: Request,
-    body: UserSchemaCreate,
+    credentials: UserSchemaSignin,
     session: AsyncSession = Depends(get_async_db_session),
-) -> UserSchema:
-    select_user = select(User).where(User.email == body.email)
-    user = await session.scalar(select_user)
-    if not user:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-    return UserSchema.model_validate(user)
+) -> LoginResponse:
+    try:
+        select_user = select(User).where(User.email == credentials.email)
+        user = await session.scalar(select_user)
+        if not user:
+            return LoginResponse(status_code="USER_NOT_FOUND")
+        # verify password
+        if not pwd_context.verify(credentials.password, user.password_hash):
+            return LoginResponse(status_code="INVALID_CREDENTIALS")
+        # update user metadata
+        user.meta = get_safe_headers(request)
+        await session.commit()
+        await session.refresh(user)
+        return LoginResponse(
+            user=UserResponse.model_validate(user), status_code="SUCCESS"
+        )
+    except Exception as e:
+        logger.error(f"Error signing in user: {e}")
+        return LoginResponse(status_code="INTERNAL_ERROR")
 
 
-@router.post("/login", response_model=UserSchema)
-async def register(
+@router.post("/signup", response_model=LoginResponse)
+async def signup(
     response: Response,
     request: Request,
     body: UserSchemaCreate,
     session: AsyncSession = Depends(get_async_db_session),
-) -> UserSchema:
+) -> LoginResponse:
     try:
+        select_user = select(User).where(User.email == body.email)
+        user = await session.scalar(select_user)
+        if user:
+            return LoginResponse(status_code="USER_ALREADY_EXISTS")
         password_hash = pwd_context.hash(body.password)
         metadata = get_safe_headers(request)
         user = User(email=body.email, password_hash=password_hash, meta=metadata)
         session.add(user)
         await session.commit()
         await session.refresh(user)
-        return UserSchema.model_validate(user)
+        return LoginResponse(
+            user=UserResponse.model_validate(user), status_code="SUCCESS"
+        )
     except Exception as e:
         logger.error(f"Error registering user: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
