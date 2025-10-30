@@ -57,7 +57,7 @@ async def register(
 ) -> UserSchema:
     try:
         password_hash = pwd_context.hash(body.password)
-        metadata = dict(request.headers)
+        metadata = get_safe_headers(request)
         user = User(email=body.email, password_hash=password_hash, meta=metadata)
         session.add(user)
         await session.commit()
