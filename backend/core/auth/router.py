@@ -1,16 +1,37 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from loguru import logger
+from passlib.context import CryptContext  # type: ignore[import-untyped]
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import select
 
-from core.auth.schemas import UserSchema, UserSchemaCreate
 from core.services.database import get_async_db_session
+
+from .models import User
+from .schemas import UserSchema, UserSchemaCreate
 
 logger = logger.bind(name=__name__)
 
-from .models import User
+pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+SAFE_HEADERS_TO_STORE = {
+    "user-agent",
+    "referer",
+    "accept-language",
+    "sec-ch-ua",  # The browser's brand and version information in a structured format.
+    "sec-ch-ua-mobile",  # Whether the browser is running on a mobile device.
+    "sec-ch-ua-platform",  # The platform the browser is running on.
+}
+
+
+def get_safe_headers(request: Request) -> dict:
+    """Extract only safe, non-sensitive headers from the request."""
+    return {
+        key: request.headers.get(key)
+        for key in SAFE_HEADERS_TO_STORE
+        if request.headers.get(key) is not None
+    }
 
 
 @router.post("/login2", response_model=UserSchema)
@@ -35,7 +56,9 @@ async def register(
     session: AsyncSession = Depends(get_async_db_session),
 ) -> UserSchema:
     try:
-        user = User(email=body.email, password=body.password)
+        password_hash = pwd_context.hash(body.password)
+        metadata = dict(request.headers)
+        user = User(email=body.email, password_hash=password_hash, meta=metadata)
         session.add(user)
         await session.commit()
         await session.refresh(user)

@@ -25,6 +25,9 @@ dependencies = [
     "psycopg>=3.2.12",
     "alembic>=1.17.1",
     "psycopg-binary>=3.2.12",
+    "passlib>=1.7.4",
+    "argon2-cffi>=25.1.0",
+    "greenlet>=3.2.4",
 ]
 
 [dependency-groups]
@@ -142,7 +145,6 @@ docstring-code-line-length = "dynamic"
 [tool.uv.sources]
 claude-code-sdk = { git = "https://github.com/anthropics/claude-code-sdk-python.git" }
 
-
 [tool.alembic]
 
 # path to migration scripts.
@@ -158,9 +160,7 @@ script_location = "%(here)s/alembic"
 # file_template = "%%(year)d_%%(month).2d_%%(day).2d_%%(hour).2d%%(minute).2d-%%(rev)s_%%(slug)s"
 
 # additional paths to be prepended to sys.path. defaults to the current working directory.
-prepend_sys_path = [
-    "."
-]
+prepend_sys_path = ["."]
 
 # timezone to use when rendering the date within the migration file
 # as well as the filename.
@@ -224,4 +224,3 @@ prepend_sys_path = [
 # type = "exec"
 # executable = "ruff"
 # options = "check --fix REVISION_SCRIPT_FILENAME"
-

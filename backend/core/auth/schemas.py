@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 
 from pydantic import ConfigDict
@@ -16,6 +17,7 @@ class UserSchemaCreate(UserSchemaBase):
 
 
 class UserSchema(UserSchemaBase):
-    id: int
+    id: uuid.UUID
     created_at: datetime
     updated_at: datetime
+    meta: dict
