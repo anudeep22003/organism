@@ -9,8 +9,8 @@ from sqlalchemy.sql import select
 from core.services.database import get_async_db_session
 from core.sockets.types.envelope import AliasedBaseModel
 
-from .models import User
-from .schemas import UserResponse, UserSchemaCreate, UserSchemaSignin
+from .models.user import User
+from .schemas.user import UserResponse, UserSchemaCreate, UserSchemaSignin
 
 logger = logger.bind(name=__name__)
 
