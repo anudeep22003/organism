@@ -4,7 +4,7 @@ from typing import Generic, TypeVar
 
 
 def get_current_timestamp() -> int:
-    return int(datetime.now(timezone.utc).timestamp() * 1000)
+    return int(datetime.now(timezone.utc).timestamp())
 
 
 T = TypeVar("T")
