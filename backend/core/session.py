@@ -163,6 +163,7 @@ class SessionManager(metaclass=SingletonMeta):
         if session_id is None:
             session_id = str(uuid.uuid4())
         logger.debug(f"Creating new session with id: {session_id}")
+        #! why are you passing sid, instead of target_room?
         timeline_subscription_key = SubscriptionKey(DirectorRequest, sid)
         target_room = f"session:{session_id}"
         manager = Manager(
