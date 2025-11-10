@@ -55,11 +55,11 @@ const AuthPage = () => {
     console.log("Sign in:", data);
     try {
       const response = await httpClient.post<LoginResponse>(
-        "/api/auth/signup",
+        "/api/auth/signin",
         data
       );
       console.log("Login status", response);
-      navigate("/");
+      // navigate("/");
     } catch (err) {
       const errorMessage =
         err instanceof Error

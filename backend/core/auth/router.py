@@ -2,13 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from loguru import logger
 from passlib.context import CryptContext  # type: ignore[import-untyped]
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.sql import select
 
 from core.auth.manager import AuthManager
 from core.services.database import get_async_db_session
 
-from .models.user import User
-from .schemas.user import UserResponse, UserSchemaCreate, UserSchemaSignin
+from .schemas.user import UserSchemaCreate, UserSchemaSignin
 from .types import LoginResponse
 
 logger = logger.bind(name=__name__)
@@ -41,23 +39,11 @@ async def login(
     response: Response,
     request: Request,
     credentials: UserSchemaSignin,
-    session: AsyncSession = Depends(get_async_db_session),
+    async_db_session: AsyncSession = Depends(get_async_db_session),
 ) -> LoginResponse:
     try:
-        select_user = select(User).where(User.email == credentials.email)
-        user = await session.scalar(select_user)
-        if not user:
-            return LoginResponse(status_code="USER_NOT_FOUND")
-        # verify password
-        if not pwd_context.verify(credentials.password, user.password_hash):
-            return LoginResponse(status_code="INVALID_CREDENTIALS")
-        # update user metadata
-        user.meta = get_safe_headers(request)
-        await session.commit()
-        await session.refresh(user)
-        return LoginResponse(
-            user=UserResponse.model_validate(user), status_code="SUCCESS"
-        )
+        auth_manager = AuthManager(async_db_session=async_db_session)
+        return await auth_manager.handle_returning_user(credentials=credentials)
     except Exception as e:
         logger.error(f"Error signing in user: {e}")
         return LoginResponse(status_code="INTERNAL_ERROR")

@@ -7,7 +7,7 @@ from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.auth.schemas.user import UserResponse, UserSchemaCreate
+from core.auth.schemas.user import UserResponse, UserSchemaCreate, UserSchemaSignin
 from core.sockets.types.envelope import AliasedBaseModel
 from core.universe.events import get_current_timestamp
 
@@ -29,10 +29,17 @@ class PasswordContext(ABC):
     def hash(self, password: str) -> str:
         raise NotImplementedError("Not implemented")
 
+    @abstractmethod
+    def verify(self, secret: str, hash: str) -> bool:
+        raise NotImplementedError
+
 
 class SimplePWDContext(PasswordContext):
     def hash(self, password: str) -> str:
         return password
+
+    def verify(self, secret: str, hash: str) -> bool:
+        return secret == hash
 
 
 class JWTPayload(AliasedBaseModel):
@@ -141,3 +148,21 @@ class AuthManager:
         user = await self.create_user_in_db(new_user)
         user_response = UserResponse.model_validate(user)
         return LoginResponse(user=user_response, status_code="SUCCESS")
+
+    async def handle_returning_user(
+        self,
+        credentials: UserSchemaSignin,
+    ) -> LoginResponse:
+        existing_user = await self.find_user_by_email(email=credentials.email)
+        if not existing_user:
+            return LoginResponse(status_code="USER_NOT_FOUND")
+        password_match = self.password_context.verify(
+            secret=credentials.password, hash=existing_user.password_hash
+        )
+
+        if not password_match:
+            return LoginResponse(status_code="INVALID_CREDENTIALS")
+
+        return LoginResponse(
+            user=UserResponse.model_validate(existing_user), status_code="SUCCESS"
+        )
