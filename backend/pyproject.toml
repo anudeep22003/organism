@@ -28,6 +28,7 @@ dependencies = [
     "passlib>=1.7.4",
     "argon2-cffi>=25.1.0",
     "greenlet>=3.2.4",
+    "ollama>=0.6.0",
 ]
 
 [dependency-groups]
