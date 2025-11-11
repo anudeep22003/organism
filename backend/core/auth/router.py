@@ -1,12 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, Request, Response
 from loguru import logger
 from passlib.context import CryptContext  # type: ignore[import-untyped]
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.auth.manager import AuthManager, SessionManager
 from core.services.database import get_async_db_session
 
-from .schemas.user import UserSchemaCreate, UserSchemaSignin
+from .exceptions import (
+    InvalidCredentialsError,
+    UserAlreadyExistsError,
+    UserNotFoundError,
+)
+from .manager import AuthManager, SessionManager
+from .schemas.user import UserResponse, UserSchemaCreate, UserSchemaSignin
 from .types import LoginResponse
 
 logger = logger.bind(name=__name__)
@@ -43,7 +48,16 @@ async def login(
 ) -> LoginResponse:
     try:
         auth_manager = AuthManager(async_db_session=async_db_session)
-        return await auth_manager.handle_returning_user(credentials=credentials)
+        user = await auth_manager.authenticate_user(credentials=credentials)
+        return LoginResponse(
+            user=UserResponse.model_validate(user), status_code="SUCCESS"
+        )
+    except UserNotFoundError as e:
+        logger.error(f"User not found: {e}")
+        return LoginResponse(status_code="USER_NOT_FOUND")
+    except InvalidCredentialsError as e:
+        logger.error(f"Invalid credentials: {e}")
+        return LoginResponse(status_code="INVALID_CREDENTIALS")
     except Exception as e:
         logger.error(f"Error signing in user: {e}")
         return LoginResponse(status_code="INTERNAL_ERROR")
@@ -58,16 +72,14 @@ async def signup(
 ) -> LoginResponse:
     try:
         auth_manager = AuthManager(async_db_session=async_db_session)
-        login_response = await auth_manager.handle_new_user(
-            user_request=body, request=request
-        )
-        if login_response.status_code == "SUCCESS" and login_response.user is not None:
-            session_manager = SessionManager(async_db_session=async_db_session)
-            session = await session_manager.create_session(
-                user_id=login_response.user.id
-            )
-            logger.debug("Session created", session=session)
-        return login_response
+        new_user = await auth_manager.create_new_user(credentials=body, request=request)
+        user_response = UserResponse.model_validate(new_user) # have to do this here before session context is lost and greenlet errors show up
+        session_manager = SessionManager(async_db_session=async_db_session)
+        session = await session_manager.create_session(user_id=new_user.id)
+        return LoginResponse(user=user_response, status_code="SUCCESS")
+    except UserAlreadyExistsError as e:
+        logger.error(f"User already exists: {e}")
+        return LoginResponse(status_code="USER_ALREADY_EXISTS")
     except Exception as e:
-        logger.error(f"Error registering user: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error(f"Unexpected error: {e}")
+        return LoginResponse(status_code="INTERNAL_ERROR")

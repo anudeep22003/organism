@@ -9,14 +9,18 @@ from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.auth.schemas.user import UserResponse, UserSchemaCreate, UserSchemaSignin
+from core.auth.schemas.user import UserSchemaCreate, UserSchemaSignin
 from core.sockets.types.envelope import AliasedBaseModel
 from core.universe.events import get_current_timestamp
 
+from .exceptions import (
+    InvalidCredentialsError,
+    UserAlreadyExistsError,
+    UserNotFoundError,
+)
 from .models.auth_session import AuthSession
 from .models.user import User
 from .schemas.auth_session import AuthSessionSchema
-from .types import LoginResponse
 
 logger = logger.bind(name=__name__)
 
@@ -53,13 +57,6 @@ class JWTPayload(AliasedBaseModel):
     jti: str
     issuer: str
     audience: str
-
-
-class UserAlreadyExistsException(Exception):
-    def __init__(self, email: str) -> None:
-        super().__init__(
-            f"User {email} already exists in the database. This operation cannot be completed."
-        )
 
 
 class JWTTokensManager:
@@ -153,34 +150,29 @@ class AuthManager:
         await self.async_db_session.refresh(user)
         return user
 
-    async def handle_new_user(
-        self, user_request: UserSchemaCreate, request: Request
-    ) -> LoginResponse:
-        if await self.check_if_user_exists(user_request):
-            return LoginResponse(status_code="USER_ALREADY_EXISTS")
+    async def create_new_user(
+        self, credentials: UserSchemaCreate, request: Request
+    ) -> User:
+        """Create a new user. Raise UserAlreadyExists Exception if user already exists."""
+        if await self.check_if_user_exists(credentials):
+            raise UserAlreadyExistsError(email=credentials.email)
+
         new_user = User(
-            email=user_request.email,
-            password_hash=self.hash_password(user_request.password),
+            email=credentials.email,
+            password_hash=self.hash_password(credentials.password),
             meta=self.extract_headers_from_request(request),
         )
-        user = await self.create_user_in_db(new_user)
-        user_response = UserResponse.model_validate(user)
-        return LoginResponse(user=user_response, status_code="SUCCESS")
+        return await self.create_user_in_db(new_user)
 
-    async def handle_returning_user(
-        self,
-        credentials: UserSchemaSignin,
-    ) -> LoginResponse:
-        existing_user = await self.find_user_by_email(email=credentials.email)
-        if not existing_user:
-            return LoginResponse(status_code="USER_NOT_FOUND")
+    async def authenticate_user(self, credentials: UserSchemaSignin) -> User:
+        user = await self.find_user_by_email(email=credentials.email)
+        if not user:
+            raise UserNotFoundError(f"User {credentials.email} not found")
         password_match = self.password_context.verify(
-            secret=credentials.password, hash=existing_user.password_hash
+            secret=credentials.password, hash=user.password_hash
         )
-
         if not password_match:
-            return LoginResponse(status_code="INVALID_CREDENTIALS")
-
-        return LoginResponse(
-            user=UserResponse.model_validate(existing_user), status_code="SUCCESS"
-        )
+            raise InvalidCredentialsError(
+                f"Invalid credentials for user {credentials.email}"
+            )
+        return user
