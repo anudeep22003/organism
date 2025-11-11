@@ -3,7 +3,7 @@ from loguru import logger
 from passlib.context import CryptContext  # type: ignore[import-untyped]
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.auth.manager import AuthManager
+from core.auth.manager import AuthManager, SessionManager
 from core.services.database import get_async_db_session
 
 from .schemas.user import UserSchemaCreate, UserSchemaSignin
@@ -58,7 +58,16 @@ async def signup(
 ) -> LoginResponse:
     try:
         auth_manager = AuthManager(async_db_session=async_db_session)
-        return await auth_manager.handle_new_user(user_request=body, request=request)
+        login_response = await auth_manager.handle_new_user(
+            user_request=body, request=request
+        )
+        if login_response.status_code == "SUCCESS" and login_response.user is not None:
+            session_manager = SessionManager(async_db_session=async_db_session)
+            session = await session_manager.create_session(
+                user_id=login_response.user.id
+            )
+            logger.debug("Session created", session=session)
+        return login_response
     except Exception as e:
         logger.error(f"Error registering user: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e

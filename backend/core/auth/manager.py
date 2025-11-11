@@ -1,5 +1,7 @@
 import secrets
+import uuid
 from abc import ABC, abstractmethod
+from datetime import datetime, timedelta, timezone
 
 import jwt
 from fastapi import Request
@@ -11,7 +13,9 @@ from core.auth.schemas.user import UserResponse, UserSchemaCreate, UserSchemaSig
 from core.sockets.types.envelope import AliasedBaseModel
 from core.universe.events import get_current_timestamp
 
+from .models.auth_session import AuthSession
 from .models.user import User
+from .schemas.auth_session import AuthSessionSchema
 from .types import LoginResponse
 
 logger = logger.bind(name=__name__)
@@ -89,10 +93,24 @@ class JWTTokensManager:
 
 
 class SessionManager:
-    def __init__(self) -> None: ...
+    def __init__(self, async_db_session: AsyncSession) -> None:
+        self.async_db_session = async_db_session
 
-    def create_session(self, user_id: str) -> str:
-        raise NotImplementedError("Not implemented")
+    async def create_session(self, user_id: uuid.UUID) -> AuthSessionSchema:
+        created_at = datetime.now(timezone.utc)
+        expires_at = created_at + timedelta(seconds=REFRESH_TOKEN_TTL)
+        refresh_token = secrets.token_urlsafe(32)
+        new_session = AuthSession(
+            user_id=user_id,
+            refresh_token_hash=refresh_token,
+            created_at=created_at,
+            expires_at=expires_at,
+        )
+
+        self.async_db_session.add(new_session)
+        await self.async_db_session.commit()
+        await self.async_db_session.refresh(new_session)
+        return AuthSessionSchema.model_validate(new_session)
 
     def verify_session(self, session_id: str) -> bool:
         raise NotImplementedError("Not implemented")
