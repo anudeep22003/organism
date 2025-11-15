@@ -1,5 +1,5 @@
 import { BACKEND_URL } from "@/constants";
-import axios, { type AxiosInstance } from "axios";
+import axios, { AxiosError, type AxiosInstance } from "axios";
 import { apiLogger } from "./logger";
 
 class HttpClient {
@@ -105,6 +105,16 @@ class HttpClient {
     };
   }
 }
+
+export const getAxiosErrorDetails = (err: unknown) => {
+  if (err instanceof AxiosError) {
+    return {
+      detail: err.response?.data?.detail,
+      status: err.response?.status,
+    };
+  }
+  return { detail: "Unknown error", status: 500 };
+};
 
 // Export singleton instance
 export const httpClient = HttpClient.getInstance();

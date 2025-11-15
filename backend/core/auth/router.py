@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
@@ -112,88 +113,48 @@ async def signup(
         raise HTTPException(status_code=500, detail="Internal server error.")
 
 
-@router.post("/refresh")
-async def refresh(
+@router.post("/refresh_access_token")
+async def refresh_access_token(
     response: Response,
     request: Request,
     async_db_session: AsyncSession = Depends(get_async_db_session),
     refresh_token: Optional[str] = Cookie(None),
 ) -> LoginResponse:
     try:
-        logger.debug("Refresh token", refresh_token=refresh_token)
         if refresh_token is None:
             raise HTTPException(
                 status_code=401,
                 detail="Unauthorized, no refresh token provided in cookies.",
             )
-        access_token = request.headers.get("Authorization")
-        logger.debug("Access token from headers", access_token=access_token)
-        if access_token is None:
+
+        session_manager = SessionManager(async_db_session=async_db_session)
+        session = await session_manager.find_session_by_refresh_token(refresh_token)
+        if session is None:
             raise HTTPException(
                 status_code=401,
-                detail="Unauthorized, no access token provided in headers.",
+                detail="Unauthorized, invalid refresh token.",
             )
-        access_token = access_token.split(" ")[1]
 
-        if access_token == "undefined":
+        if session.expires_at < datetime.now(timezone.utc):
             raise HTTPException(
                 status_code=401,
-                detail="Unauthorized, access token is undefined.",
+                detail="Unauthorized, refresh token expired.",
             )
 
-        jwt_manager = JWTTokensManager()
-        decoded = jwt_manager.decode_token(access_token)
-        user_id = decoded.get("sub")
-        expires_at = decoded.get("exp")
-
-        if user_id is None:
-            raise HTTPException(
-                status_code=401,
-                detail="Unauthorized, no user id found in access token.",
-            )
-
-        # ensure user exists
         user = await async_db_session.scalar(
-            select(User).where(User.id == uuid.UUID(user_id))
+            select(User).where(User.id == session.user_id)
         )
+
         if user is None:
-            raise HTTPException(status_code=401, detail="Unauthorized")
+            raise HTTPException(status_code=401, detail="Unauthorized, user not found.")
 
         user_response = UserResponse.model_validate(user)
-
-        if expires_at is None or expires_at < get_current_timestamp():
-            session_manager = SessionManager(async_db_session=async_db_session)
-            session = await session_manager.find_session_by_user_id(user_id)
-            if session is None:
-                raise HTTPException(
-                    status_code=401,
-                    detail="Unauthorized, no session found for user id.",
-                )
-            if not jwt_manager.verify_refresh_token(
-                refresh_token=refresh_token,
-                hashed_refresh_token=session.refresh_token_hash,
-            ):
-                raise HTTPException(
-                    status_code=401,
-                    detail="Unauthorized, refresh token does not match.",
-                )
-            new_access_token = jwt_manager.create_access_token(user_id=user_id)
-            return LoginResponse(
-                user=user_response, status_code="SUCCESS", access_token=new_access_token
-            )
-
-        # access token is still valid
-        return LoginResponse(
-            user=user_response, status_code="SUCCESS", access_token=access_token
-        )
-    except InvalidTokenError as e:
-        logger.error("Error refreshing token:", error=e)
-        raise HTTPException(
-            status_code=401, detail="Unauthorized, invalid access token."
-        )
+        jwt_manager = JWTTokensManager()
+        access_token = jwt_manager.create_access_token(str(user.id))
+        return LoginResponse(user=user_response, access_token=access_token)
     except Exception as e:
-        logger.error("Error refreshing token:", error=e)
-        return LoginResponse(status_code="INTERNAL_ERROR")
+        logger.error(f"Error refreshing access token: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error.")
 
 
 @router.get("/me")

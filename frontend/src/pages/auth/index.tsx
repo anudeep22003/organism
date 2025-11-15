@@ -16,10 +16,9 @@ import {
 import { SignInForm } from "./components/SignInForm";
 import { SignUpForm } from "./components/SignUpForm";
 import type { SignInFormData, SignUpFormData } from "./types";
-import { httpClient } from "@/lib/httpClient";
+import { getAxiosErrorDetails } from "@/lib/httpClient";
 import { useAuthContext } from "./context";
 import useAuthEntry from "./hooks/useAuth";
-import { AxiosError } from "axios";
 import { authLogger } from "@/lib/logger";
 
 interface User {
@@ -33,15 +32,6 @@ export interface LoginResponse {
   accessToken: string;
 }
 
-const getAxiosErrorDetails = (err: unknown) => {
-  if (err instanceof AxiosError) {
-    return {
-      detail: err.response?.data?.detail,
-      status: err.response?.status,
-    };
-  }
-  return { detail: "Unknown error", status: 500 };
-};
 
 const AuthPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();

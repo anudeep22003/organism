@@ -5,16 +5,6 @@ import { authLogger } from "@/lib/logger";
 import type { SignInFormData, SignUpFormData } from "../types";
 
 const useAuthEntry = () => {
-  const doesRefreshTokenExistInCookies = () => {
-    authLogger.debug("cookies: ", document.cookie);
-    const cookies = document.cookie.split(";");
-    const refreshToken = cookies.find((cookie) =>
-      cookie.includes("refresh_token")
-    );
-    authLogger.debug("refreshToken: ", refreshToken);
-    return refreshToken ? true : false;
-  };
-
   const getUser = async (accessToken: string) => {
     try {
       const response = await httpClient.get<LoginResponse>(
@@ -50,7 +40,14 @@ const useAuthEntry = () => {
     );
   };
 
-  return { getUser, doesRefreshTokenExistInCookies, signIn, signUp };
+  const refreshAccessToken = async () => {
+    return await httpClient.post<LoginResponse>(
+      "/api/auth/refresh_access_token",
+      {}
+    );
+  };
+
+  return { getUser, signIn, signUp, refreshAccessToken };
 };
 
 export default useAuthEntry;

@@ -111,6 +111,7 @@ class JWTTokensManager:
 class SessionManager:
     def __init__(self, async_db_session: AsyncSession) -> None:
         self.async_db_session = async_db_session
+        self.password_context = SimplePWDContext()
 
     async def create_session(
         self, user_id: uuid.UUID, refresh_token: str
@@ -132,6 +133,15 @@ class SessionManager:
     async def find_session_by_user_id(self, user_id: str) -> AuthSession | None:
         select_session_query = select(AuthSession).where(
             AuthSession.user_id == uuid.UUID(user_id)
+        )
+        session = await self.async_db_session.scalar(select_session_query)
+        return session
+
+    async def find_session_by_refresh_token(
+        self, refresh_token: str
+    ) -> AuthSession | None:
+        select_session_query = select(AuthSession).where(
+            AuthSession.refresh_token_hash == self.password_context.hash(refresh_token)
         )
         session = await self.async_db_session.scalar(select_session_query)
         return session
