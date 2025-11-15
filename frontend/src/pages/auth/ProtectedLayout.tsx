@@ -53,8 +53,6 @@ const ProtectedLayout = () => {
   }, [
     accessToken,
     refreshAccessToken,
-    navigate,
-    setAccessToken,
     getUser,
   ]);
 
