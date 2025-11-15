@@ -18,8 +18,6 @@ async def handle_chat_stream_start(sid: str, envelope: dict) -> str:
     validated_envelope = Envelope[DirectorRequest].model_validate(envelope)
     logger.info(f"Director: received request: {validated_envelope.data.prompt}")
 
-    # session_id = primary_session_manager.get_session_id_from_sid(sid)
-    # target_room = primary_session_manager.get_target_room_from_session_id(session_id)
     target_room = sid_to_session_id[sid]
 
     new_task_event = BaseEvent[DirectorRequest](
