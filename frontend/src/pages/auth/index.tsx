@@ -17,6 +17,7 @@ import { SignInForm } from "./components/SignInForm";
 import { SignUpForm } from "./components/SignUpForm";
 import type { SignInFormData, SignUpFormData } from "./types";
 import { httpClient } from "@/lib/httpClient";
+import { useAuthContext } from "./context";
 
 interface User {
   email: string;
@@ -24,7 +25,7 @@ interface User {
   updatedAt: string;
 }
 
-interface LoginResponse {
+export interface LoginResponse {
   user?: User;
   statusCode: [
     "SUCCESS",
@@ -33,11 +34,13 @@ interface LoginResponse {
     "USER_ALREADY_EXISTS",
     "INTERNAL_ERROR"
   ];
+  accessToken?: string;
 }
 
 const AuthPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { accessToken, setAccessToken, statusCode } = useAuthContext();
   const tabFromUrl = searchParams.get("tab") || "signin";
   const [activeTab, setActiveTab] = useState<string>(tabFromUrl);
   const [error, setError] = useState<string>("");
@@ -46,6 +49,13 @@ const AuthPage = () => {
     setActiveTab(tabFromUrl);
   }, [tabFromUrl]);
 
+  useEffect(() => {
+    if (statusCode === 401) {
+      console.log("Status code is 401, redirecting to signin");
+      navigate("/auth?tab=signin");
+    }
+  }, [statusCode]);
+
   const handleTabChange = (value: string) => {
     setActiveTab(value);
     setSearchParams({ tab: value });
@@ -53,10 +63,12 @@ const AuthPage = () => {
 
   const handleSignIn = async (data: SignInFormData) => {
     console.log("Sign in:", data);
+    console.log("Access token:", accessToken);
     try {
       const response = await httpClient.post<LoginResponse>(
         "/api/auth/signin",
-        data
+        data,
+        accessToken ?? undefined
       );
       console.log("Login status", response);
       // navigate("/");
@@ -79,6 +91,7 @@ const AuthPage = () => {
         data
       );
       console.log("Login status", response);
+      setAccessToken(response.accessToken ?? null);
       // navigate("/");
     } catch (err) {
       const errorMessage =
@@ -122,3 +135,6 @@ const AuthPage = () => {
 };
 
 export default AuthPage;
+
+// barrel exports
+export { default as AuthProvider } from "./context";

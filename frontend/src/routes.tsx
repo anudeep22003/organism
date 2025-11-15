@@ -1,18 +1,25 @@
-import AuthPage from "./pages/auth";
+import ProtectedLayout from "./pages/auth/ProtectedLayout";
+import PublicLayout from "./pages/auth/PublicLayout";
 import HumanAiWorkspace from "./pages/HumanAiWorkspace";
-import Login from "./pages/Login";
+import AuthPage from "./pages/auth";
 
 export const routes = [
   {
-    path: "/",
-    element: <HumanAiWorkspace />,
+    element: <ProtectedLayout />,
+    children: [
+      {
+        path: "/",
+        element: <HumanAiWorkspace />,
+      },
+    ],
   },
   {
-    path: "/login",
-    element: <Login />,
-  },
-  {
-    path: "/auth",
-    element: <AuthPage />,
+    element: <PublicLayout />,
+    children: [
+      {
+        path: "/auth",
+        element: <AuthPage />,
+      },
+    ],
   },
 ];
