@@ -5,11 +5,13 @@ import { Socket } from "socket.io-client";
 import { type Envelope } from "@/socket/types/envelope";
 import { ActorListConst, type Actor } from "./types/actors";
 import { useMessageStore } from "@/store/useMessageStore";
+import { useAuthContext } from "@/pages/auth/context";
 
 export const useSocket = () => {
   const [isConnected, setIsConnected] = useState(false);
   const socketRef = useRef<Socket | null>(null);
   const [connectionError, setConnectionError] = useState(false);
+  const { accessToken } = useAuthContext();
 
   const updateStreamingMessage = useMessageStore(
     (state) => state.updateStreamingMessage
@@ -84,6 +86,9 @@ export const useSocket = () => {
       autoConnect: true,
       timeout: 20000,
       reconnection: true,
+      auth: {
+        accessToken,
+      },
     });
 
     socket.on("connect", () => {
@@ -120,7 +125,13 @@ export const useSocket = () => {
     return () => {
       socket.disconnect();
     };
-  }, [onStreamChunk, onStreamEnd, createStreamMessage, onStreamStart]);
+  }, [
+    onStreamChunk,
+    onStreamEnd,
+    createStreamMessage,
+    onStreamStart,
+    accessToken,
+  ]);
 
   return {
     isConnected,

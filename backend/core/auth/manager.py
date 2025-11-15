@@ -88,6 +88,8 @@ class JWTTokensManager:
             raise ExpiredTokenError
         except jwt.InvalidTokenError:
             raise InvalidTokenError
+        except Exception as e:
+            raise InvalidTokenError(f"Invalid token: {e}")
 
     def refresh_token(self) -> str:
         raise NotImplementedError("Not implemented")

@@ -8,15 +8,18 @@ import {
 interface AuthContextType {
   accessToken: string | null;
   setAccessToken: (accessToken: string | null) => void;
+  checkingAuth: boolean;
+  setCheckingAuth: (checkingAuth: boolean) => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
   return (
-    <AuthContext.Provider value={{ accessToken, setAccessToken }}>
+    <AuthContext.Provider value={{ accessToken, setAccessToken, checkingAuth, setCheckingAuth }}>
       {children}
     </AuthContext.Provider>
   );

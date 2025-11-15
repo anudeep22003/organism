@@ -1,14 +1,14 @@
 import { Outlet, useNavigate } from "react-router";
 import { useAuthContext } from "./context";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect } from "react";
 import useAuthEntry from "./hooks/useAuth";
 import { getAxiosErrorDetails } from "@/lib/httpClient";
 import { authLogger } from "@/lib/logger";
 
 const ProtectedLayout = () => {
   const navigate = useNavigate();
-  const { accessToken, setAccessToken } = useAuthContext();
-  const [checkingAuth, setCheckingAuth] = useState(true);
+  const { accessToken, setAccessToken, setCheckingAuth, checkingAuth } =
+    useAuthContext();
   const { getRefreshedAccessToken, getUser } = useAuthEntry();
 
   const refreshAccessToken = useCallback(async () => {
@@ -26,7 +26,12 @@ const ProtectedLayout = () => {
     } finally {
       setCheckingAuth(false);
     }
-  }, [getRefreshedAccessToken, setAccessToken, navigate]);
+  }, [
+    getRefreshedAccessToken,
+    setAccessToken,
+    navigate,
+    setCheckingAuth,
+  ]);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -50,11 +55,7 @@ const ProtectedLayout = () => {
       }
     };
     checkAuth();
-  }, [
-    accessToken,
-    refreshAccessToken,
-    getUser,
-  ]);
+  }, [accessToken, refreshAccessToken, getUser]);
 
   if (checkingAuth) {
     return <div>Checking Auth...</div>;

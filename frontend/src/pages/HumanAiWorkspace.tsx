@@ -7,14 +7,14 @@ import { useSocketContext } from "@/context/SocketContext";
 
 export default function HumanAiWorkspace() {
   const { showGenerative } = useUIContext();
-  const { connectionError } = useSocketContext();
-  const navigate = useNavigate();
+  // const { connectionError } = useSocketContext();
+  // const navigate = useNavigate();
 
-  useEffect(() => {
-    if (connectionError) {
-      navigate("/auth");
-    }
-  }, [connectionError, navigate]);
+  // useEffect(() => {
+  //   if (connectionError) {
+  //     navigate("/auth");
+  //   }
+  // }, [connectionError, navigate]);
 
   return (
     <div className="h-screen flex flex-col bg-background">
