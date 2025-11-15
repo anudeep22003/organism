@@ -2,6 +2,7 @@ import type { LoginResponse } from "..";
 import { httpClient } from "@/lib/httpClient";
 import { AxiosError } from "axios";
 import { authLogger } from "@/lib/logger";
+import type { SignInFormData, SignUpFormData } from "../types";
 
 const useAuthEntry = () => {
   const doesRefreshTokenExistInCookies = () => {
@@ -31,7 +32,25 @@ const useAuthEntry = () => {
     }
   };
 
-  return { getUser, doesRefreshTokenExistInCookies };
+  const signIn = async (
+    credentials: SignInFormData
+  ): Promise<LoginResponse> => {
+    return await httpClient.post<LoginResponse>(
+      "/api/auth/signin",
+      credentials
+    );
+  };
+
+  const signUp = async (
+    credentials: SignUpFormData
+  ): Promise<LoginResponse> => {
+    return await httpClient.post<LoginResponse>(
+      "/api/auth/signup",
+      credentials
+    );
+  };
+
+  return { getUser, doesRefreshTokenExistInCookies, signIn, signUp };
 };
 
 export default useAuthEntry;

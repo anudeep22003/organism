@@ -25,3 +25,21 @@ class UserAlreadyExistsError(AuthenticationError):
         )
 
     pass
+
+
+class JwtError(Exception):
+    """Base exception for JWT errors"""
+
+    pass
+
+
+class ExpiredTokenError(JwtError):
+    """JWT Token expired"""
+
+    pass
+
+
+class InvalidTokenError(JwtError):
+    """Invalid token"""
+
+    pass

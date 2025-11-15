@@ -9,7 +9,7 @@ import {
 import type { LoginResponse } from ".";
 import { AxiosError } from "axios";
 import { useNavigate } from "react-router";
-import useAuthEntry from "./hooks/useAuthEntry";
+import useAuthEntry from "./hooks/useAuth";
 
 interface AuthContextType {
   accessToken: string | null;
@@ -24,30 +24,30 @@ const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [statusCode, setStatusCode] = useState<number | null>(null);
   const { getUser } = useAuthEntry();
 
-  useEffect(() => {
-    if (!accessToken) console.log("no access token");
-    return;
-    getUser(accessToken);
-    // const handleRefreshAccessToken = async () => {
-    //   try {
-    //     const response = await httpClient.post<LoginResponse>(
-    //       "/api/auth/refresh",
-    //       {},
-    //       accessToken ?? undefined
-    //     );
-    //     setAccessToken(response.accessToken ?? null);
-    //     console.log("refreshed effect completed", response);
-    //   } catch (err) {
-    //     if (err instanceof AxiosError) {
-    //       console.log("Axios error:", err);
-    //       const statusCode = err.response?.status;
-    //       setStatusCode(statusCode ?? null);
-    //     }
-    //     setStatusCode(500);
-    //   }
-    // };
-    // handleRefreshAccessToken();
-  }, [accessToken, getUser]);
+  // useEffect(() => {
+  //   if (!accessToken) console.log("no access token");
+  //   return;
+  //   getUser(accessToken);
+  //   // const handleRefreshAccessToken = async () => {
+  //   //   try {
+  //   //     const response = await httpClient.post<LoginResponse>(
+  //   //       "/api/auth/refresh",
+  //   //       {},
+  //   //       accessToken ?? undefined
+  //   //     );
+  //   //     setAccessToken(response.accessToken ?? null);
+  //   //     console.log("refreshed effect completed", response);
+  //   //   } catch (err) {
+  //   //     if (err instanceof AxiosError) {
+  //   //       console.log("Axios error:", err);
+  //   //       const statusCode = err.response?.status;
+  //   //       setStatusCode(statusCode ?? null);
+  //   //     }
+  //   //     setStatusCode(500);
+  //   //   }
+  //   // };
+  //   // handleRefreshAccessToken();
+  // }, [accessToken, getUser]);
 
   return (
     <AuthContext.Provider

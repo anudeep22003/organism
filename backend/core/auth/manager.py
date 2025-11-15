@@ -2,6 +2,7 @@ import secrets
 import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 import jwt
 from fastapi import Request
@@ -14,7 +15,9 @@ from core.sockets.types.envelope import AliasedBaseModel
 from core.universe.events import get_current_timestamp
 
 from .exceptions import (
+    ExpiredTokenError,
     InvalidCredentialsError,
+    InvalidTokenError,
     UserAlreadyExistsError,
     UserNotFoundError,
 )
@@ -60,12 +63,12 @@ class JWTPayload(AliasedBaseModel):
 
 
 class JWTTokensManager:
-    def __init__(self) -> None: ...
+    def __init__(self) -> None:
+        self.password_context = SimplePWDContext()
 
     def create_access_token(self, user_id: str) -> str:
         iat = get_current_timestamp()
-        lifetime = 15 * 60  # 15 minutes in seconds
-        exp = iat + lifetime
+        exp = iat + ACCESS_TOKEN_TTL
         jti = secrets.token_urlsafe(32)
         payload = JWTPayload(
             sub=user_id, iat=iat, exp=exp, jti=jti, issuer=ISSUER, audience=AUDIENCE
@@ -76,14 +79,30 @@ class JWTTokensManager:
         refresh_token = secrets.token_urlsafe(32)
         return refresh_token
 
+    def decode_token(self, access_token: str) -> Any:
+        try:
+            decoded = jwt.decode(access_token, SECRET_KEY, algorithms=[JWT_ALGORITHM])
+            logger.debug(f"type of decoded is: {type(decoded)}")
+            return decoded
+        except jwt.ExpiredSignatureError:
+            raise ExpiredTokenError
+        except jwt.InvalidTokenError:
+            raise InvalidTokenError
+
     def refresh_token(self) -> str:
         raise NotImplementedError("Not implemented")
 
     def verify_access_token(self, token: str) -> bool:
         raise NotImplementedError("Not implemented")
 
-    def verify_refresh_token(self, token: str) -> bool:
-        raise NotImplementedError("Not implemented")
+    def verify_refresh_token(
+        self, refresh_token: str, hashed_refresh_token: str
+    ) -> bool:
+        if self.password_context.verify(
+            secret=refresh_token, hash=hashed_refresh_token
+        ):
+            return True
+        return False
 
     def refresh_access_token(self) -> str:
         raise NotImplementedError("Not implemented")
@@ -93,10 +112,11 @@ class SessionManager:
     def __init__(self, async_db_session: AsyncSession) -> None:
         self.async_db_session = async_db_session
 
-    async def create_session(self, user_id: uuid.UUID) -> AuthSessionSchema:
+    async def create_session(
+        self, user_id: uuid.UUID, refresh_token: str
+    ) -> AuthSessionSchema:
         created_at = datetime.now(timezone.utc)
         expires_at = created_at + timedelta(seconds=REFRESH_TOKEN_TTL)
-        refresh_token = secrets.token_urlsafe(32)
         new_session = AuthSession(
             user_id=user_id,
             refresh_token_hash=refresh_token,
@@ -108,6 +128,13 @@ class SessionManager:
         await self.async_db_session.commit()
         await self.async_db_session.refresh(new_session)
         return AuthSessionSchema.model_validate(new_session)
+
+    async def find_session_by_user_id(self, user_id: str) -> AuthSession | None:
+        select_session_query = select(AuthSession).where(
+            AuthSession.user_id == uuid.UUID(user_id)
+        )
+        session = await self.async_db_session.scalar(select_session_query)
+        return session
 
     def verify_session(self, session_id: str) -> bool:
         raise NotImplementedError("Not implemented")
@@ -140,9 +167,6 @@ class AuthManager:
 
     def extract_headers_from_request(self, request: Request) -> dict:
         return dict(request.headers)
-
-    def create_user(self, email: str, password: str) -> User:
-        return User(email=email, password_hash=self.hash_password(password))
 
     async def create_user_in_db(self, user: User) -> User:
         self.async_db_session.add(user)

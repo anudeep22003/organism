@@ -18,6 +18,9 @@ import { SignUpForm } from "./components/SignUpForm";
 import type { SignInFormData, SignUpFormData } from "./types";
 import { httpClient } from "@/lib/httpClient";
 import { useAuthContext } from "./context";
+import useAuthEntry from "./hooks/useAuth";
+import { AxiosError } from "axios";
+import { authLogger } from "@/lib/logger";
 
 interface User {
   email: string;
@@ -26,16 +29,19 @@ interface User {
 }
 
 export interface LoginResponse {
-  user?: User;
-  statusCode: [
-    "SUCCESS",
-    "USER_NOT_FOUND",
-    "INVALID_CREDENTIALS",
-    "USER_ALREADY_EXISTS",
-    "INTERNAL_ERROR"
-  ];
-  accessToken?: string;
+  user: User;
+  accessToken: string;
 }
+
+const getAxiosErrorDetails = (err: unknown) => {
+  if (err instanceof AxiosError) {
+    return {
+      detail: err.response?.data?.detail,
+      status: err.response?.status,
+    };
+  }
+  return { detail: "Unknown error", status: 500 };
+};
 
 const AuthPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -44,6 +50,7 @@ const AuthPage = () => {
   const tabFromUrl = searchParams.get("tab") || "signin";
   const [activeTab, setActiveTab] = useState<string>(tabFromUrl);
   const [error, setError] = useState<string>("");
+  const { signIn, signUp } = useAuthEntry();
 
   useEffect(() => {
     setActiveTab(tabFromUrl);
@@ -62,24 +69,22 @@ const AuthPage = () => {
   };
 
   const handleSignIn = async (data: SignInFormData) => {
-    console.log("Sign in:", data);
-    console.log("Access token:", accessToken);
+    authLogger.debug("New sign in attempt");
+    authLogger.debug("Sign in:", data);
+    authLogger.debug("Access token:", accessToken);
     try {
-      const response = await httpClient.post<LoginResponse>(
-        "/api/auth/signin",
-        data,
-        accessToken ?? undefined
-      );
+      const response = await signIn(data);
       console.log("Login status", response);
       // navigate("/");
     } catch (err) {
-      const errorMessage =
-        err instanceof Error
-          ? err.message
-          : "Login failed for unknown reasons. Please try again.";
-
-      setError(errorMessage);
-      console.log(error);
+      const { detail, status } = getAxiosErrorDetails(err);
+      setError(detail);
+      authLogger.error("Sign in failed:", err);
+      if (status === 401) {
+        navigate("/auth?tab=signup", {
+          replace: true,
+        });
+      }
     }
   };
 
@@ -94,13 +99,12 @@ const AuthPage = () => {
       setAccessToken(response.accessToken ?? null);
       // navigate("/");
     } catch (err) {
-      const errorMessage =
-        err instanceof Error
-          ? err.message
-          : "Login failed for unknown reasons. Please try again.";
-
-      setError(errorMessage);
-      console.log(error);
+      const { detail, status } = getAxiosErrorDetails(err);
+      setError(detail);
+      authLogger.error("Sign up failed:", err);
+      if (status === 401) {
+        navigate("/auth?tab=signin");
+      }
     }
   };
 
