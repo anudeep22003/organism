@@ -1,8 +1,11 @@
 from loguru import logger
 
+from agents.manager import Manager
+from agents.types import DirectorRequest
 from core.auth.manager import JWTTokensManager, SessionManager
 from core.services.database import async_session_maker
 from core.sockets.types.envelope import AliasedBaseModel
+from core.universe.timeline import SubscriptionKey, primary_timeline
 
 from . import active_connections, sio
 
@@ -11,6 +14,10 @@ logger = logger.bind(name=__name__)
 
 class Auth(AliasedBaseModel):
     session_id: str | None = None
+
+
+sid_to_session_id: dict[str, str] = {}
+session_id_to_sid: dict[str, str] = {}
 
 
 @sio.event
@@ -38,36 +45,21 @@ async def connect(sid: str, environ: dict, auth: dict) -> bool:
             logger.debug("No session found for user", user_id=user_id)
             return False
         target_room = str(session.id)
+        sid_to_session_id[sid] = target_room
+        session_id_to_sid[target_room] = sid
 
-    # logger.debug("connection established")
-    # active_connections[sid] = environ
-    # logger.debug(f"# of active connections: {len(active_connections)}")
-
-    # # we get cookies as a raw string, so it needs to be manually parsed
-    # cookies = {}
-    # if "HTTP_COOKIE" in environ:
-    #     cookie_header = environ["HTTP_COOKIE"]
-    #     for cookie in cookie_header.split("; "):
-    #         name, value = cookie.strip().split("=", 1)
-    #         cookies[name] = value
-
-    # session_token = cookies.get("session_token", None)
-    # if not session_token:
-    #     logger.debug("No session token found in cookies", sid=sid)
-    #     return False
-    # if not verify_session_token(session_token):
-    #     logger.debug("Invalid session token", sid=sid)
-    #     return False
-
-    # session = primary_session_manager.get_or_create_session_for_token(
-    #     session_token=session_token,
-    #     sid=sid,
-    #     sio=sio,
-    #     notify_user=True,
-    #     dummy_mode=False,
-    # )
-    # target_room = session.get_target_room()
     await sio.enter_room(sid, target_room)
+    manager = Manager(
+        target_room=target_room,
+        sio=sio,
+        notify_user=True,
+        dummy_mode=False,
+    )
+    primary_timeline.subscribe(
+        event_data_type=DirectorRequest,
+        handler=manager.handle_event,
+        target_room=target_room,
+    )
     logger.debug(f"joined room: {target_room}")
     logger.debug(f"session: {session}")
     return True
@@ -86,5 +78,4 @@ async def hello(sid: str, message: str) -> None:
 @sio.event
 async def disconnect(sid: str) -> None:
     print(f"connection closed {sid}")
-    # del active_connections[sid]
-    # primary_session_manager.remove_sid_from_session(sid)
+    #! need to unsubscribe here
