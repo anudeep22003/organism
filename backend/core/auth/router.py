@@ -103,15 +103,13 @@ async def signup(
             max_age=REFRESH_TOKEN_TTL,
             path="/",
         )
-        return LoginResponse(
-            user=user_response, status_code="SUCCESS", access_token=access_token
-        )
+        return LoginResponse(user=user_response, access_token=access_token)
     except UserAlreadyExistsError as e:
         logger.error(f"User already exists: {e}")
-        return LoginResponse(status_code="USER_ALREADY_EXISTS")
+        raise HTTPException(status_code=400, detail="User already exists.")
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
-        return LoginResponse(status_code="INTERNAL_ERROR")
+        raise HTTPException(status_code=500, detail="Internal server error.")
 
 
 @router.post("/refresh")

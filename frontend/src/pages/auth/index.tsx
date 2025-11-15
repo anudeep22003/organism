@@ -58,7 +58,7 @@ const AuthPage = () => {
 
   useEffect(() => {
     if (statusCode === 401) {
-      console.log("Status code is 401, redirecting to signin");
+      authLogger.debug("Status code is 401, redirecting to signin");
       navigate("/auth?tab=signin");
     }
   }, [statusCode]);
@@ -74,7 +74,7 @@ const AuthPage = () => {
     authLogger.debug("Access token:", accessToken);
     try {
       const response = await signIn(data);
-      console.log("Login status", response);
+      authLogger.debug("Login status", response);
       // navigate("/");
     } catch (err) {
       const { detail, status } = getAxiosErrorDetails(err);
@@ -89,21 +89,20 @@ const AuthPage = () => {
   };
 
   const handleSignUp = async (data: SignUpFormData) => {
-    console.log("Sign up:", data);
+    authLogger.debug("Sign up:", data);
     try {
-      const response = await httpClient.post<LoginResponse>(
-        "/api/auth/signup",
-        data
-      );
-      console.log("Login status", response);
-      setAccessToken(response.accessToken ?? null);
+      const response = await signUp(data);
+      authLogger.debug("Login status", response);
+      setAccessToken(response.accessToken);
       // navigate("/");
     } catch (err) {
       const { detail, status } = getAxiosErrorDetails(err);
       setError(detail);
       authLogger.error("Sign up failed:", err);
-      if (status === 401) {
-        navigate("/auth?tab=signin");
+      if (status === 400) {
+        navigate("/auth?tab=signin", {
+          replace: true,
+        });
       }
     }
   };
