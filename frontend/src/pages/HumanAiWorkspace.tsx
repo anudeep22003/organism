@@ -12,7 +12,7 @@ export default function HumanAiWorkspace() {
 
   useEffect(() => {
     if (connectionError) {
-      navigate("/login");
+      navigate("/auth");
     }
   }, [connectionError, navigate]);
 

@@ -1,4 +1,3 @@
-import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -10,11 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.services.database import get_async_db_session
 from core.sockets.types.envelope import AliasedBaseModel
-from core.universe.events import get_current_timestamp
 
 from .exceptions import (
     InvalidCredentialsError,
-    InvalidTokenError,
     UserAlreadyExistsError,
     UserNotFoundError,
 )
@@ -158,7 +155,9 @@ async def refresh_access_token(
 
 
 @router.get("/me")
-async def me(request: Response) -> LoginResponse:
+async def me(
+    request: Request, async_db_session: AsyncSession = Depends(get_async_db_session)
+) -> UserResponse:
     access_token = request.headers.get("Authorization")
     if access_token is None:
         raise HTTPException(
@@ -171,4 +170,18 @@ async def me(request: Response) -> LoginResponse:
             status_code=401,
             detail="Unauthorized, access token is undefined.",
         )
-    return LoginResponse(status_code="SUCCESS")
+    jwt_manager = JWTTokensManager()
+    decoded = jwt_manager.decode_token(access_token)
+    user_id = decoded.get("sub")
+    if not user_id:
+        raise HTTPException(
+            status_code=401,
+            detail="Unauthorized, user ID not found in access token.",
+        )
+    user = await async_db_session.scalar(select(User).where(User.id == user_id))
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="Unauthorized, user not found.",
+        )
+    return UserResponse.model_validate(user)

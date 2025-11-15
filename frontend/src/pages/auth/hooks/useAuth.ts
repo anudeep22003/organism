@@ -1,25 +1,13 @@
 import type { LoginResponse } from "..";
 import { httpClient } from "@/lib/httpClient";
-import { AxiosError } from "axios";
-import { authLogger } from "@/lib/logger";
 import type { SignInFormData, SignUpFormData } from "../types";
 
 const useAuthEntry = () => {
   const getUser = async (accessToken: string) => {
-    try {
-      const response = await httpClient.get<LoginResponse>(
-        "api/auth/me",
-        accessToken
-      );
-      authLogger.debug("response", response);
-    } catch (err) {
-      authLogger.debug("error", err);
-      if (err instanceof AxiosError) {
-        authLogger.debug("Axios error:", err);
-        const statusCode = err.response?.status ?? 500;
-        authLogger.debug("statusCode", statusCode);
-      }
-    }
+    return await httpClient.get<Record<string, unknown>>(
+      "/api/auth/me",
+      accessToken
+    );
   };
 
   const signIn = async (
@@ -40,14 +28,14 @@ const useAuthEntry = () => {
     );
   };
 
-  const refreshAccessToken = async () => {
+  const getRefreshedAccessToken = async () => {
     return await httpClient.post<LoginResponse>(
       "/api/auth/refresh_access_token",
       {}
     );
   };
 
-  return { getUser, signIn, signUp, refreshAccessToken };
+  return { getUser, signIn, signUp, getRefreshedAccessToken };
 };
 
 export default useAuthEntry;
