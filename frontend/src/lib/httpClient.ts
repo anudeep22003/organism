@@ -16,9 +16,34 @@ class HttpClient {
     this.setupInterceptors();
   }
 
-  public async post<T = unknown>(url: string, data?: unknown): Promise<T> {
+  public async post<T = unknown>(
+    url: string,
+    data?: unknown,
+    accessToken?: string
+  ): Promise<T> {
     try {
-      const response = await this.axiosInstance.post<T>(url, data);
+      const response = await this.axiosInstance.post<T>(url, data, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      apiLogger.error("HTTP Request Error", { error });
+      throw error;
+    }
+  }
+
+  public async get<T = unknown>(
+    url: string,
+    accessToken?: string
+  ): Promise<T> {
+    try {
+      const response = await this.axiosInstance.get<T>(url, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
       return response.data;
     } catch (error) {
       apiLogger.error("HTTP Request Error", { error });

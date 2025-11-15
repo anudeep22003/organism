@@ -12,11 +12,13 @@ if (MODE === "production") {
 export const apiLogger = log.getLogger("api");
 export const mediaLogger = log.getLogger("media");
 export const rootLogger = log.getLogger("root");
+export const authLogger = log.getLogger("auth");
 
 // Set default levels for each logger
 apiLogger.setLevel("debug");
 mediaLogger.setLevel("debug");
 rootLogger.setLevel("debug");
+authLogger.setLevel("debug");
 
 // Export the default logger for general use
 export default log;
