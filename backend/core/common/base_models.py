@@ -2,6 +2,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
+from sqlalchemy.orm import DeclarativeBase
 
 
 class AliasedBaseModel(BaseModel):
@@ -14,3 +15,7 @@ class AliasedBaseModel(BaseModel):
 
     def model_dump_json(self, **kwargs: Any) -> str:
         return super().model_dump_json(by_alias=True, **kwargs)
+
+
+class ORMBase(DeclarativeBase):
+    pass

@@ -4,8 +4,8 @@ from sqlalchemy import engine_from_config, pool
 
 from alembic import context
 from core.auth import models  # noqa: F401
+from core.common import ORMBase
 from core.config import DATABASE_URL
-from core.services.database import ORMBase
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

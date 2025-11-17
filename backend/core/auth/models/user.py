@@ -5,7 +5,7 @@ from sqlalchemy import DateTime
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from core.services.database import ORMBase
+from core.common import ORMBase
 
 
 class User(ORMBase):
