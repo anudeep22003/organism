@@ -1,6 +1,5 @@
 import secrets
 import uuid
-from abc import ABC, abstractmethod
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -29,29 +28,12 @@ from .exceptions import (
     UserAlreadyExistsError,
     UserNotFoundError,
 )
+from .managers.password import get_password_hasher
 from .models.auth_session import AuthSession
 from .models.user import User
 from .schemas.auth_session import AuthSessionSchema
 
 logger = logger.bind(name=__name__)
-
-
-class PasswordContext(ABC):
-    @abstractmethod
-    def hash(self, password: str) -> str:
-        raise NotImplementedError("Not implemented")
-
-    @abstractmethod
-    def verify(self, secret: str, hash: str) -> bool:
-        raise NotImplementedError
-
-
-class SimplePWDContext(PasswordContext):
-    def hash(self, password: str) -> str:
-        return password
-
-    def verify(self, secret: str, hash: str) -> bool:
-        return secret == hash
 
 
 class JWTPayload(AliasedBaseModel):
@@ -65,7 +47,7 @@ class JWTPayload(AliasedBaseModel):
 
 class JWTTokensManager:
     def __init__(self) -> None:
-        self.password_context = SimplePWDContext()
+        self.password_context = get_password_hasher()
 
     def create_access_token(self, user_id: str) -> str:
         iat = get_current_timestamp_seconds()
@@ -109,7 +91,7 @@ class JWTTokensManager:
         self, refresh_token: str, hashed_refresh_token: str
     ) -> bool:
         if self.password_context.verify(
-            secret=refresh_token, hash=hashed_refresh_token
+            plaintext=refresh_token, hashed=hashed_refresh_token
         ):
             return True
         return False
@@ -121,7 +103,7 @@ class JWTTokensManager:
 class SessionManager:
     def __init__(self, async_db_session: AsyncSession) -> None:
         self.async_db_session = async_db_session
-        self.password_context = SimplePWDContext()
+        self.password_context = get_password_hasher()
 
     async def create_session(
         self, user_id: uuid.UUID, refresh_token: str
@@ -166,7 +148,7 @@ class SessionManager:
 class AuthManager:
     def __init__(self, async_db_session: AsyncSession) -> None:
         self.async_db_session = async_db_session
-        self.password_context = SimplePWDContext()
+        self.password_context = get_password_hasher()
 
     async def find_user_by_email(self, email: str) -> User | None:
         select_user_query = select(User).where(User.email == email)
@@ -213,7 +195,7 @@ class AuthManager:
         if not user:
             raise UserNotFoundError(f"User {credentials.email} not found")
         password_match = self.password_context.verify(
-            secret=credentials.password, hash=user.password_hash
+            plaintext=credentials.password, hashed=user.password_hash
         )
         if not password_match:
             raise InvalidCredentialsError(

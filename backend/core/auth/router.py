@@ -3,7 +3,6 @@ from typing import Optional
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
 from loguru import logger
-from passlib.context import CryptContext  # type: ignore[import-untyped]
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -33,8 +32,6 @@ from .models.user import User
 from .schemas.user import UserResponse, UserSchemaCreate, UserSchemaSignin
 
 logger = logger.bind(name=__name__)
-
-pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
