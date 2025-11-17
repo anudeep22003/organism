@@ -1,8 +1,8 @@
 from loguru import logger
 from pydantic import Field
 
+from core.common import AliasedBaseModel
 from core.sockets.actors.base import BaseActor
-from core.sockets.types.envelope import AliasedBaseModel
 from core.sockets.types.intlligence_models import ModelsEnum
 from core.sockets.types.message import Message
 from core.sockets.utils.streamer import stream_chunks_openai

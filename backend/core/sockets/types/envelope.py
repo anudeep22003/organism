@@ -1,16 +1,10 @@
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Generic, Literal, TypeVar
+from typing import Generic, Literal, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field
-from pydantic.alias_generators import to_camel
+from pydantic import Field
 
-
-class AliasedBaseModel(BaseModel):
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
-
-    def model_dump_json(self, **kwargs: Any) -> str:
-        return super().model_dump_json(by_alias=True, **kwargs)
+from core.common import AliasedBaseModel
 
 
 class ErrorDetails(AliasedBaseModel):

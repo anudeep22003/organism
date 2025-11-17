@@ -3,7 +3,7 @@ from datetime import datetime
 
 from pydantic import ConfigDict
 
-from core.sockets.types.envelope import AliasedBaseModel
+from core.common import AliasedBaseModel
 
 
 class UserSchemaBase(AliasedBaseModel):

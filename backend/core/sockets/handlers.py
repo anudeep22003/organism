@@ -3,8 +3,8 @@ from loguru import logger
 from agents.manager import Manager
 from agents.types import DirectorRequest
 from core.auth.manager import JWTTokensManager, SessionManager
+from core.common import AliasedBaseModel
 from core.services.database import async_session_maker
-from core.sockets.types.envelope import AliasedBaseModel
 from core.universe.timeline import primary_timeline
 
 from . import active_connections, sio

@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.auth.schemas.user import UserSchemaCreate, UserSchemaSignin
-from core.sockets.types.envelope import AliasedBaseModel
+from core.common import AliasedBaseModel
 from core.universe.events import get_current_timestamp
 
 from .exceptions import (

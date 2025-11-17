@@ -7,8 +7,8 @@ from passlib.context import CryptContext  # type: ignore[import-untyped]
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.common import AliasedBaseModel
 from core.services.database import get_async_db_session
-from core.sockets.types.envelope import AliasedBaseModel
 
 from .exceptions import (
     InvalidCredentialsError,

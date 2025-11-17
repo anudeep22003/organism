@@ -18,10 +18,10 @@ from claude_code_sdk.types import Message
 from loguru import logger
 from pydantic import Field, ValidationError
 
+from core.common import AliasedBaseModel
 from core.sockets.types.envelope import (
     AckFail,
     AckOk,
-    AliasedBaseModel,
     Envelope,
     Error,
 )
