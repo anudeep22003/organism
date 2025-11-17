@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.auth.schemas.user import UserSchemaCreate, UserSchemaSignin
 from core.common import AliasedBaseModel
-from core.universe.events import get_current_timestamp
+from core.common.utils import get_current_timestamp_seconds
 
 from .exceptions import (
     ExpiredTokenError,
@@ -67,7 +67,7 @@ class JWTTokensManager:
         self.password_context = SimplePWDContext()
 
     def create_access_token(self, user_id: str) -> str:
-        iat = get_current_timestamp()
+        iat = get_current_timestamp_seconds()
         exp = iat + ACCESS_TOKEN_TTL
         jti = secrets.token_urlsafe(32)
         payload = JWTPayload(
