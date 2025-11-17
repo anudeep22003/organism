@@ -26,17 +26,7 @@ async def connect(sid: str, environ: dict, auth: dict) -> bool:
     logger.debug("auth received", auth=auth)
 
     jwt_manager = JWTTokensManager()
-
-    #! add try blocks
-    decoded = jwt_manager.decode_access_token(auth["accessToken"])
-    user_id = decoded.get("sub")
-    if not user_id:
-        logger.debug("No user ID found in access token")
-        return False
-    if not isinstance(user_id, str):
-        logger.debug("User ID is not a string")
-        return False
-
+    user_id = jwt_manager.extract_user_id_from_access_token(auth["accessToken"])
     target_room = None
 
     async with async_session_maker() as async_db_session:
