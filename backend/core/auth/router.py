@@ -25,9 +25,9 @@ from .exceptions import (
 )
 from .manager import (
     AuthManager,
-    JWTTokensManager,
     SessionManager,
 )
+from .managers.jwt import JWTTokensManager
 from .models.user import User
 from .schemas.user import UserResponse, UserSchemaCreate, UserSchemaSignin
 
@@ -171,7 +171,7 @@ async def me(
             detail="Unauthorized, access token is undefined.",
         )
     jwt_manager = JWTTokensManager()
-    decoded = jwt_manager.decode_token(access_token)
+    decoded = jwt_manager.decode_access_token(access_token)
     user_id = decoded.get("sub")
     if not user_id:
         raise HTTPException(

@@ -2,7 +2,8 @@ from loguru import logger
 
 from agents.manager import Manager
 from agents.types import DirectorRequest
-from core.auth.manager import JWTTokensManager, SessionManager
+from core.auth.manager import SessionManager
+from core.auth.managers.jwt import JWTTokensManager
 from core.common import AliasedBaseModel
 from core.services.database import async_session_maker
 from core.universe.timeline import primary_timeline
@@ -27,7 +28,7 @@ async def connect(sid: str, environ: dict, auth: dict) -> bool:
     jwt_manager = JWTTokensManager()
 
     #! add try blocks
-    decoded = jwt_manager.decode_token(auth["accessToken"])
+    decoded = jwt_manager.decode_access_token(auth["accessToken"])
     user_id = decoded.get("sub")
     if not user_id:
         logger.debug("No user ID found in access token")

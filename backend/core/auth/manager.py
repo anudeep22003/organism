@@ -1,30 +1,18 @@
-import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Any
 
-import jwt
 from fastapi import Request
 from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.auth.schemas.user import UserSchemaCreate, UserSchemaSignin
-from core.common import AliasedBaseModel
-from core.common.utils import get_current_timestamp_seconds
 
 from .config import (
-    ACCESS_TOKEN_TTL_SECONDS,
-    JWT_ALGORITHM,
-    JWT_AUDIENCE,
-    JWT_ISSUER,
-    JWT_SECRET_KEY,
     REFRESH_TOKEN_TTL_SECONDS,
 )
 from .exceptions import (
-    ExpiredTokenError,
     InvalidCredentialsError,
-    InvalidTokenError,
     UserAlreadyExistsError,
     UserNotFoundError,
 )
@@ -34,70 +22,6 @@ from .models.user import User
 from .schemas.auth_session import AuthSessionSchema
 
 logger = logger.bind(name=__name__)
-
-
-class JWTPayload(AliasedBaseModel):
-    sub: str
-    iat: int
-    exp: int
-    jti: str
-    issuer: str
-    audience: str
-
-
-class JWTTokensManager:
-    def __init__(self) -> None:
-        self.password_context = get_password_hasher()
-
-    def create_access_token(self, user_id: str) -> str:
-        iat = get_current_timestamp_seconds()
-        exp = iat + ACCESS_TOKEN_TTL_SECONDS
-        jti = secrets.token_urlsafe(32)
-        payload = JWTPayload(
-            sub=user_id,
-            iat=iat,
-            exp=exp,
-            jti=jti,
-            issuer=JWT_ISSUER,
-            audience=JWT_AUDIENCE,
-        )
-        return jwt.encode(payload.model_dump(), JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
-
-    def create_refresh_token(self) -> str:
-        refresh_token = secrets.token_urlsafe(32)
-        return refresh_token
-
-    def decode_token(self, access_token: str) -> Any:
-        try:
-            decoded = jwt.decode(
-                access_token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM]
-            )
-            logger.debug(f"type of decoded is: {type(decoded)}")
-            return decoded
-        except jwt.ExpiredSignatureError:
-            raise ExpiredTokenError
-        except jwt.InvalidTokenError:
-            raise InvalidTokenError
-        except Exception as e:
-            raise InvalidTokenError(f"Invalid token: {e}")
-
-    def refresh_token(self) -> str:
-        raise NotImplementedError("Not implemented")
-
-    def verify_access_token(self, token: str) -> bool:
-        raise NotImplementedError("Not implemented")
-
-    def verify_refresh_token(
-        self, refresh_token: str, hashed_refresh_token: str
-    ) -> bool:
-        if self.password_context.verify(
-            plaintext=refresh_token, hashed=hashed_refresh_token
-        ):
-            return True
-        return False
-
-    def refresh_access_token(self) -> str:
-        raise NotImplementedError("Not implemented")
 
 
 class SessionManager:
