@@ -14,6 +14,14 @@ from core.auth.schemas.user import UserSchemaCreate, UserSchemaSignin
 from core.common import AliasedBaseModel
 from core.common.utils import get_current_timestamp_seconds
 
+from .config import (
+    ACCESS_TOKEN_TTL_SECONDS,
+    JWT_ALGORITHM,
+    JWT_AUDIENCE,
+    JWT_ISSUER,
+    JWT_SECRET_KEY,
+    REFRESH_TOKEN_TTL_SECONDS,
+)
 from .exceptions import (
     ExpiredTokenError,
     InvalidCredentialsError,
@@ -26,13 +34,6 @@ from .models.user import User
 from .schemas.auth_session import AuthSessionSchema
 
 logger = logger.bind(name=__name__)
-
-ISSUER = "backend-auth-service"
-AUDIENCE = "frontend-app"
-JWT_ALGORITHM = "HS256"
-REFRESH_TOKEN_TTL = 10 * 24 * 60 * 60  # 10 days in seconds
-ACCESS_TOKEN_TTL = 15 * 60  # 15 minutes in seconds
-SECRET_KEY = "my-random-landman-key-for-jwt-testing"
 
 
 class PasswordContext(ABC):
@@ -68,12 +69,17 @@ class JWTTokensManager:
 
     def create_access_token(self, user_id: str) -> str:
         iat = get_current_timestamp_seconds()
-        exp = iat + ACCESS_TOKEN_TTL
+        exp = iat + ACCESS_TOKEN_TTL_SECONDS
         jti = secrets.token_urlsafe(32)
         payload = JWTPayload(
-            sub=user_id, iat=iat, exp=exp, jti=jti, issuer=ISSUER, audience=AUDIENCE
+            sub=user_id,
+            iat=iat,
+            exp=exp,
+            jti=jti,
+            issuer=JWT_ISSUER,
+            audience=JWT_AUDIENCE,
         )
-        return jwt.encode(payload.model_dump(), SECRET_KEY, algorithm=JWT_ALGORITHM)
+        return jwt.encode(payload.model_dump(), JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
 
     def create_refresh_token(self) -> str:
         refresh_token = secrets.token_urlsafe(32)
@@ -81,7 +87,9 @@ class JWTTokensManager:
 
     def decode_token(self, access_token: str) -> Any:
         try:
-            decoded = jwt.decode(access_token, SECRET_KEY, algorithms=[JWT_ALGORITHM])
+            decoded = jwt.decode(
+                access_token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM]
+            )
             logger.debug(f"type of decoded is: {type(decoded)}")
             return decoded
         except jwt.ExpiredSignatureError:
@@ -119,7 +127,7 @@ class SessionManager:
         self, user_id: uuid.UUID, refresh_token: str
     ) -> AuthSessionSchema:
         created_at = datetime.now(timezone.utc)
-        expires_at = created_at + timedelta(seconds=REFRESH_TOKEN_TTL)
+        expires_at = created_at + timedelta(seconds=REFRESH_TOKEN_TTL_SECONDS)
         new_session = AuthSession(
             user_id=user_id,
             refresh_token_hash=refresh_token,

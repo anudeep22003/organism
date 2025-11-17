@@ -10,12 +10,25 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.common import AliasedBaseModel
 from core.services.database import get_async_db_session
 
+from .config import (
+    REFRESH_TOKEN_COOKIE_HTTPONLY,
+    REFRESH_TOKEN_COOKIE_NAME,
+    REFRESH_TOKEN_COOKIE_PATH,
+    REFRESH_TOKEN_COOKIE_SAMESITE,
+    REFRESH_TOKEN_COOKIE_SECURE,
+    REFRESH_TOKEN_TTL_SECONDS,
+    SAFE_HEADERS_TO_STORE,
+)
 from .exceptions import (
     InvalidCredentialsError,
     UserAlreadyExistsError,
     UserNotFoundError,
 )
-from .manager import REFRESH_TOKEN_TTL, AuthManager, JWTTokensManager, SessionManager
+from .manager import (
+    AuthManager,
+    JWTTokensManager,
+    SessionManager,
+)
 from .models.user import User
 from .schemas.user import UserResponse, UserSchemaCreate, UserSchemaSignin
 
@@ -24,15 +37,6 @@ logger = logger.bind(name=__name__)
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-
-SAFE_HEADERS_TO_STORE = {
-    "user-agent",
-    "referer",
-    "accept-language",
-    "sec-ch-ua",  # The browser's brand and version information in a structured format.
-    "sec-ch-ua-mobile",  # Whether the browser is running on a mobile device.
-    "sec-ch-ua-platform",  # The platform the browser is running on.
-}
 
 
 def get_safe_headers(request: Request) -> dict:
@@ -92,14 +96,13 @@ async def signup(
             user_id=new_user.id, refresh_token=refresh_token
         )
         response.set_cookie(
-            key="refresh_token",
             value=refresh_token,
-            httponly=True,
-            secure=True,
-            samesite="lax",
-            # TODO this is on the manager page as a constant. Needs to be fixed.
-            max_age=REFRESH_TOKEN_TTL,
-            path="/",
+            key=REFRESH_TOKEN_COOKIE_NAME,
+            httponly=REFRESH_TOKEN_COOKIE_HTTPONLY,
+            secure=REFRESH_TOKEN_COOKIE_SECURE,
+            samesite=REFRESH_TOKEN_COOKIE_SAMESITE,
+            max_age=REFRESH_TOKEN_TTL_SECONDS,
+            path=REFRESH_TOKEN_COOKIE_PATH,
         )
         return LoginResponse(user=user_response, access_token=access_token)
     except UserAlreadyExistsError as e:
