@@ -26,7 +26,11 @@ class SessionManager:
         self._refresh_token_manager = refresh_token_manager or RefreshTokenManager()
 
     async def create_session(
-        self, user_id: uuid.UUID, refresh_token: str
+        self,
+        user_id: uuid.UUID,
+        refresh_token: str,
+        user_agent: str | None,
+        ip: str | None,
     ) -> AuthSessionSchema:
         now = get_current_datetime_utc()
         expires_at = now + timedelta(seconds=REFRESH_TOKEN_TTL_SECONDS)
@@ -34,7 +38,9 @@ class SessionManager:
 
         new_session = AuthSession(
             user_id=user_id,
-            refresh_token_hash=refresh_token,
+            refresh_token_hash=token_hash,
+            user_agent=user_agent,
+            ip=ip,
             created_at=now,
             expires_at=expires_at,
         )
@@ -55,6 +61,37 @@ class SessionManager:
         query = select(AuthSession).where(AuthSession.user_id == user_id)
         session = await self._db.scalar(query)
         return session
+
+    async def find_best_matching_session(
+        self, user_id: str | uuid.UUID, ip: str | None, user_agent: str | None
+    ) -> AuthSession | None:
+        if isinstance(user_id, str):
+            user_id = uuid.UUID(user_id)
+
+        # Priority 1: Match user_id, ip AND user_agent
+        query = select(AuthSession).where(
+            AuthSession.user_id == user_id,
+            AuthSession.ip == ip,
+            AuthSession.user_agent == user_agent,
+        )
+        session = await self._db.scalar(query)
+        if session:
+            return session
+
+        # Priority 2: Match user_id AND ip
+        query = select(AuthSession).where(
+            AuthSession.user_id == user_id,
+            AuthSession.ip == ip,
+        )
+        session = await self._db.scalar(query)
+        if session:
+            return session  # type: ignore[no-any-return]
+
+        # Priority 3: Match user_id only
+        query = select(AuthSession).where(AuthSession.user_id == user_id)
+        session = await self._db.scalar(query)
+
+        return session  # type: ignore[no-any-return]
 
     async def find_session_by_refresh_token(
         self, refresh_token: str
@@ -83,3 +120,44 @@ class SessionManager:
             return False
 
         return True
+
+    async def refresh_session(
+        self, session: AuthSession, new_refresh_token: str
+    ) -> AuthSessionSchema:
+        # extract values before they will be used
+        user_id = session.user_id
+        user_agent = session.user_agent
+        ip = session.ip
+        logger.info(
+            f"Refreshing session for user: {user_id}, ip: {ip}, user_agent: {user_agent}"
+        )
+
+        # revoke the old session
+        session.revoked_at = get_current_datetime_utc()
+
+        # hash the new refresh token
+        new_token_hash = self._refresh_token_manager.hash_refresh_token(
+            new_refresh_token
+        )
+
+        # create new session with new refresh token hash
+        new_session = AuthSession(
+            user_id=user_id,
+            refresh_token_hash=new_token_hash,
+            user_agent=user_agent,
+            ip=ip,
+            created_at=get_current_datetime_utc(),
+            expires_at=get_current_datetime_utc()
+            + timedelta(seconds=REFRESH_TOKEN_TTL_SECONDS),
+        )
+        # add the new session to the database (old session is already tracked)
+        self._db.add(new_session)
+
+        # commit both in a single transaction
+        await self._db.commit()
+
+        # refresh the new session
+        await self._db.refresh(new_session)
+
+        # return the new session
+        return AuthSessionSchema.model_validate(new_session)

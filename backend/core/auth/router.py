@@ -1,7 +1,17 @@
 from typing import Annotated, Optional
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
+from fastapi import (
+    APIRouter,
+    Cookie,
+    Depends,
+    Header,
+    HTTPException,
+    Request,
+    Response,
+    status,
+)
 from loguru import logger
+from pydantic import BaseModel
 
 from core.auth.dependencies import (
     get_current_user_id,
@@ -39,6 +49,15 @@ class LoginResponse(AliasedBaseModel):
     access_token: str
 
 
+# this needs to be the BaseModel and not AliasedBaseModel
+# because FastAPI's automated header extraction fails with aliasing
+class SessionHeaders(BaseModel):
+    host: str
+    x_forwarded_for: str | None = None
+    user_agent: str | None = None
+    x_real_ip: str | None = None
+
+
 @router.post("/signin", response_model=LoginResponse)
 async def signin(
     response: Response,
@@ -46,14 +65,61 @@ async def signin(
     credentials: UserSchemaSignin,
     user_manager: Annotated[UserManager, Depends(get_user_manager)],
     jwt_manager: Annotated[JWTTokenManager, Depends(get_jwt_token_manager)],
+    session_manager: Annotated[SessionManager, Depends(get_session_manager)],
+    refresh_token_manager: Annotated[
+        RefreshTokenManager, Depends(get_refresh_token_manager)
+    ],
+    session_headers: Annotated[SessionHeaders, Header()],
 ) -> LoginResponse:
     try:
         user = await user_manager.authenticate_user(credentials=credentials)
+        user_response = UserResponse.model_validate(
+            user
+        )  # have to do it here before the object goes out of sync, a sqlachemy eccentricity
+
         access_token = jwt_manager.create_access_token(str(user.id))
 
-        return LoginResponse(
-            user=UserResponse.model_validate(user), access_token=access_token
+        # extract ip and user-agent
+        ip = (
+            session_headers.x_forwarded_for
+            or session_headers.x_real_ip
+            or session_headers.host
         )
+        user_agent = session_headers.user_agent
+
+        # find existing session
+        session = await session_manager.find_best_matching_session(
+            user_id=user.id, ip=ip, user_agent=user_agent
+        )
+
+        # create new refresh token
+        new_refresh_token = refresh_token_manager.create_refresh_token()
+
+        # refresh or create session
+        if session:
+            await session_manager.refresh_session(
+                session=session, new_refresh_token=new_refresh_token
+            )
+        else:
+            await session_manager.create_session(
+                user_id=user.id,
+                refresh_token=new_refresh_token,
+                user_agent=user_agent,
+                ip=ip,
+            )
+
+        # set refresh token cookie
+        response.set_cookie(
+            value=new_refresh_token,
+            key=REFRESH_TOKEN_COOKIE_NAME,
+            httponly=REFRESH_TOKEN_COOKIE_HTTPONLY,
+            secure=REFRESH_TOKEN_COOKIE_SECURE,
+            samesite=REFRESH_TOKEN_COOKIE_SAMESITE,
+            max_age=REFRESH_TOKEN_TTL_SECONDS,
+            path=REFRESH_TOKEN_COOKIE_PATH,
+        )
+
+        return LoginResponse(user=user_response, access_token=access_token)
 
     except (UserNotFoundError, InvalidCredentialsError):
         raise HTTPException(status_code=401, detail="Invalid email or password.")
@@ -73,6 +139,7 @@ async def signup(
     refresh_token_manager: Annotated[
         RefreshTokenManager, Depends(get_refresh_token_manager)
     ],
+    session_headers: Annotated[SessionHeaders, Header()],
 ) -> LoginResponse:
     try:
         # create user
@@ -83,9 +150,21 @@ async def signup(
         access_token = jwt_manager.create_access_token(user.id)
         refresh_token = refresh_token_manager.create_refresh_token()
 
+        # extract ip and user-agent
+        ip = (
+            session_headers.x_forwarded_for
+            or session_headers.x_real_ip
+            or session_headers.host
+        )
+        user_agent = session_headers.user_agent
+        logger.info(f"Session headers: {session_headers.model_dump_json()}")
+
         # create session
         await session_manager.create_session(
-            user_id=user.id, refresh_token=refresh_token
+            user_id=user.id,
+            refresh_token=refresh_token,
+            user_agent=user_agent,
+            ip=ip,
         )
 
         # set refresh token cookie

@@ -2,7 +2,7 @@ from loguru import logger
 
 from agents.manager import Manager
 from agents.types import DirectorRequest
-from core.auth.manager import SessionManager
+from core.auth import SessionManager
 from core.auth.managers.jwt import JWTTokenManager
 from core.common import AliasedBaseModel
 from core.services.database import async_session_maker
@@ -30,7 +30,7 @@ async def connect(sid: str, environ: dict, auth: dict) -> bool:
     target_room = None
 
     async with async_session_maker() as async_db_session:
-        session_manager = SessionManager(async_db_session=async_db_session)
+        session_manager = SessionManager(db_session=async_db_session)
         session = await session_manager.find_session_by_user_id(user_id)
         if not session:
             logger.debug("No session found for user", user_id=user_id)

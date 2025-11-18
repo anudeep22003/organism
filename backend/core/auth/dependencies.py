@@ -3,8 +3,10 @@
 from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.common import AliasedBaseModel
 from core.services.database import get_async_db_session
 
 from .exceptions import ExpiredTokenError, InvalidTokenError
