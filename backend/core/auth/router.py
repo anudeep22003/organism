@@ -40,13 +40,12 @@ class LoginResponse(AliasedBaseModel):
 
 
 @router.post("/signin", response_model=LoginResponse)
-async def login(
+async def signin(
     response: Response,
     request: Request,
     credentials: UserSchemaSignin,
     user_manager: Annotated[UserManager, Depends(get_user_manager)],
     jwt_manager: Annotated[JWTTokenManager, Depends(get_jwt_token_manager)],
-    # async_db_session: AsyncSession = Depends(get_async_db_session),
 ) -> LoginResponse:
     try:
         user = await user_manager.authenticate_user(credentials=credentials)
@@ -110,8 +109,8 @@ async def signup(
         raise HTTPException(status_code=500, detail="Internal server error.")
 
 
-@router.post("/refresh_access_token")
-async def refresh_access_token(
+@router.post("/refresh")
+async def refresh(
     session_manager: Annotated[SessionManager, Depends(get_session_manager)],
     user_manager: Annotated[UserManager, Depends(get_user_manager)],
     jwt_manager: Annotated[JWTTokenManager, Depends(get_jwt_token_manager)],

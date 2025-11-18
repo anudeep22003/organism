@@ -28,10 +28,13 @@ const useAuthEntry = () => {
     );
   };
 
-  const getRefreshedAccessToken = async () => {
+  const getRefreshedAccessToken = async (
+    accessToken: string | null
+  ) => {
     return await httpClient.post<LoginResponse>(
-      "/api/auth/refresh_access_token",
-      {}
+      "/api/auth/refresh",
+      {},
+      accessToken ?? undefined
     );
   };
 

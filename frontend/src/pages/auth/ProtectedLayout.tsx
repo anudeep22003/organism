@@ -13,7 +13,7 @@ const ProtectedLayout = () => {
 
   const refreshAccessToken = useCallback(async () => {
     try {
-      const response = await getRefreshedAccessToken();
+      const response = await getRefreshedAccessToken(accessToken);
       setAccessToken(response.accessToken);
       authLogger.debug("Access token refreshed", response);
     } catch (err) {
