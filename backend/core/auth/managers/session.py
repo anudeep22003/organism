@@ -11,17 +11,19 @@ from core.auth.models.auth_session import AuthSession
 from core.auth.schemas.auth_session import AuthSessionSchema
 from core.common.utils import get_current_datetime_utc
 
-logger = logger.bind(__name__)
+logger = logger.bind(name=__name__)
 
 
 class SessionManager:
     """Manage authentication sessions."""
 
     def __init__(
-        self, db_session: AsyncSession, refresh_token_manager: RefreshTokenManager
+        self,
+        db_session: AsyncSession,
+        refresh_token_manager: RefreshTokenManager | None = None,
     ) -> None:
         self._db = db_session
-        self._refresh_token_manager = refresh_token_manager
+        self._refresh_token_manager = refresh_token_manager or RefreshTokenManager()
 
     async def create_session(
         self, user_id: uuid.UUID, refresh_token: str

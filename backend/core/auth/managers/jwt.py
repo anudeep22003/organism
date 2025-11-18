@@ -32,7 +32,7 @@ class JWTPayload(AliasedBaseModel):
     audience: str
 
 
-class JWTTokensManager:
+class JWTTokenManager:
     def __init__(self) -> None:
         self.password_context = get_password_hasher()
 

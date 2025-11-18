@@ -3,7 +3,7 @@ from loguru import logger
 from agents.manager import Manager
 from agents.types import DirectorRequest
 from core.auth.manager import SessionManager
-from core.auth.managers.jwt import JWTTokensManager
+from core.auth.managers.jwt import JWTTokenManager
 from core.common import AliasedBaseModel
 from core.services.database import async_session_maker
 from core.universe.timeline import primary_timeline
@@ -25,7 +25,7 @@ session_id_to_sid: dict[str, str] = {}
 async def connect(sid: str, environ: dict, auth: dict) -> bool:
     logger.debug("auth received", auth=auth)
 
-    jwt_manager = JWTTokensManager()
+    jwt_manager = JWTTokenManager()
     user_id = jwt_manager.extract_user_id_from_access_token(auth["accessToken"])
     target_room = None
 

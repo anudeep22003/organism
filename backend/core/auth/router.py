@@ -27,7 +27,7 @@ from .manager import (
     AuthManager,
     SessionManager,
 )
-from .managers.jwt import JWTTokensManager
+from .managers.jwt import JWTTokenManager
 from .models.user import User
 from .schemas.user import UserResponse, UserSchemaCreate, UserSchemaSignin
 
@@ -60,7 +60,7 @@ async def login(
     try:
         auth_manager = AuthManager(async_db_session=async_db_session)
         user = await auth_manager.authenticate_user(credentials=credentials)
-        jwt_manager = JWTTokensManager()
+        jwt_manager = JWTTokenManager()
         access_token = jwt_manager.create_access_token(str(user.id))
         return LoginResponse(
             user=UserResponse.model_validate(user), access_token=access_token
@@ -86,7 +86,7 @@ async def signup(
             new_user
         )  # have to do this here before session context is lost and greenlet errors show up
         session_manager = SessionManager(async_db_session=async_db_session)
-        jwt_manager = JWTTokensManager()
+        jwt_manager = JWTTokenManager()
         access_token = jwt_manager.create_access_token(str(user_response.id))
         refresh_token = jwt_manager.create_refresh_token()
         session = await session_manager.create_session(
@@ -146,7 +146,7 @@ async def refresh_access_token(
             raise HTTPException(status_code=401, detail="Unauthorized, user not found.")
 
         user_response = UserResponse.model_validate(user)
-        jwt_manager = JWTTokensManager()
+        jwt_manager = JWTTokenManager()
         access_token = jwt_manager.create_access_token(str(user.id))
         return LoginResponse(user=user_response, access_token=access_token)
     except Exception as e:
@@ -170,7 +170,7 @@ async def me(
             status_code=401,
             detail="Unauthorized, access token is undefined.",
         )
-    jwt_manager = JWTTokensManager()
+    jwt_manager = JWTTokenManager()
     decoded = jwt_manager.decode_access_token(access_token)
     user_id = decoded.get("sub")
     if not user_id:
