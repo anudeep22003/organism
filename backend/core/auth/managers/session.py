@@ -73,6 +73,7 @@ class SessionManager:
             AuthSession.user_id == user_id,
             AuthSession.ip == ip,
             AuthSession.user_agent == user_agent,
+            AuthSession.revoked_at.is_(None),
         )
         session = await self._db.scalar(query)
         if session:
@@ -82,13 +83,17 @@ class SessionManager:
         query = select(AuthSession).where(
             AuthSession.user_id == user_id,
             AuthSession.ip == ip,
+            AuthSession.revoked_at.is_(None),
         )
         session = await self._db.scalar(query)
         if session:
             return session  # type: ignore[no-any-return]
 
         # Priority 3: Match user_id only
-        query = select(AuthSession).where(AuthSession.user_id == user_id)
+        query = select(AuthSession).where(
+            AuthSession.user_id == user_id,
+            AuthSession.revoked_at.is_(None),
+        )
         session = await self._db.scalar(query)
 
         return session  # type: ignore[no-any-return]

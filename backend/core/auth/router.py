@@ -4,7 +4,6 @@ from fastapi import (
     APIRouter,
     Cookie,
     Depends,
-    Header,
     HTTPException,
     Request,
     Response,
@@ -18,6 +17,7 @@ from core.auth.dependencies import (
     get_jwt_token_manager,
     get_refresh_token_manager,
     get_session_manager,
+    get_user_agent_and_ip,
     get_user_manager,
 )
 from core.auth.managers import RefreshTokenManager, UserManager
@@ -69,7 +69,9 @@ async def signin(
     refresh_token_manager: Annotated[
         RefreshTokenManager, Depends(get_refresh_token_manager)
     ],
-    session_headers: Annotated[SessionHeaders, Header()],
+    user_agent_and_ip: Annotated[
+        tuple[str | None, str | None], Depends(get_user_agent_and_ip)
+    ],
 ) -> LoginResponse:
     try:
         user = await user_manager.authenticate_user(credentials=credentials)
@@ -80,12 +82,7 @@ async def signin(
         access_token = jwt_manager.create_access_token(str(user.id))
 
         # extract ip and user-agent
-        ip = (
-            session_headers.x_forwarded_for
-            or session_headers.x_real_ip
-            or session_headers.host
-        )
-        user_agent = session_headers.user_agent
+        user_agent, ip = user_agent_and_ip
 
         # find existing session
         session = await session_manager.find_best_matching_session(
@@ -139,7 +136,9 @@ async def signup(
     refresh_token_manager: Annotated[
         RefreshTokenManager, Depends(get_refresh_token_manager)
     ],
-    session_headers: Annotated[SessionHeaders, Header()],
+    user_agent_and_ip: Annotated[
+        tuple[str | None, str | None], Depends(get_user_agent_and_ip)
+    ],
 ) -> LoginResponse:
     try:
         # create user
@@ -151,13 +150,7 @@ async def signup(
         refresh_token = refresh_token_manager.create_refresh_token()
 
         # extract ip and user-agent
-        ip = (
-            session_headers.x_forwarded_for
-            or session_headers.x_real_ip
-            or session_headers.host
-        )
-        user_agent = session_headers.user_agent
-        logger.info(f"Session headers: {session_headers.model_dump_json()}")
+        user_agent, ip = user_agent_and_ip
 
         # create session
         await session_manager.create_session(

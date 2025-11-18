@@ -1,12 +1,12 @@
 """FastAPI dependency injection for auth."""
 
+from collections import namedtuple
 from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.common import AliasedBaseModel
 from core.services.database import get_async_db_session
 
 from .exceptions import ExpiredTokenError, InvalidTokenError
@@ -89,3 +89,33 @@ async def get_current_user_id(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(e),
         )
+
+
+# this needs to be the BaseModel and not AliasedBaseModel
+# because FastAPI's automated header extraction fails with aliasing
+class SessionHeaders(BaseModel):
+    host: str
+    x_forwarded_for: str | None = None
+    user_agent: str | None = None
+    x_real_ip: str | None = None
+
+
+async def get_user_agent_and_ip(
+    session_headers: Annotated[SessionHeaders, Header()],
+) -> tuple[str | None, str | None]:
+    """
+    Extract user agent and IP from session headers.
+
+    Args:
+        session_headers: Session headers
+
+    Returns:
+        User agent and IP
+    """
+    ip = (
+        session_headers.x_forwarded_for
+        or session_headers.x_real_ip
+        or session_headers.host
+    )
+    user_agent = session_headers.user_agent
+    return user_agent, ip
