@@ -12,22 +12,10 @@ class AuthSessionSchemaBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class AuthSessionSchemaCreate(AuthSessionSchemaBase):
-    user_id: uuid.UUID
-    refresh_token_hash: str
-    created_at: datetime
-    expires_at: datetime
-
-
-class AuthSessionSchemaRefresh(AuthSessionSchemaBase):
-    refresh_token_hash: str
-    created_at: datetime
-    expires_at: datetime
-
-
 class AuthSessionSchema(AuthSessionSchemaBase):
     id: uuid.UUID
     user_id: uuid.UUID
-    refresh_token_hash: str
     created_at: datetime
     expires_at: datetime
+    revoked_at: datetime | None = None
+    last_used_at: datetime

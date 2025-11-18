@@ -1,13 +1,13 @@
 import uuid
 from datetime import datetime
 
-from pydantic import ConfigDict
+from pydantic import ConfigDict, EmailStr
 
 from core.common import AliasedBaseModel
 
 
 class UserSchemaBase(AliasedBaseModel):
-    email: str
+    email: EmailStr
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -28,6 +28,14 @@ class UserSchema(UserSchemaBase):
 
 
 class UserResponse(UserSchemaBase):
-    email: str
     id: uuid.UUID
     updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class UserDetailResponse(UserResponse):
+    created_at: datetime
+    meta: dict
+
+    model_config = ConfigDict(from_attributes=True)
