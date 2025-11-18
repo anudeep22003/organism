@@ -1,6 +1,5 @@
 from fastapi import APIRouter
 
-# from .auth import router as auth_router
 from core.auth import auth_router
 
 from .transcribe import router as transcribe_router
