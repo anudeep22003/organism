@@ -1,13 +1,17 @@
-from datetime import datetime, timezone
-from typing import Optional
+from typing import Annotated, Optional
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 from loguru import logger
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.auth.dependencies import (
+    get_current_user_id,
+    get_jwt_token_manager,
+    get_refresh_token_manager,
+    get_session_manager,
+    get_user_manager,
+)
+from core.auth.managers import RefreshTokenManager, UserManager
 from core.common import AliasedBaseModel
-from core.services.database import get_async_db_session
 
 from .config import (
     REFRESH_TOKEN_COOKIE_HTTPONLY,
@@ -16,33 +20,18 @@ from .config import (
     REFRESH_TOKEN_COOKIE_SAMESITE,
     REFRESH_TOKEN_COOKIE_SECURE,
     REFRESH_TOKEN_TTL_SECONDS,
-    SAFE_HEADERS_TO_STORE,
 )
 from .exceptions import (
     InvalidCredentialsError,
     UserAlreadyExistsError,
     UserNotFoundError,
 )
-from .manager import (
-    AuthManager,
-    SessionManager,
-)
-from .managers.jwt import JWTTokenManager
-from .models.user import User
+from .managers import JWTTokenManager, SessionManager
 from .schemas.user import UserResponse, UserSchemaCreate, UserSchemaSignin
 
 logger = logger.bind(name=__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-
-
-def get_safe_headers(request: Request) -> dict:
-    """Extract only safe, non-sensitive headers from the request."""
-    return {
-        key: request.headers.get(key)
-        for key in SAFE_HEADERS_TO_STORE
-        if request.headers.get(key) is not None
-    }
 
 
 class LoginResponse(AliasedBaseModel):
@@ -55,16 +44,18 @@ async def login(
     response: Response,
     request: Request,
     credentials: UserSchemaSignin,
-    async_db_session: AsyncSession = Depends(get_async_db_session),
+    user_manager: Annotated[UserManager, Depends(get_user_manager)],
+    jwt_manager: Annotated[JWTTokenManager, Depends(get_jwt_token_manager)],
+    # async_db_session: AsyncSession = Depends(get_async_db_session),
 ) -> LoginResponse:
     try:
-        auth_manager = AuthManager(async_db_session=async_db_session)
-        user = await auth_manager.authenticate_user(credentials=credentials)
-        jwt_manager = JWTTokenManager()
+        user = await user_manager.authenticate_user(credentials=credentials)
         access_token = jwt_manager.create_access_token(str(user.id))
+
         return LoginResponse(
             user=UserResponse.model_validate(user), access_token=access_token
         )
+
     except (UserNotFoundError, InvalidCredentialsError):
         raise HTTPException(status_code=401, detail="Invalid email or password.")
     except Exception as e:
@@ -76,22 +67,29 @@ async def login(
 async def signup(
     response: Response,
     request: Request,
-    body: UserSchemaCreate,
-    async_db_session: AsyncSession = Depends(get_async_db_session),
+    credentials: UserSchemaCreate,
+    user_manager: Annotated[UserManager, Depends(get_user_manager)],
+    session_manager: Annotated[SessionManager, Depends(get_session_manager)],
+    jwt_manager: Annotated[JWTTokenManager, Depends(get_jwt_token_manager)],
+    refresh_token_manager: Annotated[
+        RefreshTokenManager, Depends(get_refresh_token_manager)
+    ],
 ) -> LoginResponse:
     try:
-        auth_manager = AuthManager(async_db_session=async_db_session)
-        new_user = await auth_manager.create_new_user(credentials=body, request=request)
-        user_response = UserResponse.model_validate(
-            new_user
-        )  # have to do this here before session context is lost and greenlet errors show up
-        session_manager = SessionManager(async_db_session=async_db_session)
-        jwt_manager = JWTTokenManager()
-        access_token = jwt_manager.create_access_token(str(user_response.id))
-        refresh_token = jwt_manager.create_refresh_token()
-        session = await session_manager.create_session(
-            user_id=new_user.id, refresh_token=refresh_token
+        # create user
+        user = await user_manager.create_user(credentials=credentials, request=request)
+        user_response = UserResponse.model_validate(user)
+
+        # create tokens
+        access_token = jwt_manager.create_access_token(user.id)
+        refresh_token = refresh_token_manager.create_refresh_token()
+
+        # create session
+        await session_manager.create_session(
+            user_id=user.id, refresh_token=refresh_token
         )
+
+        # set refresh token cookie
         response.set_cookie(
             value=refresh_token,
             key=REFRESH_TOKEN_COOKIE_NAME,
@@ -101,7 +99,9 @@ async def signup(
             max_age=REFRESH_TOKEN_TTL_SECONDS,
             path=REFRESH_TOKEN_COOKIE_PATH,
         )
+
         return LoginResponse(user=user_response, access_token=access_token)
+
     except UserAlreadyExistsError as e:
         logger.error(f"User already exists: {e}")
         raise HTTPException(status_code=400, detail="User already exists.")
@@ -112,76 +112,69 @@ async def signup(
 
 @router.post("/refresh_access_token")
 async def refresh_access_token(
-    response: Response,
-    request: Request,
-    async_db_session: AsyncSession = Depends(get_async_db_session),
-    refresh_token: Optional[str] = Cookie(None),
+    session_manager: Annotated[SessionManager, Depends(get_session_manager)],
+    user_manager: Annotated[UserManager, Depends(get_user_manager)],
+    jwt_manager: Annotated[JWTTokenManager, Depends(get_jwt_token_manager)],
+    refresh_token: Annotated[
+        Optional[str], Cookie(alias=REFRESH_TOKEN_COOKIE_NAME)
+    ] = None,
 ) -> LoginResponse:
-    try:
-        if refresh_token is None:
-            raise HTTPException(
-                status_code=401,
-                detail="Unauthorized, no refresh token provided in cookies.",
-            )
+    """
+    Refresh an access token using the refresh token.
 
-        session_manager = SessionManager(async_db_session=async_db_session)
-        session = await session_manager.find_session_by_refresh_token(refresh_token)
-        if session is None:
-            raise HTTPException(
-                status_code=401,
-                detail="Unauthorized, invalid refresh token.",
-            )
-
-        if session.expires_at < datetime.now(timezone.utc):
-            raise HTTPException(
-                status_code=401,
-                detail="Unauthorized, refresh token expired.",
-            )
-
-        user = await async_db_session.scalar(
-            select(User).where(User.id == session.user_id)
+    Returns new access token in the response body.
+    """
+    if refresh_token is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No refresh token provided",
         )
 
-        if user is None:
-            raise HTTPException(status_code=401, detail="Unauthorized, user not found.")
+    # find session by refresh token
+    session = await session_manager.find_session_by_refresh_token(refresh_token)
 
-        user_response = UserResponse.model_validate(user)
-        jwt_manager = JWTTokenManager()
-        access_token = jwt_manager.create_access_token(str(user.id))
-        return LoginResponse(user=user_response, access_token=access_token)
-    except Exception as e:
-        logger.error(f"Error refreshing access token: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error.")
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
+        )
+
+    # Validate session
+    if not await session_manager.session_is_valid(session=session):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session expired or revoked",
+        )
+
+    # get user
+    user = await user_manager.find_user_by_id(user_id=session.user_id)
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
+        )
+
+    # create new access token
+    new_access_token = jwt_manager.create_access_token(user_id=user.id)
+
+    return LoginResponse(
+        user=UserResponse.model_validate(user), access_token=new_access_token
+    )
 
 
 @router.get("/me")
 async def me(
-    request: Request, async_db_session: AsyncSession = Depends(get_async_db_session)
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    user_manager: Annotated[UserManager, Depends(get_user_manager)],
 ) -> UserResponse:
-    access_token = request.headers.get("Authorization")
-    if access_token is None:
-        raise HTTPException(
-            status_code=401,
-            detail="Unauthorized, no access token provided in headers.",
-        )
-    access_token = access_token.split(" ")[1]
-    if access_token == "undefined":
-        raise HTTPException(
-            status_code=401,
-            detail="Unauthorized, access token is undefined.",
-        )
-    jwt_manager = JWTTokenManager()
-    decoded = jwt_manager.decode_access_token(access_token)
-    user_id = decoded.get("sub")
-    if not user_id:
-        raise HTTPException(
-            status_code=401,
-            detail="Unauthorized, user ID not found in access token.",
-        )
-    user = await async_db_session.scalar(select(User).where(User.id == user_id))
+    """
+    Get the current authenticated user's information.
+
+    Requires a valid access token in the Authorization header.
+    """
+    user = await user_manager.find_user_by_id(user_id=user_id)
     if not user:
         raise HTTPException(
-            status_code=401,
-            detail="Unauthorized, user not found.",
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
         )
     return UserResponse.model_validate(user)

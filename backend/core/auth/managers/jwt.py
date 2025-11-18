@@ -1,4 +1,5 @@
 import secrets
+import uuid
 from typing import Any
 
 import jwt
@@ -36,7 +37,7 @@ class JWTTokenManager:
     def __init__(self) -> None:
         self.password_context = get_password_hasher()
 
-    def create_access_token(self, user_id: str) -> str:
+    def create_access_token(self, user_id: str | uuid.UUID) -> str:
         """
         Create a new JWT access token for a user.
 
@@ -46,6 +47,9 @@ class JWTTokenManager:
         Returns:
             Encoded JWT token string
         """
+        if isinstance(user_id, uuid.UUID):
+            user_id = str(user_id)
+
         iat = get_current_timestamp_seconds()
         exp = iat + ACCESS_TOKEN_TTL_SECONDS
         jti = secrets.token_urlsafe(32)
