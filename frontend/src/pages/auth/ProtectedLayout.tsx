@@ -5,6 +5,7 @@ import { getAxiosErrorDetails } from "@/lib/httpClient";
 import { authLogger } from "@/lib/logger";
 import { AUTH_ROUTES, HTTP_STATUS } from "./constants";
 import authService from "./services/authService";
+import AuthLoadingScreen from "./components/AuthLoadingScreen";
 
 const ProtectedLayout = () => {
   const navigate = useNavigate();
@@ -63,7 +64,7 @@ const ProtectedLayout = () => {
   }, [accessToken, refreshAccessToken, navigate, setCheckingAuth]);
 
   if (checkingAuth) {
-    return <div>Checking Auth...</div>;
+    return <AuthLoadingScreen />;
   }
 
   return <Outlet />;

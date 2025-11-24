@@ -26,8 +26,11 @@ const AuthPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { accessToken, setAccessToken } = useAuthContext();
-  const tabFromUrl = searchParams.get("tab") as keyof typeof AUTH_TABS || AUTH_TABS.SIGNIN;
-  const [activeTab, setActiveTab] = useState<keyof typeof AUTH_TABS>(tabFromUrl);
+  const tabFromUrl =
+    (searchParams.get("tab") as keyof typeof AUTH_TABS) ||
+    AUTH_TABS.SIGNIN;
+  const [activeTab, setActiveTab] =
+    useState<keyof typeof AUTH_TABS>(tabFromUrl);
 
   useEffect(() => {
     setActiveTab(tabFromUrl);
@@ -88,10 +91,19 @@ const AuthPage = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs value={activeTab} onValueChange={(value) => handleTabChange(value as keyof typeof AUTH_TABS)}>
+          <Tabs
+            value={activeTab}
+            onValueChange={(value) =>
+              handleTabChange(value as keyof typeof AUTH_TABS)
+            }
+          >
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value={AUTH_TABS.SIGNIN}>Sign In</TabsTrigger>
-              <TabsTrigger value={AUTH_TABS.SIGNUP}>Sign Up</TabsTrigger>
+              <TabsTrigger value={AUTH_TABS.SIGNIN}>
+                Sign In
+              </TabsTrigger>
+              <TabsTrigger value={AUTH_TABS.SIGNUP}>
+                Sign Up
+              </TabsTrigger>
             </TabsList>
             <TabsContent value={AUTH_TABS.SIGNIN} className="mt-6">
               <SignInForm onSubmit={handleSignIn} />
