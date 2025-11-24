@@ -39,7 +39,6 @@ const AuthPage = () => {
   const { accessToken, setAccessToken  } = useAuthContext();
   const tabFromUrl = searchParams.get("tab") || "signin";
   const [activeTab, setActiveTab] = useState<string>(tabFromUrl);
-  const [error, setError] = useState<string>("");
   const { signIn, signUp } = useAuthEntry();
 
   useEffect(() => {
@@ -60,8 +59,7 @@ const AuthPage = () => {
       authLogger.debug("Login status", response);
       // navigate("/");
     } catch (err) {
-      const { detail, status } = getAxiosErrorDetails(err);
-      setError(detail);
+      const { status } = getAxiosErrorDetails(err);
       authLogger.error("Sign in failed:", err);
       if (status === 401) {
         navigate("/auth?tab=signup", {
@@ -79,8 +77,7 @@ const AuthPage = () => {
       setAccessToken(response.accessToken);
       // navigate("/");
     } catch (err) {
-      const { detail, status } = getAxiosErrorDetails(err);
-      setError(detail);
+      const { status } = getAxiosErrorDetails(err);
       authLogger.error("Sign up failed:", err);
       if (status === 400) {
         navigate("/auth?tab=signin", {
