@@ -36,7 +36,7 @@ export interface LoginResponse {
 const AuthPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { accessToken, setAccessToken, statusCode } = useAuthContext();
+  const { accessToken, setAccessToken  } = useAuthContext();
   const tabFromUrl = searchParams.get("tab") || "signin";
   const [activeTab, setActiveTab] = useState<string>(tabFromUrl);
   const [error, setError] = useState<string>("");
@@ -45,13 +45,6 @@ const AuthPage = () => {
   useEffect(() => {
     setActiveTab(tabFromUrl);
   }, [tabFromUrl]);
-
-  useEffect(() => {
-    if (statusCode === 401) {
-      authLogger.debug("Status code is 401, redirecting to signin");
-      navigate("/auth?tab=signin");
-    }
-  }, [statusCode]);
 
   const handleTabChange = (value: string) => {
     setActiveTab(value);
