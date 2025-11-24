@@ -23,11 +23,22 @@ export interface PasswordRequirement {
 export interface PasswordValidation {
   isValid: boolean;
   requirements: PasswordRequirement[];
-  strength: 'weak' | 'medium' | 'strong';
+  strength: "weak" | "medium" | "strong";
 }
 
 export interface AuthFormState {
   isLoading: boolean;
   error: string | null;
   validationErrors: ValidationError[];
+}
+
+export interface User {
+  id: string;
+  email: string;
+  fullName: string;
+}
+
+export interface LoginResponse {
+  accessToken: string;
+  user: User;
 }

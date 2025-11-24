@@ -20,3 +20,10 @@ export const HTTP_STATUS = {
   UNAUTHORIZED: 401,
   BAD_REQUEST: 400,
 } as const;
+
+export const AUTH_SERVICE_ENDPOINTS = {
+  ME: "/api/auth/me",
+  SIGNIN: "/api/auth/signin",
+  SIGNUP: "/api/auth/signup",
+  REFRESH: "/api/auth/refresh",
+} as const;

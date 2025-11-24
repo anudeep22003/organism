@@ -18,20 +18,9 @@ import { SignUpForm } from "./components/SignUpForm";
 import type { SignInFormData, SignUpFormData } from "./types";
 import { getAxiosErrorDetails } from "@/lib/httpClient";
 import { useAuthContext } from "./context";
-import useAuthEntry from "./hooks/useAuth";
 import { authLogger } from "@/lib/logger";
 import { AUTH_ROUTES, AUTH_TABS, HTTP_STATUS } from "./constants";
-
-interface User {
-  email: string;
-  id: string;
-  updatedAt: string;
-}
-
-export interface LoginResponse {
-  user: User;
-  accessToken: string;
-}
+import authService from "./services/authService";
 
 const AuthPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -39,7 +28,6 @@ const AuthPage = () => {
   const { accessToken, setAccessToken } = useAuthContext();
   const tabFromUrl = searchParams.get("tab") as keyof typeof AUTH_TABS || AUTH_TABS.SIGNIN;
   const [activeTab, setActiveTab] = useState<keyof typeof AUTH_TABS>(tabFromUrl);
-  const { signIn, signUp } = useAuthEntry();
 
   useEffect(() => {
     setActiveTab(tabFromUrl);
@@ -55,7 +43,7 @@ const AuthPage = () => {
     authLogger.debug("Sign in:", data);
     authLogger.debug("Access token:", accessToken);
     try {
-      const response = await signIn(data);
+      const response = await authService.authenticateUser(data);
       authLogger.debug("Login status", response);
       setAccessToken(response.accessToken);
       navigate(AUTH_ROUTES.HOME);
@@ -73,7 +61,7 @@ const AuthPage = () => {
   const handleSignUp = async (data: SignUpFormData) => {
     authLogger.debug("Sign up:", data);
     try {
-      const response = await signUp(data);
+      const response = await authService.registerUser(data);
       authLogger.debug("Login status", response);
       setAccessToken(response.accessToken);
       navigate(AUTH_ROUTES.HOME);

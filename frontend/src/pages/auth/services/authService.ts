@@ -1,44 +1,41 @@
-import type { LoginResponse } from "..";
+import type { LoginResponse } from "../types";
 import { httpClient } from "@/lib/httpClient";
 import type { SignInFormData, SignUpFormData } from "../types";
+import { AUTH_SERVICE_ENDPOINTS } from "../constants";
 
-const useAuthEntry = () => {
-  const getUser = async (accessToken: string) => {
+const authService = {
+  fetchCurrentUser: async (accessToken: string) => {
     return await httpClient.get<Record<string, unknown>>(
-      "/api/auth/me",
+      AUTH_SERVICE_ENDPOINTS.ME,
       accessToken
     );
-  };
+  },
 
-  const signIn = async (
+  authenticateUser: async (
     credentials: SignInFormData
   ): Promise<LoginResponse> => {
     return await httpClient.post<LoginResponse>(
-      "/api/auth/signin",
+      AUTH_SERVICE_ENDPOINTS.SIGNIN,
       credentials
     );
-  };
+  },
 
-  const signUp = async (
+  registerUser: async (
     credentials: SignUpFormData
   ): Promise<LoginResponse> => {
     return await httpClient.post<LoginResponse>(
-      "/api/auth/signup",
+      AUTH_SERVICE_ENDPOINTS.SIGNUP,
       credentials
     );
-  };
+  },
 
-  const getRefreshedAccessToken = async (
-    accessToken: string | null
-  ) => {
+  refreshAccessToken: async (accessToken: string | null) => {
     return await httpClient.post<LoginResponse>(
-      "/api/auth/refresh",
+      AUTH_SERVICE_ENDPOINTS.REFRESH,
       {},
       accessToken ?? undefined
     );
-  };
-
-  return { getUser, signIn, signUp, getRefreshedAccessToken };
+  },
 };
 
-export default useAuthEntry;
+export default authService;
