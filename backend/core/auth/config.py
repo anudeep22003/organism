@@ -8,7 +8,7 @@ JWT_ISSUER: Final[str] = "backend-auth-service"
 JWT_AUDIENCE: Final[str] = "frontend-app"
 
 # Token Lifetimes (in seconds)
-ACCESS_TOKEN_TTL_SECONDS: Final[int] = 15 * 60  # 15 minutes
+ACCESS_TOKEN_TTL_SECONDS: Final[int] = 30 * 60  # 30 minutes
 REFRESH_TOKEN_TTL_SECONDS: Final[int] = 10 * 24 * 60 * 60  # 10 days
 
 # Security

@@ -1,13 +1,18 @@
 import { Outlet, useNavigate } from "react-router";
 import { useAuthContext } from "./context";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getAxiosErrorDetails } from "@/lib/httpClient";
 import { authLogger } from "@/lib/logger";
-import { AUTH_ROUTES, HTTP_STATUS } from "./constants";
+import {
+  ACCESS_TOKEN_EXPIRY_TIME,
+  AUTH_ROUTES,
+  HTTP_STATUS,
+} from "./constants";
 import authService from "./services/authService";
 import AuthLoadingScreen from "./components/AuthLoadingScreen";
 
 const ProtectedLayout = () => {
+  const [initialized, setInitialized] = useState(false);
   const navigate = useNavigate();
   const { accessToken, setAccessToken, setCheckingAuth, checkingAuth } =
     useAuthContext();
@@ -32,38 +37,47 @@ const ProtectedLayout = () => {
   }, [setAccessToken, navigate, setCheckingAuth, accessToken]);
 
   useEffect(() => {
-    const checkAuth = async () => {
+    const initializeAuth = async () => {
+      authLogger.debug("Initializing auth");
       try {
         if (accessToken) {
-          try {
-            const response = await authService.fetchCurrentUser(
-              accessToken
-            );
-            authLogger.debug("User", response);
-            authLogger.debug("Access token is valid");
-            setCheckingAuth(false);
-            return;
-          } catch (err) {
-            const { status } = getAxiosErrorDetails(err);
-            if (status === HTTP_STATUS.UNAUTHORIZED) {
-              await refreshAccessToken();
-            } else {
-              throw err;
-            }
-          }
+          await authService.fetchCurrentUser(accessToken);
+          authLogger.debug("Access token is valid");
         } else {
+          // No token, attempt refresh
           await refreshAccessToken();
         }
       } catch (err) {
-        authLogger.error("Auth check failed:", err);
+        const { status } = getAxiosErrorDetails(err);
+        if (status === HTTP_STATUS.UNAUTHORIZED) {
+          navigate(AUTH_ROUTES.SIGNIN, { replace: true });
+
+          authLogger.error("Auth check failed:", err);
+        } else {
+          throw err;
+        }
+      } finally {
         setCheckingAuth(false);
-        navigate(AUTH_ROUTES.SIGNIN, { replace: true });
+        setInitialized(true);
       }
     };
-    checkAuth();
-  }, [accessToken, refreshAccessToken, navigate, setCheckingAuth]);
 
-  if (checkingAuth) {
+    if (!initialized) {
+      initializeAuth();
+    }
+  }, [initialized]);
+
+  useEffect(() => {
+    if (!accessToken) return;
+    const expiryTimer = setTimeout(() => {
+      authLogger.debug("Access token expired, refreshing");
+      refreshAccessToken();
+      authLogger.debug("Access token refreshed");
+    }, ACCESS_TOKEN_EXPIRY_TIME);
+    return () => clearTimeout(expiryTimer);
+  }, [accessToken, refreshAccessToken]);
+
+  if (checkingAuth || !initialized) {
     return <AuthLoadingScreen />;
   }
 

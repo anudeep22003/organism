@@ -27,3 +27,5 @@ export const AUTH_SERVICE_ENDPOINTS = {
   SIGNUP: "/api/auth/signup",
   REFRESH: "/api/auth/refresh",
 } as const;
+
+export const ACCESS_TOKEN_EXPIRY_TIME = 1000 * 60 * 30; // 30 minutes

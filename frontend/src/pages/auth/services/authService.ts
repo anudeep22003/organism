@@ -1,11 +1,11 @@
-import type { LoginResponse } from "../types";
+import type { LoginResponse, User } from "../types";
 import { httpClient } from "@/lib/httpClient";
 import type { SignInFormData, SignUpFormData } from "../types";
 import { AUTH_SERVICE_ENDPOINTS } from "../constants";
 
 const authService = {
   fetchCurrentUser: async (accessToken: string) => {
-    return await httpClient.get<Record<string, unknown>>(
+    return await httpClient.get<User>(
       AUTH_SERVICE_ENDPOINTS.ME,
       accessToken
     );
