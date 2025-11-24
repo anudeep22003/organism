@@ -57,6 +57,7 @@ const AuthPage = () => {
     try {
       const response = await signIn(data);
       authLogger.debug("Login status", response);
+      setAccessToken(response.accessToken);
       // navigate("/");
     } catch (err) {
       const { status } = getAxiosErrorDetails(err);
