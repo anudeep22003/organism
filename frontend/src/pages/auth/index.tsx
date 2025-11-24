@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import {
   Card,
@@ -36,48 +36,55 @@ const AuthPage = () => {
     setActiveTab(tabFromUrl);
   }, [tabFromUrl]);
 
-  const handleTabChange = (value: keyof typeof AUTH_TABS) => {
-    setActiveTab(value);
-    setSearchParams({ tab: value });
-  };
+  const handleTabChange = useCallback(
+    (value: keyof typeof AUTH_TABS) => {
+      setActiveTab(value);
+      setSearchParams({ tab: value });
+    },
+    [setActiveTab, setSearchParams]
+  );
 
-  const handleSignIn = async (data: SignInFormData) => {
-    authLogger.debug("New sign in attempt");
-    authLogger.debug("Sign in:", data);
-    authLogger.debug("Access token:", accessToken);
-    try {
-      const response = await authService.authenticateUser(data);
-      authLogger.debug("Login status", response);
-      setAccessToken(response.accessToken);
-      navigate(AUTH_ROUTES.HOME);
-    } catch (err) {
-      const { status } = getAxiosErrorDetails(err);
-      authLogger.error("Sign in failed:", err);
-      if (status === HTTP_STATUS.UNAUTHORIZED) {
-        navigate(AUTH_ROUTES.SIGNUP, {
-          replace: true,
-        });
+  const handleSignIn = useCallback(
+    async (data: SignInFormData) => {
+      authLogger.debug("New sign in attempt");
+      try {
+        const response = await authService.authenticateUser(data);
+        authLogger.debug("Login status", response);
+        setAccessToken(response.accessToken);
+        navigate(AUTH_ROUTES.HOME);
+      } catch (err) {
+        const { status } = getAxiosErrorDetails(err);
+        authLogger.error("Sign in failed:", err);
+        if (status === HTTP_STATUS.UNAUTHORIZED) {
+          navigate(AUTH_ROUTES.SIGNUP, {
+            replace: true,
+          });
+        }
       }
-    }
-  };
+    },
+    [setAccessToken, navigate]
+  );
 
-  const handleSignUp = async (data: SignUpFormData) => {
-    authLogger.debug("Sign up:", data);
-    try {
-      const response = await authService.registerUser(data);
-      authLogger.debug("Login status", response);
-      setAccessToken(response.accessToken);
-      navigate(AUTH_ROUTES.HOME);
-    } catch (err) {
-      const { status } = getAxiosErrorDetails(err);
-      authLogger.error("Sign up failed:", err);
-      if (status === HTTP_STATUS.BAD_REQUEST) {
-        navigate(AUTH_ROUTES.SIGNIN, {
-          replace: true,
-        });
+  const handleSignUp = useCallback(
+    async (data: SignUpFormData) => {
+      authLogger.debug("Sign up:", data);
+      try {
+        const response = await authService.registerUser(data);
+        authLogger.debug("Login status", response);
+        setAccessToken(response.accessToken);
+        navigate(AUTH_ROUTES.HOME);
+      } catch (err) {
+        const { status } = getAxiosErrorDetails(err);
+        authLogger.error("Sign up failed:", err);
+        if (status === HTTP_STATUS.BAD_REQUEST) {
+          navigate(AUTH_ROUTES.SIGNIN, {
+            replace: true,
+          });
+        }
       }
-    }
-  };
+    },
+    [setAccessToken, navigate]
+  );
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-black p-4">
