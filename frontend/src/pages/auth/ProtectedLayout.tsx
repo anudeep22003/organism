@@ -4,6 +4,7 @@ import { useCallback, useEffect } from "react";
 import useAuthEntry from "./hooks/useAuth";
 import { getAxiosErrorDetails } from "@/lib/httpClient";
 import { authLogger } from "@/lib/logger";
+import { AUTH_ROUTES, HTTP_STATUS } from "./constants";
 
 const ProtectedLayout = () => {
   const navigate = useNavigate();
@@ -18,8 +19,8 @@ const ProtectedLayout = () => {
       authLogger.debug("Access token refreshed", response);
     } catch (err) {
       const { status } = getAxiosErrorDetails(err);
-      if (status === 401) {
-        navigate("/auth?tab=signin", { replace: true });
+      if (status === HTTP_STATUS.UNAUTHORIZED) {
+        navigate(AUTH_ROUTES.SIGNIN, { replace: true });
       } else {
         throw err;
       }
@@ -31,31 +32,44 @@ const ProtectedLayout = () => {
     setAccessToken,
     navigate,
     setCheckingAuth,
+    accessToken,
   ]);
 
   useEffect(() => {
     const checkAuth = async () => {
-      if (accessToken) {
-        try {
-          const response = await getUser(accessToken);
-          authLogger.debug("User", response);
-          authLogger.debug("Access token is valid");
-          return;
-        } catch (err) {
-          const { status } = getAxiosErrorDetails(err);
-          if (status === 401) {
-            await refreshAccessToken();
-          } else {
-            throw err;
+      try {
+        if (accessToken) {
+          try {
+            const response = await getUser(accessToken);
+            authLogger.debug("User", response);
+            authLogger.debug("Access token is valid");
+            setCheckingAuth(false);
+            return;
+          } catch (err) {
+            const { status } = getAxiosErrorDetails(err);
+            if (status === HTTP_STATUS.UNAUTHORIZED) {
+              await refreshAccessToken();
+            } else {
+              throw err;
+            }
           }
+        } else {
+          await refreshAccessToken();
         }
-      }
-      if (!accessToken) {
-        await refreshAccessToken();
+      } catch (err) {
+        authLogger.error("Auth check failed:", err);
+        setCheckingAuth(false);
+        navigate(AUTH_ROUTES.SIGNIN, { replace: true });
       }
     };
     checkAuth();
-  }, [accessToken, refreshAccessToken, getUser]);
+  }, [
+    accessToken,
+    refreshAccessToken,
+    getUser,
+    navigate,
+    setCheckingAuth,
+  ]);
 
   if (checkingAuth) {
     return <div>Checking Auth...</div>;

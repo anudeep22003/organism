@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import type { SignInFormData, AuthFormState } from '../types';
 import { validateEmail } from '../utils/validation';
+import { AUTH_FIELDS } from '../constants';
 
 export const useSignIn = (onSubmit: (data: SignInFormData) => Promise<void>) => {
   const [formData, setFormData] = useState<SignInFormData>({
@@ -18,13 +19,13 @@ export const useSignIn = (onSubmit: (data: SignInFormData) => Promise<void>) => 
     const errors: { field: string; message: string }[] = [];
 
     if (!formData.email) {
-      errors.push({ field: 'email', message: 'Email is required' });
+      errors.push({ field: AUTH_FIELDS.EMAIL, message: 'Email is required' });
     } else if (!validateEmail(formData.email)) {
-      errors.push({ field: 'email', message: 'Invalid email format' });
+      errors.push({ field: AUTH_FIELDS.EMAIL, message: 'Invalid email format' });
     }
 
     if (!formData.password) {
-      errors.push({ field: 'password', message: 'Password is required' });
+      errors.push({ field: AUTH_FIELDS.PASSWORD, message: 'Password is required' });
     }
 
     setFormState(prev => ({ ...prev, validationErrors: errors }));
@@ -56,7 +57,7 @@ export const useSignIn = (onSubmit: (data: SignInFormData) => Promise<void>) => 
     }));
   };
 
-  const getFieldError = (field: string) =>
+  const getFieldError = (field: keyof SignInFormData) =>
     formState.validationErrors.find(e => e.field === field)?.message;
 
   return {

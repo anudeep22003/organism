@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import type { SignUpFormData, AuthFormState } from '../types';
 import { validateEmail, isPasswordValid } from '../utils/validation';
+import { AUTH_FIELDS } from '../constants';
 
 export const useSignUp = (onSubmit: (data: SignUpFormData) => Promise<void>) => {
   const [formData, setFormData] = useState<SignUpFormData>({
@@ -20,23 +21,23 @@ export const useSignUp = (onSubmit: (data: SignUpFormData) => Promise<void>) => 
     const errors: { field: string; message: string }[] = [];
 
     if (!formData.fullName.trim()) {
-      errors.push({ field: 'fullName', message: 'Full name is required' });
+      errors.push({ field: AUTH_FIELDS.FULL_NAME, message: 'Full name is required' });
     }
 
     if (!formData.email) {
-      errors.push({ field: 'email', message: 'Email is required' });
+      errors.push({ field: AUTH_FIELDS.EMAIL, message: 'Email is required' });
     } else if (!validateEmail(formData.email)) {
-      errors.push({ field: 'email', message: 'Invalid email format' });
+      errors.push({ field: AUTH_FIELDS.EMAIL, message: 'Invalid email format' });
     }
 
     if (!formData.password) {
-      errors.push({ field: 'password', message: 'Password is required' });
+      errors.push({ field: AUTH_FIELDS.PASSWORD, message: 'Password is required' });
     } else if (!isPasswordValid(formData.password)) {
-      errors.push({ field: 'password', message: 'Password does not meet requirements' });
+      errors.push({ field: AUTH_FIELDS.PASSWORD, message: 'Password does not meet requirements' });
     }
 
     if (!formData.acceptTerms) {
-      errors.push({ field: 'acceptTerms', message: 'You must accept the terms' });
+      errors.push({ field: AUTH_FIELDS.ACCEPT_TERMS, message: 'You must accept the terms' });
     }
 
     setFormState(prev => ({ ...prev, validationErrors: errors }));
@@ -64,11 +65,11 @@ export const useSignUp = (onSubmit: (data: SignUpFormData) => Promise<void>) => 
     setFormData(prev => ({ ...prev, [field]: value }));
     setFormState(prev => ({
       ...prev,
-      validationErrors: prev.validationErrors.filter(e => e.field !== field),
+      validationErrors: prev.validationErrors.filter(e => e.field !== AUTH_FIELDS[field as keyof typeof AUTH_FIELDS]),
     }));
   };
 
-  const getFieldError = (field: string) =>
+  const getFieldError = (field: keyof SignUpFormData) =>
     formState.validationErrors.find(e => e.field === field)?.message;
 
   return {

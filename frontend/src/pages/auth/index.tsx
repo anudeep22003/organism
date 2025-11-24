@@ -20,6 +20,7 @@ import { getAxiosErrorDetails } from "@/lib/httpClient";
 import { useAuthContext } from "./context";
 import useAuthEntry from "./hooks/useAuth";
 import { authLogger } from "@/lib/logger";
+import { AUTH_ROUTES, AUTH_TABS, HTTP_STATUS } from "./constants";
 
 interface User {
   email: string;
@@ -32,20 +33,19 @@ export interface LoginResponse {
   accessToken: string;
 }
 
-
 const AuthPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { accessToken, setAccessToken  } = useAuthContext();
-  const tabFromUrl = searchParams.get("tab") || "signin";
-  const [activeTab, setActiveTab] = useState<string>(tabFromUrl);
+  const { accessToken, setAccessToken } = useAuthContext();
+  const tabFromUrl = searchParams.get("tab") as keyof typeof AUTH_TABS || AUTH_TABS.SIGNIN;
+  const [activeTab, setActiveTab] = useState<keyof typeof AUTH_TABS>(tabFromUrl);
   const { signIn, signUp } = useAuthEntry();
 
   useEffect(() => {
     setActiveTab(tabFromUrl);
   }, [tabFromUrl]);
 
-  const handleTabChange = (value: string) => {
+  const handleTabChange = (value: keyof typeof AUTH_TABS) => {
     setActiveTab(value);
     setSearchParams({ tab: value });
   };
@@ -58,12 +58,12 @@ const AuthPage = () => {
       const response = await signIn(data);
       authLogger.debug("Login status", response);
       setAccessToken(response.accessToken);
-      // navigate("/");
+      navigate(AUTH_ROUTES.HOME);
     } catch (err) {
       const { status } = getAxiosErrorDetails(err);
       authLogger.error("Sign in failed:", err);
-      if (status === 401) {
-        navigate("/auth?tab=signup", {
+      if (status === HTTP_STATUS.UNAUTHORIZED) {
+        navigate(AUTH_ROUTES.SIGNUP, {
           replace: true,
         });
       }
@@ -76,12 +76,12 @@ const AuthPage = () => {
       const response = await signUp(data);
       authLogger.debug("Login status", response);
       setAccessToken(response.accessToken);
-      // navigate("/");
+      navigate(AUTH_ROUTES.HOME);
     } catch (err) {
       const { status } = getAxiosErrorDetails(err);
       authLogger.error("Sign up failed:", err);
-      if (status === 400) {
-        navigate("/auth?tab=signin", {
+      if (status === HTTP_STATUS.BAD_REQUEST) {
+        navigate(AUTH_ROUTES.SIGNIN, {
           replace: true,
         });
       }
@@ -100,15 +100,15 @@ const AuthPage = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs value={activeTab} onValueChange={handleTabChange}>
+          <Tabs value={activeTab} onValueChange={(value) => handleTabChange(value as keyof typeof AUTH_TABS)}>
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="signin">Sign In</TabsTrigger>
-              <TabsTrigger value="signup">Sign Up</TabsTrigger>
+              <TabsTrigger value={AUTH_TABS.SIGNIN}>Sign In</TabsTrigger>
+              <TabsTrigger value={AUTH_TABS.SIGNUP}>Sign Up</TabsTrigger>
             </TabsList>
-            <TabsContent value="signin" className="mt-6">
+            <TabsContent value={AUTH_TABS.SIGNIN} className="mt-6">
               <SignInForm onSubmit={handleSignIn} />
             </TabsContent>
-            <TabsContent value="signup" className="mt-6">
+            <TabsContent value={AUTH_TABS.SIGNUP} className="mt-6">
               <SignUpForm onSubmit={handleSignUp} />
             </TabsContent>
           </Tabs>

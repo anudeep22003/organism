@@ -1,12 +1,12 @@
-export const AUTH_ROUTES = {
-  HOME: "/",
-  SIGNIN: "/auth?tab=signin",
-  SIGNUP: "/auth?tab=signup",
-} as const;
-
 export const AUTH_TABS = {
   SIGNIN: "signin",
   SIGNUP: "signup",
+} as const;
+
+export const AUTH_ROUTES = {
+  HOME: "/",
+  SIGNIN: "/auth?tab=" + AUTH_TABS.SIGNIN,
+  SIGNUP: "/auth?tab=" + AUTH_TABS.SIGNUP,
 } as const;
 
 export const AUTH_FIELDS = {
