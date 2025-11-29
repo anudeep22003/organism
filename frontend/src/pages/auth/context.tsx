@@ -1,6 +1,8 @@
+import { httpClient } from "@/lib/httpClient";
 import {
   createContext,
   useContext,
+  useEffect,
   useState,
   type ReactNode,
 } from "react";
@@ -18,8 +20,19 @@ const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
 
+  useEffect(() => {
+    httpClient.setReactStateUpdateFn(setAccessToken);
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ accessToken, setAccessToken, checkingAuth, setCheckingAuth }}>
+    <AuthContext.Provider
+      value={{
+        accessToken,
+        setAccessToken,
+        checkingAuth,
+        setCheckingAuth,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
