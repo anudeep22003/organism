@@ -1,14 +1,19 @@
 import { BACKEND_URL } from "@/constants";
 import axios, { AxiosError, type AxiosInstance } from "axios";
 import { apiLogger, authLogger } from "./logger";
-import { HTTP_STATUS } from "@/pages/auth/constants";
-import authService from "@/pages/auth/services/authService";
+import {
+  ACCESS_TOKEN_EXPIRY_TIME,
+  AUTH_SERVICE_ENDPOINTS,
+  HTTP_STATUS,
+} from "@/pages/auth/constants";
+import { type LoginResponse } from "@/pages/auth/types";
 
 class HttpClient {
   private static instance: HttpClient;
   private axiosInstance: AxiosInstance;
   private accessToken: string | null = null;
   private updateReactStateCallback?: (token: string) => void;
+  private refreshTimer: NodeJS.Timeout | null = null;
 
   private constructor() {
     this.axiosInstance = axios.create({
@@ -26,15 +31,10 @@ class HttpClient {
 
   public async post<T = unknown>(
     url: string,
-    data?: unknown,
-    accessToken?: string
+    data?: unknown
   ): Promise<T> {
     try {
-      const response = await this.axiosInstance.post<T>(url, data, {
-        // headers: {
-        //   Authorization: `Bearer ${accessToken}`,
-        // },
-      });
+      const response = await this.axiosInstance.post<T>(url, data, {});
       return response.data;
     } catch (error) {
       apiLogger.error("HTTP Request Error", { error });
@@ -42,16 +42,9 @@ class HttpClient {
     }
   }
 
-  public async get<T = unknown>(
-    url: string,
-    accessToken?: string
-  ): Promise<T> {
+  public async get<T = unknown>(url: string): Promise<T> {
     try {
-      const response = await this.axiosInstance.get<T>(url, {
-        // headers: {
-        //   Authorization: `Bearer ${accessToken}`,
-        // },
-      });
+      const response = await this.axiosInstance.get<T>(url, {});
       return response.data;
     } catch (error) {
       apiLogger.error("HTTP Request Error", { error });
@@ -70,23 +63,47 @@ class HttpClient {
     if (!token) {
       throw new Error("Null access token being tried to set");
     }
+
+    // Clear any existing timer
+    if (this.refreshTimer) {
+      clearTimeout(this.refreshTimer);
+    }
+
     this.accessToken = token;
+
+    // Start new refresh timer
+    this.refreshTimer = setTimeout(() => {
+      this.refreshAccessToken();
+    }, ACCESS_TOKEN_EXPIRY_TIME);
+
     if (this.updateReactStateCallback) {
       this.updateReactStateCallback(token);
     }
   }
+
+  public async refreshAccessToken(): Promise<void> {
+    try {
+      const { accessToken: newAccessToken } =
+        await this.post<LoginResponse>(
+          AUTH_SERVICE_ENDPOINTS.REFRESH,
+          {}
+          // this.accessToken ?? undefined
+        );
+      this.setAccessToken(newAccessToken);
+    } catch (err) {
+      throw new Error(`Error refreshing Access token, ${err}`);
+    }
+  }
+
   private setupInterceptors(): void {
     // Request interceptor
     this.axiosInstance.interceptors.request.use(
       (config) => {
-        // TODO set the Authorization globally
-        config.headers.Authorization = `Bearer ${this.accessToken}`;
-        apiLogger.debug("HTTP Request", {
-          method: config.method?.toUpperCase(),
-          url: config.url,
-          baseURL: config.baseURL,
-          headers: config.headers,
-        });
+        // set auth header globally or set it to undefined
+        config.headers.Authorization = this.accessToken
+          ? `Bearer ${this.accessToken}`
+          : undefined;
+
         return config;
       },
       (error) => {
@@ -105,6 +122,8 @@ class HttpClient {
         return response;
       },
       async (error) => {
+        // storing the original request to reattempt
+        const originalRequest = error.config;
         if (error.response?.status === HTTP_STATUS.UNAUTHORIZED)
           authLogger.debug(
             "No accessToken or unauthorized meaning token expired. Will attempt refresh",
@@ -113,22 +132,16 @@ class HttpClient {
             this.accessToken
           );
         try {
-          // TODO is passing an accessToken in there correct, or should it be empty?
-          // the
-          await authService.refreshAndSetAccessToken(this.accessToken);
+          // the accessToken is refreshed and public instance is updated
+          await this.refreshAccessToken();
 
           // Retry the failed request
           authLogger.debug("Reattempting the failed request.");
-          return this.axiosInstance.request(error.config);
+          return this.axiosInstance.request(originalRequest);
         } catch (refreshError) {
           // add an onAuthFailure callback here to let react know of the failure
           authLogger.debug("Refresh failed", refreshError);
         }
-        // apiLogger.error("HTTP Response Error", {
-        //   status: error.response?.status,
-        //   message: error.message,
-        //   url: error.config?.url,
-        // });
         return Promise.reject(error);
       }
     );

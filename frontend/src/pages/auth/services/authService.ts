@@ -36,21 +36,6 @@ const authService = {
       response
     );
   },
-
-  refreshAndSetAccessToken: async (
-    accessToken: string | null
-  ): Promise<void> => {
-    const response = await httpClient.post<LoginResponse>(
-      AUTH_SERVICE_ENDPOINTS.REFRESH,
-      {},
-      accessToken ?? undefined
-    );
-    httpClient.setAccessToken(response.accessToken);
-    authLogger.debug(
-      "Refreshed access token (refresh), and set the access token. Response: ",
-      response
-    );
-  },
 };
 
 export default authService;
