@@ -8,7 +8,7 @@ class HttpClient {
   private static instance: HttpClient;
   private axiosInstance: AxiosInstance;
   private accessToken: string | null = null;
-  private updateReactState?: (token: string) => void;
+  private updateReactStateCallback?: (token: string) => void;
 
   private constructor() {
     this.axiosInstance = axios.create({
@@ -21,7 +21,7 @@ class HttpClient {
   }
 
   public setReactStateUpdateFn(callback: (token: string) => void) {
-    this.updateReactState = callback;
+    this.updateReactStateCallback = callback;
   }
 
   public async post<T = unknown>(
@@ -66,13 +66,13 @@ class HttpClient {
     return HttpClient.instance;
   }
 
-  private setAccessToken(token: string | null) {
+  public setAccessToken(token: string | null) {
     if (!token) {
       throw new Error("Null access token being tried to set");
     }
     this.accessToken = token;
-    if (this.updateReactState) {
-      this.updateReactState(token);
+    if (this.updateReactStateCallback) {
+      this.updateReactStateCallback(token);
     }
   }
   private setupInterceptors(): void {
@@ -114,12 +114,10 @@ class HttpClient {
           );
         try {
           // TODO is passing an accessToken in there correct, or should it be empty?
-          const { accessToken: newAccessToken } =
-            await authService.refreshAccessToken(this.accessToken);
-          this.setAccessToken(newAccessToken);
+          // the
+          await authService.refreshAndSetAccessToken(this.accessToken);
 
           // Retry the failed request
-          error.config.headers.Authorization = `Bearer ${newAccessToken}`;
           authLogger.debug("Reattempting the failed request.");
           return this.axiosInstance.request(error.config);
         } catch (refreshError) {

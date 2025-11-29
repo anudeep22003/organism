@@ -14,16 +14,12 @@ import AuthLoadingScreen from "./components/AuthLoadingScreen";
 const ProtectedLayout = () => {
   const [initialized, setInitialized] = useState(false);
   const navigate = useNavigate();
-  const { accessToken, setAccessToken, setCheckingAuth, checkingAuth } =
+  const { accessToken, setCheckingAuth, checkingAuth } =
     useAuthContext();
 
   const refreshAccessToken = useCallback(async () => {
     try {
-      const response = await authService.refreshAccessToken(
-        accessToken
-      );
-      setAccessToken(response.accessToken);
-      authLogger.debug("Access token refreshed", response);
+      await authService.refreshAndSetAccessToken(accessToken);
     } catch (err) {
       const { status } = getAxiosErrorDetails(err);
       if (status === HTTP_STATUS.UNAUTHORIZED) {
@@ -34,14 +30,14 @@ const ProtectedLayout = () => {
     } finally {
       setCheckingAuth(false);
     }
-  }, [setAccessToken, navigate, setCheckingAuth, accessToken]);
+  }, [navigate, setCheckingAuth, accessToken]);
 
   useEffect(() => {
     const initializeAuth = async () => {
       authLogger.debug("Initializing auth");
       try {
         if (accessToken) {
-          await authService.fetchCurrentUser(accessToken);
+          await authService.fetchCurrentUser();
           authLogger.debug("Access token is valid");
         } else {
           // No token, attempt refresh

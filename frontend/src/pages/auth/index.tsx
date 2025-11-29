@@ -17,7 +17,6 @@ import { SignInForm } from "./components/SignInForm";
 import { SignUpForm } from "./components/SignUpForm";
 import type { SignInFormData, SignUpFormData } from "./types";
 import { getAxiosErrorDetails } from "@/lib/httpClient";
-import { useAuthContext } from "./context";
 import { authLogger } from "@/lib/logger";
 import { AUTH_ROUTES, AUTH_TABS, HTTP_STATUS } from "./constants";
 import authService from "./services/authService";
@@ -25,7 +24,6 @@ import authService from "./services/authService";
 const AuthPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { accessToken, setAccessToken } = useAuthContext();
   const tabFromUrl =
     (searchParams.get("tab") as keyof typeof AUTH_TABS) ||
     AUTH_TABS.SIGNIN;
@@ -48,9 +46,7 @@ const AuthPage = () => {
     async (data: SignInFormData) => {
       authLogger.debug("New sign in attempt");
       try {
-        const response = await authService.authenticateUser(data);
-        authLogger.debug("Login status", response);
-        setAccessToken(response.accessToken);
+        await authService.authenticateUserAndSetAccessToken(data);
         navigate(AUTH_ROUTES.HOME);
       } catch (err) {
         const { status } = getAxiosErrorDetails(err);
@@ -62,16 +58,14 @@ const AuthPage = () => {
         }
       }
     },
-    [setAccessToken, navigate]
+    [navigate]
   );
 
   const handleSignUp = useCallback(
     async (data: SignUpFormData) => {
       authLogger.debug("Sign up:", data);
       try {
-        const response = await authService.registerUser(data);
-        authLogger.debug("Login status", response);
-        setAccessToken(response.accessToken);
+        await authService.registerUserAndSetAccessToken(data);
         navigate(AUTH_ROUTES.HOME);
       } catch (err) {
         const { status } = getAxiosErrorDetails(err);
@@ -83,7 +77,7 @@ const AuthPage = () => {
         }
       }
     },
-    [setAccessToken, navigate]
+    [navigate]
   );
 
   return (
