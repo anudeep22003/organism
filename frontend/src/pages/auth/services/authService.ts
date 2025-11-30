@@ -1,4 +1,4 @@
-import type { LoginResponse, User } from "../types";
+import type { LoginResponse, LogoutResponse, User } from "../types";
 import { httpClient } from "@/lib/httpClient";
 import type { SignInFormData, SignUpFormData } from "../types";
 import { AUTH_SERVICE_ENDPOINTS } from "../constants";
@@ -35,6 +35,19 @@ const authService = {
       "Registered new user (signup), and set the access token. Response: ",
       response
     );
+  },
+
+  logoutUserAndClearAccessToken: async (): Promise<void> => {
+    const response = await httpClient.post<LogoutResponse>(
+      AUTH_SERVICE_ENDPOINTS.LOGOUT,
+      {}
+    );
+    authLogger.debug("Logout user response: ", response);
+    if (response.message !== "LOGGED_OUT") {
+      throw new Error("Failed to logout user");
+    }
+    httpClient.clearSession();
+    authLogger.debug("Logged out user");
   },
 };
 

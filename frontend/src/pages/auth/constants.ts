@@ -19,6 +19,7 @@ export const AUTH_FIELDS = {
 export const HTTP_STATUS = {
   UNAUTHORIZED: 401,
   BAD_REQUEST: 400,
+  NO_CONTENT: 204,
 } as const;
 
 export const AUTH_SERVICE_ENDPOINTS = {
@@ -26,6 +27,7 @@ export const AUTH_SERVICE_ENDPOINTS = {
   SIGNIN: "/api/auth/signin",
   SIGNUP: "/api/auth/signup",
   REFRESH: "/api/auth/refresh",
+  LOGOUT: "/api/auth/logout",
 } as const;
 
 export const ACCESS_TOKEN_EXPIRY_TIME = 1000 * 60 * 30; // 30 minutes
