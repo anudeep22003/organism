@@ -166,3 +166,7 @@ class SessionManager:
 
         # return the new session
         return AuthSessionSchema.model_validate(new_session)
+    
+    async def revoke_session(self, session: AuthSession) -> None:
+        session.revoked_at = get_current_datetime_utc()
+        await self._db.commit()

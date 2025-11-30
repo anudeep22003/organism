@@ -1,6 +1,5 @@
 """FastAPI dependency injection for auth."""
 
-from collections import namedtuple
 from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException, status

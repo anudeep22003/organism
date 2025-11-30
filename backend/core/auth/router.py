@@ -1,4 +1,4 @@
-from typing import Annotated, Optional
+from typing import Annotated, Literal, Optional
 
 from fastapi import (
     APIRouter,
@@ -49,6 +49,10 @@ class LoginResponse(AliasedBaseModel):
     access_token: str
 
 
+class LogoutResponse(AliasedBaseModel):
+    message: Literal["LOGGED_OUT"]
+
+
 # this needs to be the BaseModel and not AliasedBaseModel
 # because FastAPI's automated header extraction fails with aliasing
 class SessionHeaders(BaseModel):
@@ -56,6 +60,47 @@ class SessionHeaders(BaseModel):
     x_forwarded_for: str | None = None
     user_agent: str | None = None
     x_real_ip: str | None = None
+
+
+@router.post("/logout", response_model=LogoutResponse)
+async def logout(
+    response: Response,
+    session_manager: Annotated[SessionManager, Depends(get_session_manager)],
+    refresh_token: Annotated[
+        Optional[str], Cookie(alias=REFRESH_TOKEN_COOKIE_NAME)
+    ] = None,
+) -> LogoutResponse:
+    # validate request
+    if not refresh_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="No refresh token provided"
+        )
+    # find session
+    session = await session_manager.find_session_by_refresh_token(refresh_token)
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Session not found"
+        )
+
+    # check if already revoked
+    if session.revoked_at is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Session already revoked"
+        )
+
+    # revoke session
+    await session_manager.revoke_session(session)
+
+    # clear refresh token cookie
+    response.delete_cookie(
+        key=REFRESH_TOKEN_COOKIE_NAME,
+        path=REFRESH_TOKEN_COOKIE_PATH,
+        httponly=REFRESH_TOKEN_COOKIE_HTTPONLY,
+        secure=REFRESH_TOKEN_COOKIE_SECURE,
+        samesite=REFRESH_TOKEN_COOKIE_SAMESITE,
+    )
+
+    return LogoutResponse(message="LOGGED_OUT")
 
 
 @router.post("/signin", response_model=LoginResponse)
