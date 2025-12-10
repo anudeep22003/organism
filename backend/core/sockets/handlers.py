@@ -24,6 +24,9 @@ session_id_to_sid: dict[str, str] = {}
 @sio.event
 async def connect(sid: str, environ: dict, auth: dict) -> bool:
     logger.debug("auth received", auth=auth)
+    if auth.get("accessToken") is None:
+        logger.debug("No access token provided, closing connection")
+        return False
 
     jwt_manager = JWTTokenManager()
     user_id = jwt_manager.extract_user_id_from_access_token(auth["accessToken"])

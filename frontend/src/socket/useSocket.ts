@@ -81,6 +81,11 @@ export const useSocket = () => {
   );
 
   useEffect(() => {
+    if (accessToken === null) {
+      socketRef.current?.disconnect();
+      console.log("Access token is null. Hard-disconnecting socket.");
+      return;
+    }
     const socket = io(BACKEND_URL, {
       transports: ["websocket", "polling"],
       autoConnect: true,
