@@ -47,7 +47,7 @@ const ProtectedLayout = () => {
     if (!initialized) {
       initializeAuth();
     }
-  }, [initialized]);
+  }, [initialized, navigate, setCheckingAuth]);
 
   if (checkingAuth || !initialized) {
     return <AuthLoadingScreen />;

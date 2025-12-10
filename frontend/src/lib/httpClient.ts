@@ -3,7 +3,6 @@ import axios, { AxiosError, type AxiosInstance } from "axios";
 import { apiLogger, authLogger } from "./logger";
 import {
   ACCESS_TOKEN_EXPIRY_TIME,
-  AUTH_ROUTES,
   AUTH_SERVICE_ENDPOINTS,
   HTTP_STATUS,
 } from "@/pages/auth/constants";
