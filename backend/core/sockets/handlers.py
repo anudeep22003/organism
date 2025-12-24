@@ -1,6 +1,7 @@
 from loguru import logger
 
 from agents.manager import Manager
+from agents.manager_new import ManagerNew
 from agents.types import DirectorRequest
 from core.auth import SessionManager
 from core.auth.managers.jwt import JWTTokenManager
@@ -43,12 +44,13 @@ async def connect(sid: str, environ: dict, auth: dict) -> bool:
         session_id_to_sid[target_room] = sid
 
     await sio.enter_room(sid, target_room)
-    manager = Manager(
-        target_room=target_room,
-        sio=sio,
-        notify_user=True,
-        dummy_mode=False,
-    )
+    # manager = Manager(
+    #     target_room=target_room,
+    #     sio=sio,
+    #     notify_user=True,
+    #     dummy_mode=False,
+    # )
+    manager = ManagerNew(target_room=target_room, sio=sio)
     primary_timeline.subscribe(
         event_data_type=DirectorRequest,
         handler=manager.handle_event,
