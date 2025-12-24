@@ -94,4 +94,4 @@ class Timeline(metaclass=SingletonMeta):
         return events
 
 
-primary_timeline = Timeline()
+primary_timeline: Timeline = Timeline()
