@@ -2,14 +2,19 @@ import ProtectedLayout from "./pages/auth/ProtectedLayout";
 import PublicLayout from "./pages/auth/PublicLayout";
 import HumanAiWorkspace from "./pages/HumanAiWorkspace";
 import AuthPage from "./pages/auth";
+import ComicBuilder from "./pages/comic-builder";
 
 export const routes = [
   {
     element: <ProtectedLayout />,
     children: [
       {
-        path: "/",
+        path: "/generative-space",
         element: <HumanAiWorkspace />,
+      },
+      {
+        path: "/",
+        element: <ComicBuilder />,
       },
     ],
   },
