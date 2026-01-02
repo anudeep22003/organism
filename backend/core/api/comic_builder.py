@@ -1,14 +1,16 @@
-import asyncio
 import uuid
-from typing import AsyncGenerator
+from typing import AsyncGenerator, AsyncIterator
 
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from loguru import logger
+from openai import AsyncOpenAI
+from openai.types.chat import ChatCompletionChunk
 from pydantic import Field
 
 from core.common import AliasedBaseModel
 from core.common.utils import get_current_timestamp_seconds
+from core.config import OPENAI_API_KEY
 
 logger = logger.bind(name=__name__)
 
@@ -26,34 +28,43 @@ class SimpleEnvelope(AliasedBaseModel):
     data: dict
 
 
-async def stream_dummy_story() -> AsyncGenerator[str, None]:
-    TIME_TO_SLEEP = 0.1
-    story = "Once upon a time, there was a cat who went to the store and bought a fish."
-    # start event
-    yield (
-        SimpleEnvelope(
-            data={"delta": "start"},
-        ).model_dump_json()
-        + "\n"
-    )
-
-    for word in story.split():
+async def enveloped_stream(
+    stream: AsyncIterator[ChatCompletionChunk],
+) -> AsyncGenerator[str, None]:
+    async for chunk in stream:
         yield (
             SimpleEnvelope(
-                data={"delta": word},
+                data={"delta": chunk.choices[0].delta.content},
             ).model_dump_json()
             + "\n"
         )
-        await asyncio.sleep(TIME_TO_SLEEP)
 
-    yield (
-        SimpleEnvelope(
-            data={"finish_reason": "stop"},
-        ).model_dump_json()
-        + "\n"
+        if chunk.choices[0].finish_reason is not None:
+            yield (
+                SimpleEnvelope(
+                    data={"finish_reason": chunk.choices[0].finish_reason},
+                ).model_dump_json()
+                + "\n"
+            )
+            break
+
+
+async def create_stream() -> AsyncIterator[ChatCompletionChunk]:
+    client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+    stream = await client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {
+                "role": "user",
+                "content": "Write a short story about a cat who went to the store and bought a fish.",
+            }
+        ],
+        stream=True,
+        temperature=0.7,
     )
+    return stream
 
 
 @router.post("/story")
 async def build_comic_story() -> StreamingResponse:
-    return StreamingResponse(content=stream_dummy_story())
+    return StreamingResponse(content=enveloped_stream(await create_stream()))

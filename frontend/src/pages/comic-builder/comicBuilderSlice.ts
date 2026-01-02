@@ -56,9 +56,10 @@ export const comicBuilderSlice = createSlice({
 
       if (data.delta === "start") {
         state.story = { id, text: "", status: "streaming" };
+        return; // no need to add to story text if start
       }
       if (state.story?.status === "streaming" && data.delta) {
-        state.story.text += ` ${data.delta}`;
+        state.story.text += data.delta;
       }
     },
     markStoryComplete: (state) => {
