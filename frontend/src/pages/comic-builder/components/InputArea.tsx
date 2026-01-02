@@ -26,7 +26,7 @@ const InputArea = ({
   inputText,
 }: InputAreaProps) => {
   return (
-    <div className="grid w-full max-w-sm gap-6">
+    <div className="grid w-full max-w-2/3 gap-6">
       <InputGroup>
         <InputGroupTextarea
           placeholder="Ask, Search or Chat..."

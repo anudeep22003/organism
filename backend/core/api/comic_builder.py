@@ -49,15 +49,19 @@ async def enveloped_stream(
             break
 
 
-async def create_stream() -> AsyncIterator[ChatCompletionChunk]:
+async def create_stream(user_prompt: str) -> AsyncIterator[ChatCompletionChunk]:
     client = AsyncOpenAI(api_key=OPENAI_API_KEY)
     stream = await client.chat.completions.create(
         model="gpt-4o",
         messages=[
             {
+                "role": "system",
+                "content": "You are a comic book writer. You will be given a story prompt and you will need to write a comic book story based on the prompt.",
+            },
+            {
                 "role": "user",
-                "content": "Write a short story about a cat who went to the store and bought a fish.",
-            }
+                "content": user_prompt,
+            },
         ],
         stream=True,
         temperature=0.7,
@@ -65,6 +69,11 @@ async def create_stream() -> AsyncIterator[ChatCompletionChunk]:
     return stream
 
 
+class ComicBuilderRequest(AliasedBaseModel):
+    story_prompt: str
+
+
 @router.post("/story")
-async def build_comic_story() -> StreamingResponse:
-    return StreamingResponse(content=enveloped_stream(await create_stream()))
+async def build_comic_story(request: ComicBuilderRequest) -> StreamingResponse:
+    user_prompt = request.story_prompt
+    return StreamingResponse(content=enveloped_stream(await create_stream(user_prompt)))

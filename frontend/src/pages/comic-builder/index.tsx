@@ -11,18 +11,18 @@ const ComicBuilder = () => {
 
   const handleSendClick = () => {
     console.log("send input text:", inputText);
-    dispatch(streamComicStory());
+    dispatch(streamComicStory(inputText));
   };
 
   return (
-    <div className="flex flex-col h-screen bg-background border-r border-border items-center justify-center">
+    <div className="flex flex-col h-screen bg-background border-r border-border items-center justify-center gap-4 mt-4 mb-4">
       <InputArea
         onSendClick={handleSendClick}
         setInputText={(value) => dispatch(setInputText(value))}
         inputText={inputText}
       />
       {story && (
-        <div className="text-sm text-muted-foreground">
+        <div className="text-sm text-muted-foreground max-w-2/3 overflow-y-auto h-full p-2 border border-border rounded-md">
           {story.text}
         </div>
       )}

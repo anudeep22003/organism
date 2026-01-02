@@ -31,8 +31,8 @@ type SimpleEnvelope = {
 
 export const streamComicStory = createAsyncThunk(
   "comicBuilder/streamComicStory",
-  async (_, { dispatch }) => {
-    const stream = httpClient.streamPost<SimpleEnvelope>();
+  async (inputText: string, { dispatch }) => {
+    const stream = httpClient.streamPost<SimpleEnvelope>({ storyPrompt: inputText });
 
     for await (const envelope of stream) {
       if (envelope.data.finish_reason === "stop") {
