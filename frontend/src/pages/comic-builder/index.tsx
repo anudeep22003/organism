@@ -1,15 +1,17 @@
-import InputArea from "./components/InputArea";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { setInputText } from "./comicBuilderSlice";
+import { setInputText, streamComicStory } from "./comicBuilderSlice";
+import InputArea from "./components/InputArea";
 
 const ComicBuilder = () => {
   const inputText = useAppSelector(
     (state) => state.comicBuilder.inputText
   );
   const dispatch = useAppDispatch();
+  const story = useAppSelector((state) => state.comicBuilder.story);
 
   const handleSendClick = () => {
     console.log("send input text:", inputText);
+    dispatch(streamComicStory());
   };
 
   return (
@@ -19,6 +21,11 @@ const ComicBuilder = () => {
         setInputText={(value) => dispatch(setInputText(value))}
         inputText={inputText}
       />
+      {story && (
+        <div className="text-sm text-muted-foreground">
+          {story.text}
+        </div>
+      )}
     </div>
   );
 };

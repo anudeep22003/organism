@@ -11,10 +11,8 @@ import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
-  InputGroupText,
   InputGroupTextarea,
 } from "@/components/ui/input-group";
-import { Separator } from "@/components/ui/separator";
 
 type InputAreaProps = {
   onSendClick: () => void;
@@ -46,33 +44,30 @@ const InputArea = ({
           }}
         />
         <InputGroupAddon align="block-end">
-          <InputGroupButton
-            variant="outline"
-            className="rounded-full"
-            size="icon-xs"
-            onClick={() => console.log("add attachment click")}
-          >
-            <IconPlus />
-          </InputGroupButton>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <InputGroupButton variant="ghost">Auto</InputGroupButton>
+              <InputGroupButton
+                variant="outline"
+                className="rounded-full"
+                size="icon-xs"
+                onClick={() => console.log("add attachment click")}
+              >
+                <IconPlus />
+              </InputGroupButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent
               side="top"
               align="start"
               className="[--radius:0.95rem]"
             >
-              <DropdownMenuItem>Auto</DropdownMenuItem>
-              <DropdownMenuItem>Agent</DropdownMenuItem>
-              <DropdownMenuItem>Manual</DropdownMenuItem>
+              <DropdownMenuItem>Picture</DropdownMenuItem>
+              <DropdownMenuItem>Text</DropdownMenuItem>
+              <DropdownMenuItem>Audio</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <InputGroupText className="ml-auto">52% used</InputGroupText>
-          <Separator orientation="vertical" className="!h-4" />
           <InputGroupButton
             variant="default"
-            className="rounded-full"
+            className="rounded-full ml-auto"
             size="icon-xs"
             onClick={onSendClick}
           >

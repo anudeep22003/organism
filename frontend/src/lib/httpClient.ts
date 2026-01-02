@@ -1,12 +1,12 @@
 import { BACKEND_URL } from "@/constants";
-import axios, { AxiosError, type AxiosInstance } from "axios";
-import { apiLogger, authLogger } from "./logger";
 import {
   ACCESS_TOKEN_EXPIRY_TIME,
   AUTH_SERVICE_ENDPOINTS,
   HTTP_STATUS,
 } from "@/pages/auth/constants";
 import { type LoginResponse } from "@/pages/auth/types";
+import axios, { AxiosError, type AxiosInstance } from "axios";
+import { apiLogger, authLogger } from "./logger";
 
 class HttpClient {
   private static instance: HttpClient;
@@ -143,6 +143,65 @@ class HttpClient {
       !this.isRefreshing &&
       !isLogoutRequest
     );
+  }
+
+  public async *streamPost<T = unknown>(
+    data?: unknown
+  ): AsyncGenerator<T> {
+    const url = `${BACKEND_URL}/api/comic-builder/story`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(this.accessToken && {
+          Authorization: `Bearer ${this.accessToken}`,
+        }),
+      },
+      body: JSON.stringify(data),
+      credentials: "include",
+    });
+
+    // Handle 401 - attempt refresh and retry
+    if (
+      response.status === HTTP_STATUS.UNAUTHORIZED &&
+      !this.isRefreshing
+    ) {
+      await this.refreshAccessToken();
+
+      // Retry the reqyest
+      yield* this.streamPost(data);
+      return;
+    }
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) {
+      throw new Error("No readable stream available");
+    }
+
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? ""; // keep incomplete line in buffer
+
+      for (const line of lines) {
+        yield JSON.parse(line) as T;
+      }
+    }
+
+    // yield the last line if it exists
+    if (buffer.trim()) {
+      yield JSON.parse(buffer) as T;
+    }
   }
 
   private setupInterceptors(): void {
