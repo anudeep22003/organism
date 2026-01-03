@@ -1,13 +1,17 @@
+import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { setInputText, streamComicStory } from "./comicBuilderSlice";
+import {
+  selectCurrentPhaseInputText,
+  setInputText,
+  streamComicStory,
+  selectCurrentPhaseContent,
+} from "./comicBuilderSlice";
 import InputArea from "./components/InputArea";
 
 const ComicBuilder = () => {
-  const inputText = useAppSelector(
-    (state) => state.comicBuilder.inputText
-  );
+  const inputText = useAppSelector(selectCurrentPhaseInputText);
   const dispatch = useAppDispatch();
-  const story = useAppSelector((state) => state.comicBuilder.story);
+  const story = useAppSelector(selectCurrentPhaseContent);
 
   const handleSendClick = () => {
     console.log("send input text:", inputText);
@@ -23,7 +27,7 @@ const ComicBuilder = () => {
       />
       {story && (
         <div className="text-sm text-muted-foreground max-w-2/3 overflow-y-auto h-full p-2 border border-border rounded-md">
-          {story.text}
+          <MarkdownRenderer content={story.text} />
         </div>
       )}
     </div>
