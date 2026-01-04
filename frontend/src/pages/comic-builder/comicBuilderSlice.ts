@@ -6,24 +6,7 @@ import {
   type PayloadAction,
 } from "@reduxjs/toolkit";
 
-type ComicBuilderState = {
-  phases: Phase[];
-  currentPhaseIndex: number;
-};
-
-type Phase = {
-  id: string;
-  name: string;
-  inputText: string;
-  content?: Content;
-};
-
-type Content = {
-  id: string;
-  text: string;
-  type: "text";
-  status: "idle" | "streaming" | "completed" | "error";
-};
+import type { ComicBuilderState, Phase, SimpleEnvelope } from "./types";
 
 /**
  So we need to add phases in
@@ -42,7 +25,7 @@ type Content = {
  we have to think about how this state on the frontend translates to saved user state in the backend. 
  */
 
- const initialPhase: Phase = {
+const initialPhase: Phase = {
   id: crypto.randomUUID(),
   name: "Phase 1",
   inputText: "",
@@ -50,20 +33,12 @@ type Content = {
 };
 
 const initialState: ComicBuilderState = {
-  phases: [initialPhase],
-  currentPhaseIndex: 0,
-};
-
-// simple envelope that the backend sends
-type SimpleEnvelope = {
-  id: string;
-  ts: number;
-
-  requestId?: string;
-  streamId?: string;
-  seq?: number;
-
-  data: { delta?: string; finish_reason?: string };
+  phases: [
+    { ...initialPhase },
+    { ...initialPhase },
+    { ...initialPhase },
+  ],
+  currentPhaseIndex: 2,
 };
 
 export const streamComicStory = createAsyncThunk(
@@ -99,6 +74,19 @@ export const comicBuilderSlice = createSlice({
         state.currentPhaseIndex = action.payload;
       } else {
         console.error("Invalid phase index", action.payload);
+      }
+    },
+    goToSpecificPhase: (state, action: PayloadAction<number>) => {
+      const maxIndex = state.phases.length - 1;
+      if (action.payload >= 0 && action.payload <= maxIndex) {
+        state.currentPhaseIndex = action.payload;
+      } else {
+        console.error(
+          "Invalid phase index, max index is",
+          maxIndex,
+          "and you tried to go to",
+          action.payload
+        );
       }
     },
     setInputText: (state, action: PayloadAction<string>) => {
@@ -168,7 +156,8 @@ const selectCurrentPhaseInputText = (state: RootState) => {
 };
 
 const selectCurrentPhaseContent = (state: RootState) => {
-  return state.comicBuilder.phases[state.comicBuilder.currentPhaseIndex].content;
+  return state.comicBuilder.phases[state.comicBuilder.currentPhaseIndex]
+    .content;
 };
 
 export const {
@@ -176,8 +165,9 @@ export const {
   setCurrentPhaseIndex,
   setInputText,
   addToCurrentPhaseContent,
+  goToSpecificPhase,
 } = comicBuilderSlice.actions;
 
-export { selectCurrentPhaseInputText, selectCurrentPhaseContent };
+export { selectCurrentPhaseContent, selectCurrentPhaseInputText };
 
 export default comicBuilderSlice.reducer;
