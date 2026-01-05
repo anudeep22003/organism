@@ -4,6 +4,7 @@ from sqlalchemy import engine_from_config, pool
 
 from alembic import context
 from core.auth import models  # noqa: F401
+from core.comic_builder import models as comic_builder_models  # noqa: F401
 from core.common import ORMBase
 from core.config import DATABASE_URL
 

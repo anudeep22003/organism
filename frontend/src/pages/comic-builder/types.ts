@@ -15,6 +15,7 @@ export type Content = {
   text: string;
   type: "text";
   status: "idle" | "streaming" | "completed" | "error";
+  payload: object[];
 };
 
 // simple envelope that the backend sends
