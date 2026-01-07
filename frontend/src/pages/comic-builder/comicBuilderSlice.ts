@@ -106,6 +106,7 @@ export const comicBuilderSlice = createSlice({
           text: "",
           type: "text",
           status: "idle",
+          payload: [],
         };
         return; // no need to add to content text if start
       }
@@ -132,6 +133,7 @@ export const comicBuilderSlice = createSlice({
         text: "",
         type: "text",
         status: "streaming",
+        payload: [],
       };
     });
     builder.addCase(streamComicStory.rejected, (state, action) => {

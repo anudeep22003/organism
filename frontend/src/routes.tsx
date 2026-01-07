@@ -1,8 +1,8 @@
+import AuthPage from "./pages/auth";
 import ProtectedLayout from "./pages/auth/ProtectedLayout";
 import PublicLayout from "./pages/auth/PublicLayout";
+import { comicBuilderRoutes } from "./pages/comic-builder/routes";
 import HumanAiWorkspace from "./pages/HumanAiWorkspace";
-import AuthPage from "./pages/auth";
-import ComicBuilder from "./pages/comic-builder";
 
 export const routes = [
   {
@@ -12,10 +12,11 @@ export const routes = [
         path: "/generative-space",
         element: <HumanAiWorkspace />,
       },
-      {
-        path: "/",
-        element: <ComicBuilder />,
-      },
+      // {
+      //   path: "/",
+      //   element: <ComicBuilder />,
+      // },
+      ...comicBuilderRoutes,
     ],
   },
   {

@@ -8,6 +8,7 @@ export type Phase = {
   name: string;
   inputText: string;
   content?: Content;
+  payload?: object[];
 };
 
 export type Content = {
@@ -28,4 +29,19 @@ export type SimpleEnvelope = {
   seq?: number;
 
   data: { delta?: string; finish_reason?: string };
+};
+
+// Projects types
+export type Project = {
+  id: string;
+  name: string | null;
+  createdAt: string;
+  updatedAt: string;
+  state: Record<string, unknown>;
+};
+
+export type ProjectsState = {
+  projects: Project[];
+  status: "idle" | "loading" | "succeeded" | "failed";
+  error: string | null;
 };
