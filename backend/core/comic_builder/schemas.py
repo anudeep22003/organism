@@ -2,25 +2,23 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from pydantic import ConfigDict
-
 from core.common import AliasedBaseModel
 
 
 class ProjectSchemaBase(AliasedBaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    pass
 
 
 class ProjectCreateSchema(ProjectSchemaBase):
     name: str | None = None
-    user_id: uuid.UUID
 
 
 class ProjectUpdateSchema(ProjectSchemaBase):
-    state: dict[str, Any]
+    name: str | None = None
+    state: dict[str, Any] | None = None
 
 
-class ProjectResponseSchema(AliasedBaseModel):
+class ProjectResponseSchema(ProjectSchemaBase):
     id: uuid.UUID
     name: str | None = None
     created_at: datetime

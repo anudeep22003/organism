@@ -11,10 +11,20 @@ class AliasedBaseModel(BaseModel):
     All API-facing schemas should inherit from this.
     """
 
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        from_attributes=True,
+    )
+
+    def model_dump(self, **kwargs: Any) -> dict[str, Any]:
+        kwargs.setdefault("mode", "json")
+        kwargs.setdefault("by_alias", True)
+        return super().model_dump(**kwargs)
 
     def model_dump_json(self, **kwargs: Any) -> str:
-        return super().model_dump_json(by_alias=True, **kwargs)
+        kwargs.setdefault("by_alias", True)
+        return super().model_dump_json(**kwargs)
 
 
 class ORMBase(DeclarativeBase):
