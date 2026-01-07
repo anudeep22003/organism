@@ -1,6 +1,6 @@
 import type { RouteObject } from "react-router";
-import ComicBuilder from "./pages/ComicBuilder";
-import Projects from "./pages/Projects";
+import ComicBuilder from "./components/ComicBuilder";
+import Projects from "./index";
 
 // const ROOT_PATH = "/comic-builder";
 const ROOT_PATH = "/";

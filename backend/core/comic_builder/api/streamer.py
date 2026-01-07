@@ -14,7 +14,7 @@ from core.config import OPENAI_API_KEY
 
 logger = logger.bind(name=__name__)
 
-router = APIRouter(prefix="/comic-builder", tags=["comic", "builder"])
+router = APIRouter(tags=["comic", "builder"])
 
 
 class SimpleEnvelope(AliasedBaseModel):

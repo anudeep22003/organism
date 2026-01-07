@@ -12,10 +12,6 @@ export const routes = [
         path: "/generative-space",
         element: <HumanAiWorkspace />,
       },
-      // {
-      //   path: "/",
-      //   element: <ComicBuilder />,
-      // },
       ...comicBuilderRoutes,
     ],
   },

@@ -5,7 +5,7 @@ from loguru import logger
 
 from core.auth.dependencies import get_current_user_id
 
-router = APIRouter(prefix="/comic-builder", tags=["comic", "builder"])
+router = APIRouter(tags=["comic", "builder"])
 
 logger = logger.bind(name=__name__)
 

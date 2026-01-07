@@ -9,7 +9,7 @@ import {
   setInputText,
   streamComicStory,
 } from "../comicBuilderSlice";
-import InputArea from "../components/InputArea";
+import InputArea from "./InputArea";
 
 const ComicBuilder = () => {
   const { projectId } = useParams<{ projectId: string }>();
