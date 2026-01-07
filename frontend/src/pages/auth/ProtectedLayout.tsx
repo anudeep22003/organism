@@ -1,12 +1,13 @@
-import { Outlet, useNavigate } from "react-router";
-import { useAuthContext } from "./context";
-import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { getAxiosErrorDetails } from "@/lib/httpClient";
 import { authLogger } from "@/lib/logger";
-import { AUTH_ROUTES, HTTP_STATUS } from "./constants";
-import authService from "./services/authService";
+import { LogOut, User } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Outlet, useNavigate } from "react-router";
 import AuthLoadingScreen from "./components/AuthLoadingScreen";
-import { Button } from "@/components/ui/button";
+import { AUTH_ROUTES, HTTP_STATUS } from "./constants";
+import { useAuthContext } from "./context";
+import authService from "./services/authService";
 
 const ProtectedLayout = () => {
   const [initialized, setInitialized] = useState(false);
@@ -55,15 +56,25 @@ const ProtectedLayout = () => {
 
   return (
     <>
-      <div className="bg-gray-200 gap-2 flex w-full p-2 justify-end items-center">
+      <header className="flex w-full justify-end items-center gap-1 px-3 py-1.5 border-b border-neutral-200">
         <Button
-          size={"sm"}
+          size="icon"
+          variant="ghost"
+          className="size-7 text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100"
+          title="Account"
+        >
+          <User className="size-4" />
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="size-7 text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100"
+          title="Logout"
           onClick={() => authService.logoutUserAndClearAccessToken()}
         >
-          Logout
+          <LogOut className="size-4" />
         </Button>
-        <Button size={"sm"}>Show Account</Button>
-      </div>
+      </header>
       <Outlet />
     </>
   );
