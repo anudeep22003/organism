@@ -55,6 +55,29 @@ class HttpClient {
     }
   }
 
+  public async patch<T = unknown>(
+    url: string,
+    data?: unknown
+  ): Promise<T> {
+    try {
+      const response = await this.axiosInstance.patch<T>(url, data, {});
+      return response.data;
+    } catch (error) {
+      apiLogger.error("HTTP Request Error", { error });
+      throw error;
+    }
+  }
+
+  public async delete<T = void>(url: string): Promise<T> {
+    try {
+      const response = await this.axiosInstance.delete<T>(url, {});
+      return response.data;
+    } catch (error) {
+      apiLogger.error("HTTP Request Error", { error });
+      throw error;
+    }
+  }
+
   public static getInstance(): HttpClient {
     if (!HttpClient.instance) {
       HttpClient.instance = new HttpClient();
