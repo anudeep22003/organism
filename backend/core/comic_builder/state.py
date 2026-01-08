@@ -5,6 +5,8 @@ from core.common import AliasedBaseModel
 
 ContentStatus = Literal["idle", "streaming", "completed", "error"]
 
+PHASES: list[str] = ["write-story", "extract-characters"]
+
 
 class ComicContent(AliasedBaseModel):
     id: uuid.UUID
@@ -26,19 +28,36 @@ class ComicState(AliasedBaseModel):
     current_phase_index: int
 
 
-def init_comic_state() -> dict[str, Any]:
-    return ComicState(
-        phases=[
+class StateFactory:
+    @staticmethod
+    def init_empty_state() -> dict[str, Any]:
+        return StateFactory.init_empty_comic_state().model_dump(by_alias=True)
+
+    @staticmethod
+    def init_empty_comic_content() -> ComicContent:
+        return ComicContent(
+            id=uuid.uuid4(),
+            text="",
+            type="text",
+            status="idle",
+            payload=[],
+        )
+
+    @staticmethod
+    def init_empty_comic_phases(names: list[str]) -> list[ComicPhase]:
+        return [
             ComicPhase(
                 id=uuid.uuid4(),
-                name="write-story",
+                name=name,
                 input_text="",
-            ),
-            ComicPhase(
-                id=uuid.uuid4(),
-                name="extract-characters",
-                input_text="",
-            ),
-        ],
-        current_phase_index=0,
-    ).model_dump(by_alias=True)
+                content=StateFactory.init_empty_comic_content(),
+            )
+            for name in names
+        ]
+
+    @staticmethod
+    def init_empty_comic_state() -> ComicState:
+        return ComicState(
+            phases=StateFactory.init_empty_comic_phases(PHASES),
+            current_phase_index=0,
+        )

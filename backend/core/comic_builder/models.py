@@ -7,7 +7,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.schema import ForeignKey
 
-from core.comic_builder.state import init_comic_state
+from core.comic_builder.state import StateFactory
 from core.common import ORMBase
 from core.common.utils import get_current_datetime_utc
 
@@ -30,4 +30,6 @@ class Project(ORMBase):
         default=get_current_datetime_utc,
         onupdate=get_current_datetime_utc,
     )
-    state: Mapped[dict[str, Any]] = mapped_column(JSONB, default=init_comic_state)
+    state: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, default=StateFactory.init_empty_state
+    )
