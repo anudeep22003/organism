@@ -6,40 +6,10 @@ import {
   type PayloadAction,
 } from "@reduxjs/toolkit";
 
-import type { ComicBuilderState, Phase, SimpleEnvelope } from "./types";
+import type { ComicPhase, ComicState, SimpleEnvelope } from "./types";
 
-/**
- So we need to add phases in
- we can have a current phase object, 
- and then a list of phases that we can keep adding to
- each phase can have its own shape for now
- but with a list we need to keep track of what the user is viewing right now. 
- this will allow you to go back and forward and see the past
- within each phase you are interacting in multiple back and forths with the AI,
- this also has the added advantage of allowing you to make changes and to regenerate. 
- but then will each phase have its own input text? 
- Yes because if you go back you should be able to see what you typed last, nice user experience. 
- we should probably have a commit object inside each phase which marks what the user likes the best, 
- and what gets shared in the future, this could be what is taken as envirnoment context for the agents.
-
- we have to think about how this state on the frontend translates to saved user state in the backend. 
- */
-
-const initialPhase: Phase = {
-  id: crypto.randomUUID(),
-  name: "Phase 1",
-  inputText: "",
-  content: undefined,
-};
-
-const initialState: ComicBuilderState = {
-  phases: [
-    { ...initialPhase },
-    { ...initialPhase },
-    { ...initialPhase },
-  ],
-  currentPhaseIndex: 2,
-};
+// State is null until a project is loaded from the backend
+const initialState: ComicState | null = null;
 
 export const streamComicStory = createAsyncThunk(
   "comicBuilder/streamComicStory",
@@ -56,20 +26,27 @@ export const streamComicStory = createAsyncThunk(
 
 export const comicBuilderSlice = createSlice({
   name: "comicBuilder",
-  initialState,
+  initialState: initialState as ComicState | null,
   reducers: {
+    loadProjectState: (_state, action: PayloadAction<ComicState>) => {
+      return action.payload;
+    },
+    clearProjectState: () => {
+      return null;
+    },
     addPhase: (state) => {
-      // add new phase, set currentPhaseIndex to new phase
-      const newPhase = {
+      if (!state) return;
+      const newPhase: ComicPhase = {
         id: crypto.randomUUID(),
         name: "Phase " + (state.phases.length + 1),
         inputText: "",
+        content: null,
       };
       state.phases.push(newPhase);
       state.currentPhaseIndex = state.phases.length - 1;
     },
     setCurrentPhaseIndex: (state, action: PayloadAction<number>) => {
-      // if the phase index is valid, set the current phase index
+      if (!state) return;
       if (action.payload >= 0 && action.payload < state.phases.length) {
         state.currentPhaseIndex = action.payload;
       } else {
@@ -77,6 +54,7 @@ export const comicBuilderSlice = createSlice({
       }
     },
     goToSpecificPhase: (state, action: PayloadAction<number>) => {
+      if (!state) return;
       const maxIndex = state.phases.length - 1;
       if (action.payload >= 0 && action.payload <= maxIndex) {
         state.currentPhaseIndex = action.payload;
@@ -90,12 +68,14 @@ export const comicBuilderSlice = createSlice({
       }
     },
     setInputText: (state, action: PayloadAction<string>) => {
+      if (!state) return;
       state.phases[state.currentPhaseIndex].inputText = action.payload;
     },
     addToCurrentPhaseContent: (
       state,
       action: PayloadAction<SimpleEnvelope>
     ) => {
+      if (!state) return;
       const { data, id } = action.payload;
       const currentPhase = state.phases[state.currentPhaseIndex];
 
@@ -108,7 +88,7 @@ export const comicBuilderSlice = createSlice({
           status: "idle",
           payload: [],
         };
-        return; // no need to add to content text if start
+        return;
       }
       // if past the start phase, content should exist otherwise throw Error
       if (!currentPhase.content) {
@@ -127,7 +107,7 @@ export const comicBuilderSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder.addCase(streamComicStory.pending, (state) => {
-      // if current phase index is null then this is an error state
+      if (!state) return;
       state.phases[state.currentPhaseIndex].content = {
         id: "",
         text: "",
@@ -137,32 +117,51 @@ export const comicBuilderSlice = createSlice({
       };
     });
     builder.addCase(streamComicStory.rejected, (state, action) => {
+      if (!state) return;
       const currentPhase = state.phases[state.currentPhaseIndex];
       const currentContent = currentPhase.content;
 
       if (!currentContent) {
         console.error("No content object");
-        return; // no need to set content to error if no content object
+        return;
       }
 
-      // set content to error
       currentContent.status = "error";
       console.error("Error streaming comic story:", action.error);
     });
   },
 });
 
+const selectComicBuilderState = (state: RootState) =>
+  state.comicBuilder;
+
 const selectCurrentPhaseInputText = (state: RootState) => {
-  return state.comicBuilder.phases[state.comicBuilder.currentPhaseIndex]
-    .inputText;
+  const comicState = state.comicBuilder;
+  if (!comicState) return "";
+  return comicState.phases[comicState.currentPhaseIndex].inputText;
 };
 
 const selectCurrentPhaseContent = (state: RootState) => {
-  return state.comicBuilder.phases[state.comicBuilder.currentPhaseIndex]
-    .content;
+  const comicState = state.comicBuilder;
+  if (!comicState) return null;
+  return comicState.phases[comicState.currentPhaseIndex].content;
+};
+
+const selectCurrentPhaseIndex = (state: RootState) => {
+  const comicState = state.comicBuilder;
+  if (!comicState) return 0;
+  return comicState.currentPhaseIndex;
+};
+
+const selectPhases = (state: RootState) => {
+  const comicState = state.comicBuilder;
+  if (!comicState) return [];
+  return comicState.phases;
 };
 
 export const {
+  loadProjectState,
+  clearProjectState,
   addPhase,
   setCurrentPhaseIndex,
   setInputText,
@@ -170,6 +169,12 @@ export const {
   goToSpecificPhase,
 } = comicBuilderSlice.actions;
 
-export { selectCurrentPhaseContent, selectCurrentPhaseInputText };
+export {
+  selectComicBuilderState,
+  selectCurrentPhaseContent,
+  selectCurrentPhaseIndex,
+  selectCurrentPhaseInputText,
+  selectPhases,
+};
 
 export default comicBuilderSlice.reducer;

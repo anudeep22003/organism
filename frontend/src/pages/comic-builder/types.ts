@@ -1,22 +1,28 @@
-export type ComicBuilderState = {
-  phases: Phase[];
-  currentPhaseIndex: number;
-};
+// Comic State types - matches backend state.py
+export type ContentStatus =
+  | "idle"
+  | "streaming"
+  | "completed"
+  | "error";
 
-export type Phase = {
-  id: string;
-  name: string;
-  inputText: string;
-  content?: Content;
-  payload?: object[];
-};
-
-export type Content = {
+export type ComicContent = {
   id: string;
   text: string;
   type: "text";
-  status: "idle" | "streaming" | "completed" | "error";
+  status: ContentStatus;
   payload: object[];
+};
+
+export type ComicPhase = {
+  id: string;
+  name: string;
+  inputText: string;
+  content: ComicContent | null;
+};
+
+export type ComicState = {
+  phases: ComicPhase[];
+  currentPhaseIndex: number;
 };
 
 // simple envelope that the backend sends
@@ -37,12 +43,14 @@ export type Project = {
   name: string | null;
   createdAt: string;
   updatedAt: string;
-  state: Record<string, unknown>;
+  state: ComicState;
 };
 
 export type ProjectsState = {
   projects: Project[];
+  currentProject: Project | null;
   status: "idle" | "loading" | "succeeded" | "failed";
+  currentProjectStatus: "idle" | "loading" | "succeeded" | "failed";
   createStatus: "idle" | "loading" | "succeeded" | "failed";
   error: string | null;
 };

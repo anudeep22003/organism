@@ -11,7 +11,9 @@ import type {
 
 const initialState: ProjectsState = {
   projects: [],
+  currentProject: null,
   status: "idle",
+  currentProjectStatus: "idle",
   createStatus: "idle",
   error: null,
 };
@@ -23,6 +25,16 @@ export const fetchProjects = createAsyncThunk(
       "/api/comic-builder/projects"
     );
     return projects;
+  }
+);
+
+export const fetchProject = createAsyncThunk(
+  "projects/fetchProject",
+  async (projectId: string) => {
+    const project = await httpClient.get<Project>(
+      `/api/comic-builder/projects/${projectId}`
+    );
+    return project;
   }
 );
 
@@ -69,6 +81,10 @@ export const projectsSlice = createSlice({
     resetCreateStatus: (state) => {
       state.createStatus = "idle";
     },
+    clearCurrentProject: (state) => {
+      state.currentProject = null;
+      state.currentProjectStatus = "idle";
+    },
   },
   extraReducers: (builder) => {
     // Fetch projects
@@ -83,6 +99,20 @@ export const projectsSlice = createSlice({
     builder.addCase(fetchProjects.rejected, (state, action) => {
       state.status = "failed";
       state.error = action.error.message ?? "Failed to fetch projects";
+    });
+
+    // Fetch single project
+    builder.addCase(fetchProject.pending, (state) => {
+      state.currentProjectStatus = "loading";
+      state.error = null;
+    });
+    builder.addCase(fetchProject.fulfilled, (state, action) => {
+      state.currentProjectStatus = "succeeded";
+      state.currentProject = action.payload;
+    });
+    builder.addCase(fetchProject.rejected, (state, action) => {
+      state.currentProjectStatus = "failed";
+      state.error = action.error.message ?? "Failed to fetch project";
     });
 
     // Create project
@@ -118,7 +148,8 @@ export const projectsSlice = createSlice({
   },
 });
 
-export const { resetCreateStatus } = projectsSlice.actions;
+export const { resetCreateStatus, clearCurrentProject } =
+  projectsSlice.actions;
 
 const selectProjects = (state: RootState) => state.projects.projects;
 const selectProjectsStatus = (state: RootState) =>
@@ -126,9 +157,15 @@ const selectProjectsStatus = (state: RootState) =>
 const selectProjectsError = (state: RootState) => state.projects.error;
 const selectCreateStatus = (state: RootState) =>
   state.projects.createStatus;
+const selectCurrentProject = (state: RootState) =>
+  state.projects.currentProject;
+const selectCurrentProjectStatus = (state: RootState) =>
+  state.projects.currentProjectStatus;
 
 export {
   selectCreateStatus,
+  selectCurrentProject,
+  selectCurrentProjectStatus,
   selectProjects,
   selectProjectsError,
   selectProjectsStatus,
