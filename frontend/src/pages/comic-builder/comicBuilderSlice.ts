@@ -21,6 +21,24 @@ export const streamComicStory = createAsyncThunk(
     for await (const envelope of stream) {
       dispatch(addToCurrentPhaseContent(envelope));
     }
+
+    // Sync project state after streaming is complete
+    dispatch(syncProjectState());
+  }
+);
+
+export const syncProjectState = createAsyncThunk(
+  "comicBuilder/syncProjectState",
+  async (_, { getState }) => {
+    const state = getState() as RootState;
+    const projectId = state.projects.currentProject?.id;
+    const comicState = state.comicBuilder;
+
+    if (!projectId || !comicState) return;
+
+    await httpClient.patch(`/api/comic-builder/projects/${projectId}`, {
+      state: comicState,
+    });
   }
 );
 

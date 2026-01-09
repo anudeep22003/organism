@@ -15,7 +15,8 @@ class ProjectCreateSchema(ProjectSchemaBase):
 
 class ProjectUpdateSchema(ProjectSchemaBase):
     name: str | None = None
-    state: dict[str, Any] | None = None
+    state: dict[str, Any]
+    # state: ComicState
 
 
 class ProjectResponseSchema(ProjectSchemaBase):
