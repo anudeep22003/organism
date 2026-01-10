@@ -156,6 +156,18 @@ const selectCurrentPhaseIndex = (state: RootState) => {
   return comicState.currentPhaseIndex;
 };
 
+const selectCurrentPhase = (state: RootState) => {
+  const comicState = state.comicBuilder;
+  if (!comicState) return null;
+  return comicState.phases[comicState.currentPhaseIndex];
+};
+
+const selectCurrentPhaseName = (state: RootState) => {
+  const currentPhase = selectCurrentPhase(state);
+  if (!currentPhase) return null;
+  return currentPhase.name;
+};
+
 const selectPhases = (state: RootState) => {
   const comicState = state.comicBuilder;
   if (!comicState) return [];
@@ -174,9 +186,11 @@ export const {
 
 export {
   selectComicBuilderState,
+  selectCurrentPhase,
   selectCurrentPhaseContent,
   selectCurrentPhaseIndex,
   selectCurrentPhaseInputText,
+  selectCurrentPhaseName,
   selectPhases,
 };
 

@@ -1,4 +1,3 @@
-import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 import { Stepper } from "@/components/stepper";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { useEffect } from "react";
@@ -8,12 +7,9 @@ import {
   goToSpecificPhase,
   loadProjectState,
   selectComicBuilderState,
-  selectCurrentPhaseContent,
   selectCurrentPhaseIndex,
-  selectCurrentPhaseInputText,
+  selectCurrentPhaseName,
   selectPhases,
-  setInputText,
-  streamComicStory,
 } from "../comicBuilderSlice";
 import {
   clearCurrentProject,
@@ -21,7 +17,7 @@ import {
   selectCurrentProject,
   selectCurrentProjectStatus,
 } from "../projectsSlice";
-import InputArea from "./InputArea";
+import WriteStoryPhase from "./WriteStoryPhase";
 
 const ComicBuilder = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -30,10 +26,18 @@ const ComicBuilder = () => {
   const currentProject = useAppSelector(selectCurrentProject);
   const projectStatus = useAppSelector(selectCurrentProjectStatus);
   const comicState = useAppSelector(selectComicBuilderState);
-  const inputText = useAppSelector(selectCurrentPhaseInputText);
-  const story = useAppSelector(selectCurrentPhaseContent);
   const currentPhaseIndex = useAppSelector(selectCurrentPhaseIndex);
   const phases = useAppSelector(selectPhases);
+  const currentPhaseName = useAppSelector(selectCurrentPhaseName);
+
+  const renderPhaseComponent = () => {
+    switch (currentPhaseName) {
+      case "write-story":
+        return <WriteStoryPhase />;
+      default:
+        return null;
+    }
+  }
 
   // Fetch project on mount
   useEffect(() => {
@@ -52,10 +56,6 @@ const ComicBuilder = () => {
       dispatch(loadProjectState(currentProject.state));
     }
   }, [currentProject, comicState, dispatch]);
-
-  const handleSendClick = () => {
-    dispatch(streamComicStory(inputText));
-  };
 
   const handleGoToSpecificPhaseClick = (phaseIndex: number) => {
     dispatch(goToSpecificPhase(phaseIndex));
@@ -92,16 +92,7 @@ const ComicBuilder = () => {
         currentStep={currentPhaseIndex}
         goToSpecificStep={handleGoToSpecificPhaseClick}
       />
-      <InputArea
-        onSendClick={handleSendClick}
-        setInputText={(value) => dispatch(setInputText(value))}
-        inputText={inputText}
-      />
-      {story && (
-        <div className="text-sm text-muted-foreground max-w-2/3 overflow-y-auto h-full p-2 border border-border rounded-md">
-          <MarkdownRenderer content={story.text} />
-        </div>
-      )}
+      {renderPhaseComponent()}
     </div>
   );
 };
