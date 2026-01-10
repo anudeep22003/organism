@@ -94,24 +94,19 @@ export const comicBuilderSlice = createSlice({
       action: PayloadAction<SimpleEnvelope>
     ) => {
       if (!state) return;
-      const { data, id } = action.payload;
+      const { data } = action.payload;
       const currentPhase = state.phases[state.currentPhaseIndex];
 
-      // if start delta then initialize a content object and set to idle
-      if (data.delta === "start") {
-        currentPhase.content = {
-          id,
-          text: "",
-          type: "text",
-          status: "idle",
-          payload: [],
-        };
-        return;
-      }
       // if past the start phase, content should exist otherwise throw Error
       if (!currentPhase.content) {
         console.error("No content object");
         throw new Error("No content object");
+      }
+
+      // if start delta then initialize a content object and set to idle
+      if (data.delta === "") {
+        currentPhase.content.status = "streaming";
+        return;
       }
       // if streaming delta then add to the text field and set to streaming
       if (data.delta) {
@@ -124,16 +119,6 @@ export const comicBuilderSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
-    builder.addCase(streamComicStory.pending, (state) => {
-      if (!state) return;
-      state.phases[state.currentPhaseIndex].content = {
-        id: "",
-        text: "",
-        type: "text",
-        status: "streaming",
-        payload: [],
-      };
-    });
     builder.addCase(streamComicStory.rejected, (state, action) => {
       if (!state) return;
       const currentPhase = state.phases[state.currentPhaseIndex];
