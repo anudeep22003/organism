@@ -88,7 +88,7 @@ const ComicBuilder = () => {
   return (
     <div className="flex flex-col h-screen bg-background border-r border-border items-center justify-center gap-4 mt-4 mb-4">
       <Stepper
-        steps={phases.length}
+        names={phases.map((phase) => phase.name)}
         currentStep={currentPhaseIndex}
         goToSpecificStep={handleGoToSpecificPhaseClick}
       />
