@@ -17,6 +17,7 @@ import {
   selectCurrentProject,
   selectCurrentProjectStatus,
 } from "../projectsSlice";
+import ExtractCharactersPhase from "./ExtractCharactersPhase";
 import WriteStoryPhase from "./WriteStoryPhase";
 
 const ComicBuilder = () => {
@@ -34,10 +35,12 @@ const ComicBuilder = () => {
     switch (currentPhaseName) {
       case "write-story":
         return <WriteStoryPhase />;
+      case "extract-characters":
+        return <ExtractCharactersPhase />;
       default:
         return null;
     }
-  }
+  };
 
   // Fetch project on mount
   useEffect(() => {
