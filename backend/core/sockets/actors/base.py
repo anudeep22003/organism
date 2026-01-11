@@ -13,7 +13,7 @@ from core.sockets.types.envelope import (
     Envelope,
     Error,
 )
-from core.sockets.types.intlligence_models import ModelsEnum
+from core.common.intelligence_models import ModelsEnum
 from core.sockets.types.message import Message
 
 DEFAULT_MODEL = ModelsEnum.GPT_4O

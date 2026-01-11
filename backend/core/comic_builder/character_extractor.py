@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.common import AliasedBaseModel
-from core.sockets import instructor_client
+from core.common.clients import instructor_client
 
 from .models import Project
 from .state import ComicState

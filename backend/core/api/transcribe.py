@@ -3,7 +3,7 @@ import uuid
 from fastapi import APIRouter, File, UploadFile
 from loguru import logger
 
-from core.sockets import async_openai_client
+from core.common.clients import async_openai_client
 
 router = APIRouter(prefix="/transcribe", tags=["transcribe"])
 

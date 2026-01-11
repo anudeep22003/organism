@@ -8,11 +8,10 @@ if TYPE_CHECKING:
 
 from loguru import logger
 
+from core.common.clients import async_openai_client
+from core.common.intelligence_models import ModelsEnum
 from core.sockets.types.envelope import Actor, Envelope
-from core.sockets.types.intlligence_models import ModelsEnum
 from core.sockets.types.message import Message
-
-from .. import async_openai_client
 
 logger = logger.bind(name=__name__)
 

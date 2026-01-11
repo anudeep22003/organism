@@ -8,7 +8,7 @@ from agents.types import DirectorRequest
 from core.common import AliasedBaseModel
 from core.prompts.loader import load_prompt, load_prompt_list
 from core.sockets.types.envelope import Actor
-from core.sockets.types.intlligence_models import ModelsEnum
+from core.common.intelligence_models import ModelsEnum
 from core.sockets.types.message import Message
 from core.sockets.utils.emit_helpers import (
     emit_text_start_chunk_end_events,

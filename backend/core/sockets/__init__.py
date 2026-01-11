@@ -1,13 +1,5 @@
-import instructor
 import socketio
 from loguru import logger
-from openai import AsyncOpenAI
-
-from core.config import OPENAI_API_KEY
-
-async_openai_client = AsyncOpenAI(api_key=OPENAI_API_KEY)
-
-instructor_client = instructor.client.from_openai(async_openai_client)
 
 logger = logger.bind(name=__name__)
 
