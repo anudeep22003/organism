@@ -1,7 +1,6 @@
 import uuid
 from typing import Literal
 
-from loguru import logger
 from pydantic import Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,8 +10,6 @@ from core.services.intelligence import instructor_client
 
 from .models import Project
 from .state import ComicState
-
-logger = logger.bind(name=__name__)
 
 
 class CharacterExtractorError(Exception):
@@ -28,11 +25,7 @@ class NoStoryContentError(CharacterExtractorError):
 
 
 class Character(AliasedBaseModel):
-    """
-    Character profile extracted from story, optimized for AI image generation.
-    Works for humanoids, creatures, abstract concepts (emotions), and objects.
-    Each field provides clear visual guidance for rendering.
-    """
+    """Character profile optimized for AI image generation."""
 
     name: str = Field(
         ...,
@@ -122,44 +115,32 @@ class ExtractedCharacters(AliasedBaseModel):
 
 
 class CharacterExtractor:
+    """Extracts and persists character profiles from story content via LLM."""
+
     def __init__(self, project_id: uuid.UUID, db: AsyncSession):
         self.project_id = project_id
         self._db = db
-        logger.info(f"CharacterExtractor initialized for project {project_id}")
 
     async def load_memory(self) -> ComicState:
-        logger.debug(f"Loading memory for project {self.project_id}")
+        """Fetch project state from database."""
         query = select(Project).where(Project.id == self.project_id)
         result = await self._db.execute(query)
         project = result.scalar_one_or_none()
         if not project:
-            logger.error(f"Project with id {self.project_id} not found")
-            raise ValueError(f"Project with id {self.project_id} not found")
-        logger.debug(f"Memory loaded successfully for project {self.project_id}")
+            raise ValueError(f"Project {self.project_id} not found")
         return ComicState.model_validate(project.state)
 
     def extract_story(self, memory: ComicState) -> str:
-        logger.debug(f"Extracting story from memory for project {self.project_id}")
+        """Pull story text from the first phase."""
         content = memory.phases[0].content
         if not content:
-            logger.error(f"No story content found for project {self.project_id}")
-            raise NoStoryContentError(
-                f"No story content found for project {self.project_id}"
-            )
-        story = content.text
-        if not story:
-            logger.error(f"No story text found for project {self.project_id}")
-            raise NoStoryError(f"No story found for project {self.project_id}")
-        logger.debug(f"Story extracted successfully, length: {len(story)} chars")
-        return story
+            raise NoStoryContentError(f"No story content for project {self.project_id}")
+        if not content.text:
+            raise NoStoryError(f"No story text for project {self.project_id}")
+        return content.text
 
     async def extract_characters(self, story: str) -> list[Character]:
-        logger.info(
-            f"Starting character extraction for project {self.project_id} "
-            "(this may take a while...)"
-        )
-        logger.debug(f"Story length: {len(story)} chars")
-
+        """Use LLM to identify characters from story text."""
         response = await instructor_client.chat.completions.create(
             model="gpt-4o",
             response_model=ExtractedCharacters,
@@ -172,117 +153,53 @@ class CharacterExtractor:
             ],
         )
 
-        if not response:
-            logger.error(f"No response from AI for project {self.project_id}")
+        if not response or not response.characters:
             raise CharacterExtractorError(
                 f"No characters found for project {self.project_id}"
             )
 
-        characters = response.characters
-
-        if not characters:
-            logger.warning(
-                f"AI returned empty character list for project {self.project_id}"
-            )
-            raise CharacterExtractorError(
-                f"No characters found for project {self.project_id}"
-            )
-
-        logger.info(
-            f"Extracted {len(characters)} characters: {[c.name for c in characters]}"
-        )
-        return characters
+        return response.characters
 
     def serialize_characters(self, characters: list[Character]) -> list[dict]:
-        logger.debug(f"Serializing {len(characters)} characters")
-        serialized = [character.model_dump() for character in characters]
-        logger.debug("Characters serialized successfully")
-        return serialized
+        """Convert character models to dicts for storage."""
+        return [character.model_dump() for character in characters]
 
     def validate_extract_character_phase(self, memory: ComicState) -> None:
-        logger.debug(
-            f"Validating extract character phase for project {self.project_id}"
-        )
+        """Ensure phase 1 exists and has content."""
         if len(memory.phases) < 2:
-            logger.error(
-                f"Memory has only {len(memory.phases)} phases, expected at least 2"
-            )
             raise CharacterExtractorError(
-                f"Extract character phase not found for project {self.project_id}"
+                f"Phase 1 missing for project {self.project_id}"
             )
         if not memory.phases[1].content:
-            logger.error("Phase 1 content is missing")
             raise CharacterExtractorError(
-                f"Extract character content not found for project {self.project_id}"
+                f"Phase 1 content missing for project {self.project_id}"
             )
-        logger.debug("Extract character phase validation passed")
 
     def sync_characters_to_local_memory(
         self, characters: list[Character], memory: ComicState
     ) -> ComicState:
-        logger.debug(f"Syncing {len(characters)} characters to local memory")
-
-        try:
-            self.validate_extract_character_phase(memory)
-        except CharacterExtractorError as e:
-            logger.error(f"Validation failed: {e}")
-            raise CharacterExtractorError(
-                f"Error validating extract character phase: {e}"
-            ) from e
-
-        serialized_characters = self.serialize_characters(characters)
-        memory.phases[1].content.payload = serialized_characters  # type: ignore[union-attr]
-        memory.current_phase_index = (
-            1  # keep on current phase, and prevent from resetting to 0
-        )
-
-        logger.debug("Characters synced to local memory successfully")
+        """Write extracted characters into memory state."""
+        self.validate_extract_character_phase(memory)
+        memory.phases[1].content.payload = self.serialize_characters(characters)  # type: ignore[union-attr]
+        memory.current_phase_index = 1
         return memory
 
     async def sync_local_memory_to_db(self, memory: ComicState) -> None:
-        logger.debug(f"Syncing local memory to database for project {self.project_id}")
-
-        try:
-            self.validate_extract_character_phase(memory)
-        except CharacterExtractorError as e:
-            logger.error(f"Validation failed before DB sync: {e}")
-            raise CharacterExtractorError(
-                f"Error validating extract character phase: {e}"
-            ) from e
-
+        """Persist updated memory state to database."""
+        self.validate_extract_character_phase(memory)
         query = select(Project).where(Project.id == self.project_id)
         result = await self._db.execute(query)
         project = result.scalar_one_or_none()
         if not project:
-            logger.error(f"Project {self.project_id} not found during DB sync")
-            raise ValueError(f"Project with id {self.project_id} not found")
+            raise ValueError(f"Project {self.project_id} not found")
         project.state = memory.model_dump()
         await self._db.commit()
-        logger.info(
-            f"Memory synced to database successfully for project {self.project_id}"
-        )
 
     async def run_and_return_updated_state(self) -> ComicState:
-        logger.info(
-            f"Starting character extraction pipeline for project {self.project_id}"
-        )
-
+        """Execute full extraction pipeline: load → extract → persist."""
         memory = await self.load_memory()
-        logger.debug("Step 1/4 complete: Memory loaded")
-
         story = self.extract_story(memory)
-        logger.debug("Step 2/4 complete: Story extracted")
-
         characters = await self.extract_characters(story)
-        logger.debug("Step 3/4 complete: Characters extracted")
-
         memory = self.sync_characters_to_local_memory(characters, memory)
-        logger.debug("Step 4/4 complete: Characters synced to local memory")
-
         await self.sync_local_memory_to_db(memory)
-
-        logger.info(
-            f"Character extraction pipeline completed successfully "
-            f"for project {self.project_id}"
-        )
         return memory
