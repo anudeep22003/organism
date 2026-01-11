@@ -8,8 +8,7 @@ if TYPE_CHECKING:
 
 from loguru import logger
 
-from core.common.clients import async_openai_client
-from core.common.intelligence_models import ModelsEnum
+from core.services.intelligence import ModelsEnum, async_openai_client
 from core.sockets.types.envelope import Actor, Envelope
 from core.sockets.types.message import Message
 

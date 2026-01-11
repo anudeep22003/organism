@@ -2,7 +2,7 @@ from loguru import logger
 from pydantic import Field
 
 from core.common import AliasedBaseModel
-from core.common.intelligence_models import ModelsEnum
+from core.services.intelligence import ModelsEnum
 from core.sockets.actors.base import BaseActor
 from core.sockets.types.message import Message
 from core.sockets.utils.streamer import stream_chunks_openai
