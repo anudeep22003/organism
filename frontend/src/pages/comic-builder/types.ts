@@ -5,12 +5,15 @@ export type ContentStatus =
   | "completed"
   | "error";
 
+// Generic payload item - keys are strings, values are string or string[]
+export type PayloadItem = Record<string, string | string[]>;
+
 export type ComicContent = {
   id: string;
   text: string;
   type: "text";
   status: ContentStatus;
-  payload: object[];
+  payload: PayloadItem[];
 };
 
 export type ComicPhase = {

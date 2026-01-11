@@ -27,6 +27,19 @@ export const streamComicStory = createAsyncThunk(
   }
 );
 
+export const extractCharacters = createAsyncThunk(
+  "comicBuilder/extractCharacters",
+  async (projectId: string, { dispatch }) => {
+    const response = await httpClient.get<ComicState>(
+      `/api/comic-builder/phase/extract-characters/${projectId}`
+    );
+    if (response) {
+      dispatch(loadProjectState(response));
+    }
+    return response;
+  }
+);
+
 export const syncProjectState = createAsyncThunk(
   "comicBuilder/syncProjectState",
   async (_, { getState }) => {
