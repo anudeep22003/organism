@@ -18,18 +18,18 @@ const WriteStoryPhase = () => {
   };
 
   return (
-    <>
+    <div className="flex flex-col gap-4 w-full max-w-4xl px-4">
       <InputArea
         onSendClick={handleSendClick}
         setInputText={(value) => dispatch(setInputText(value))}
         inputText={inputText}
       />
       {story && (
-        <div className="text-sm text-muted-foreground max-w-2/3 overflow-y-auto h-full p-2 border border-border rounded-md">
+        <div className="text-sm text-muted-foreground p-2 border border-border rounded-md">
           <MarkdownRenderer content={story.text} />
         </div>
       )}
-    </>
+    </div>
   );
 };
 

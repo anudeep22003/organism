@@ -89,13 +89,19 @@ const ComicBuilder = () => {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-background border-r border-border items-center justify-center gap-4 mt-4 mb-4">
-      <Stepper
-        names={phases.map((phase) => phase.name)}
-        currentStep={currentPhaseIndex}
-        goToSpecificStep={handleGoToSpecificPhaseClick}
-      />
-      {renderPhaseComponent()}
+    <div className="flex flex-col h-screen bg-background border-r border-border">
+      {/* Stepper stays fixed at top */}
+      <div className="shrink-0 flex justify-center py-4">
+        <Stepper
+          names={phases.map((phase) => phase.name)}
+          currentStep={currentPhaseIndex}
+          goToSpecificStep={handleGoToSpecificPhaseClick}
+        />
+      </div>
+      {/* Scrollable content area */}
+      <div className="flex-1 overflow-y-auto flex justify-center pb-4">
+        {renderPhaseComponent()}
+      </div>
     </div>
   );
 };
