@@ -1,5 +1,3 @@
-import type { ConsolidatedComicState } from "./consolidatedState";
-
 // Projects types
 export type Project = {
   id: string;
@@ -8,15 +6,9 @@ export type Project = {
   updatedAt: string;
 };
 
-export type ProjectWithState = Project & {
-  state: ConsolidatedComicState;
-};
-
 export type ProjectsState = {
   projects: Project[];
-  currentProject: Project | null;
   status: "idle" | "loading" | "succeeded" | "failed";
-  currentProjectStatus: "idle" | "loading" | "succeeded" | "failed";
   createStatus: "idle" | "loading" | "succeeded" | "failed";
   error: string | null;
 };

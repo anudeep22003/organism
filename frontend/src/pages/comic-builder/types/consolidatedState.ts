@@ -1,8 +1,18 @@
 // new consolidated comic state types
 
-export type CharacterType = "humanoid" | "creature" | "concept" | "object";
+import type { Project } from "./project";
 
-export type CharacterRole = "protagonist" | "antagonist" | "supporting" | "minor";
+export type CharacterType =
+  | "humanoid"
+  | "creature"
+  | "concept"
+  | "object";
+
+export type CharacterRole =
+  | "protagonist"
+  | "antagonist"
+  | "supporting"
+  | "minor";
 
 type BaseComicStateEntity = {
   id: string;
@@ -42,4 +52,14 @@ export type ConsolidatedComicState = {
   story: Story;
   characters: Record<string, Character>; // keyed by UUID
   panels: ComicPanel[];
+};
+
+export type Comic = Project & {
+  state: ConsolidatedComicState;
+};
+
+export type ComicState = {
+  comic: Comic | null;
+  status: "idle" | "loading" | "succeeded" | "failed";
+  error: string | null;
 };
