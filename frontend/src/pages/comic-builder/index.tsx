@@ -13,7 +13,7 @@ import {
   selectCreateStatus,
   selectProjects,
   selectProjectsStatus,
-} from "./projectsSlice";
+} from "./slices/projectsSlice";
 
 const Projects = () => {
   const dispatch = useAppDispatch();

@@ -1,5 +1,5 @@
 import comicBuilderReducer from "@/pages/comic-builder/comicBuilderSlice";
-import projectsReducer from "@/pages/comic-builder/projectsSlice";
+import projectsReducer from "@/pages/comic-builder/slices/projectsSlice";
 import { configureStore } from "@reduxjs/toolkit";
 
 export const store = configureStore({

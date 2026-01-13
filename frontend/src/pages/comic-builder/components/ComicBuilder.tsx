@@ -14,7 +14,7 @@ import {
   clearCurrentProject,
   fetchProject,
   selectCurrentProjectStatus,
-} from "../projectsSlice";
+} from "../slices/projectsSlice";
 import ExtractCharactersPhase from "./ExtractCharactersPhase";
 import WriteStoryPhase from "./WriteStoryPhase";
 
