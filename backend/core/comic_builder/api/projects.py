@@ -10,6 +10,7 @@ from core.auth.dependencies import get_current_user_id
 from core.comic_builder.models import Project
 from core.comic_builder.schemas import (
     ProjectCreateSchema,
+    ProjectListResponseSchema,
     ProjectResponseSchema,
     ProjectUpdateSchema,
 )
@@ -24,11 +25,11 @@ logger = logger.bind(name=__name__)
 async def list_projects(
     user_id: Annotated[str, Depends(get_current_user_id)],
     db: Annotated[AsyncSession, Depends(get_async_db_session)],
-) -> list[ProjectResponseSchema]:
+) -> list[ProjectListResponseSchema]:
     query = select(Project).where(Project.user_id == uuid.UUID(user_id))
     result = await db.execute(query)
     projects = result.scalars().all()
-    return [ProjectResponseSchema.model_validate(p) for p in projects]
+    return [ProjectListResponseSchema.model_validate(p) for p in projects]
 
 
 @router.post("/projects", status_code=status.HTTP_201_CREATED)

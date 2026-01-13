@@ -28,3 +28,9 @@ class ProjectResponseSchema(ProjectSchemaBase):
     created_at: datetime
     updated_at: datetime
     state: dict[str, Any]
+
+class ProjectListResponseSchema(ProjectSchemaBase):
+    id: uuid.UUID
+    name: str | None = None
+    created_at: datetime
+    updated_at: datetime

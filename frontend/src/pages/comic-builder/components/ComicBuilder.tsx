@@ -5,7 +5,6 @@ import { useParams } from "react-router";
 import {
   clearProjectState,
   goToSpecificPhase,
-  loadProjectState,
   selectComicBuilderState,
   selectCurrentPhaseIndex,
   selectCurrentPhaseName,
@@ -14,7 +13,6 @@ import {
 import {
   clearCurrentProject,
   fetchProject,
-  selectCurrentProject,
   selectCurrentProjectStatus,
 } from "../projectsSlice";
 import ExtractCharactersPhase from "./ExtractCharactersPhase";
@@ -24,7 +22,6 @@ const ComicBuilder = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const dispatch = useAppDispatch();
 
-  const currentProject = useAppSelector(selectCurrentProject);
   const projectStatus = useAppSelector(selectCurrentProjectStatus);
   const comicState = useAppSelector(selectComicBuilderState);
   const currentPhaseIndex = useAppSelector(selectCurrentPhaseIndex);
@@ -55,10 +52,8 @@ const ComicBuilder = () => {
 
   // Load project state into comicBuilder slice when project is fetched
   useEffect(() => {
-    if (currentProject && !comicState) {
-      dispatch(loadProjectState(currentProject.state));
-    }
-  }, [currentProject, comicState, dispatch]);
+    // TODO removing this now, but need to add the new endpoint to fetch the state here
+  }, []);
 
   const handleGoToSpecificPhaseClick = (phaseIndex: number) => {
     dispatch(goToSpecificPhase(phaseIndex));

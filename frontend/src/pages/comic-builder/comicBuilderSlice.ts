@@ -6,7 +6,9 @@ import {
   type PayloadAction,
 } from "@reduxjs/toolkit";
 
-import type { ComicPhase, ComicState, SimpleEnvelope } from "./types";
+import type { ComicPhase, ComicState } from "./types";
+import type { SimpleEnvelope } from "./types/simpleEnvelope";
+
 
 // State is null until a project is loaded from the backend
 const initialState: ComicState | null = null;

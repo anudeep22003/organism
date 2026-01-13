@@ -7,7 +7,7 @@ import type {
   ProjectCreatePayload,
   ProjectsState,
   ProjectUpdatePayload,
-} from "./types";
+} from "./types/project";
 
 const initialState: ProjectsState = {
   projects: [],
