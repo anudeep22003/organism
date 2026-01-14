@@ -13,33 +13,34 @@ import {
   InputGroupButton,
   InputGroupTextarea,
 } from "@/components/ui/input-group";
+import { useState } from "react";
 
 type InputAreaProps = {
-  onSendClick: () => void;
-  setInputText: (value: string) => void;
-  inputText: string;
+  onSubmit: (draft: string) => void;
 };
 
-const InputArea = ({
-  onSendClick,
-  setInputText,
-  inputText,
-}: InputAreaProps) => {
+const InputArea = ({ onSubmit }: InputAreaProps) => {
+  const [draft, setDraft] = useState("");
+
+  const handleSubmitClick = () => {
+    onSubmit(draft);
+  };
+
   return (
     <div className="grid w-full max-w-2/3 gap-6">
       <InputGroup>
         <InputGroupTextarea
           placeholder="Ask, Search or Chat..."
-          value={inputText}
-          onChange={(e) => setInputText(e.target.value)}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
             if (
               e.key === "Enter" &&
               (e.metaKey || e.ctrlKey) &&
-              inputText.trim() !== ""
+              draft.trim() !== ""
             ) {
               e.preventDefault();
-              onSendClick();
+              handleSubmitClick();
             }
           }}
         />
@@ -69,7 +70,7 @@ const InputArea = ({
             variant="default"
             className="rounded-full ml-auto"
             size="icon-xs"
-            onClick={onSendClick}
+            onClick={handleSubmitClick}
           >
             <ArrowUpIcon />
             <span className="sr-only">Send</span>

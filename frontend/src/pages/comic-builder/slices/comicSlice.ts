@@ -5,8 +5,10 @@ import {
   type PayloadAction,
 } from "@reduxjs/toolkit";
 
+import type { RootState } from "@/store";
 import type { PhaseMapKey } from "../phaseMap";
 import type { Comic, ComicState } from "../types/consolidatedState";
+import type { SimpleEnvelope } from "../types/simpleEnvelope";
 
 export const fetchComicState = createAsyncThunk(
   "comic/fetchComicState",
@@ -15,6 +17,22 @@ export const fetchComicState = createAsyncThunk(
       `/api/comic-builder/projects/${projectId}`
     );
     return comic;
+  }
+);
+
+export const streamComicStory = createAsyncThunk(
+  "comic/streamStory",
+  async (inputText: string, { dispatch }) => {
+
+    dispatch(commitStoryInput(inputText));
+
+    const stream = httpClient.streamPost<SimpleEnvelope>({
+      storyPrompt: inputText,
+    });
+
+    for await (const envelope of stream) {
+      dispatch(streamStory(envelope));
+    }
   }
 );
 
@@ -37,6 +55,23 @@ export const comicSlice = createSlice({
     setCurrentPhase: (state, action: PayloadAction<PhaseMapKey>) => {
       state.currentPhase = action.payload;
     },
+    commitStoryInput: (state, action: PayloadAction<string>) => {
+      if (!state) return;
+      const comic = state.comic;
+      if (!comic) {
+        console.error("Comic state not found while committing story draft");
+        return;
+      }
+      comic.state.story.userInputText.push(action.payload);
+    },
+    streamStory: (state, action: PayloadAction<SimpleEnvelope>) => {
+      const story = state.comic?.state.story;
+      if (!story) return;
+
+      const { data } = action.payload;
+
+      story.storyText += data.delta;
+    },
   },
   extraReducers: (builder) => {
     // Fetch comic project
@@ -55,6 +90,28 @@ export const comicSlice = createSlice({
   },
 });
 
-export const { clearComicState, setCurrentPhase } = comicSlice.actions;
+export const selectLastestStoryInputText = (state: RootState) => {
+  const comicState = state.comic;
+  if (!comicState) throw new Error("Comic state not found");
+  const lastInput = comicState.comic?.state.story.userInputText.at(-1);
+  return lastInput ?? "";
+};
+
+export const selectStoryText = (state: RootState) => {
+  const comicState = state.comic;
+  if (!comicState) {
+    console.error("Comic state not found while selecting story text");
+    return "";
+  }
+  const story = comicState.comic?.state.story;
+  if (!story) {
+    console.error("Story not found while selecting story text");
+    return "";
+  }
+  return story.storyText;
+}
+
+export const { clearComicState, setCurrentPhase, commitStoryInput, streamStory } =
+  comicSlice.actions;
 
 export default comicSlice.reducer;
