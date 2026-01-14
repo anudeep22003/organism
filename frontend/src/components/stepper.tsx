@@ -1,22 +1,20 @@
-import type { PhaseMapKey } from "@/pages/comic-builder/phaseMap";
-
-interface StepperProps {
-  phases: PhaseMapKey[];
-  currentPhase: PhaseMapKey;
-  onPhaseChange: (phase: PhaseMapKey) => void;
+interface StepperProps<T extends string> {
+  phases: readonly T[];
+  currentPhase: T;
+  onPhaseChange: (phase: T) => void;
 }
 
-type StepItemProps = {
-  phase: PhaseMapKey;
-  currentPhase: PhaseMapKey;
-  onPhaseChange: (phase: PhaseMapKey) => void;
+type StepItemProps<T extends string> = {
+  phase: T;
+  currentPhase: T;
+  onPhaseChange: (phase: T) => void;
 };
 
-const StepItem = ({
+const StepItem = <T extends string>({
   phase,
   currentPhase,
   onPhaseChange,
-}: StepItemProps) => {
+}: StepItemProps<T>) => {
   const handleClick = () => {
     if (currentPhase !== phase) {
       onPhaseChange(phase);
@@ -35,11 +33,12 @@ const StepItem = ({
     </div>
   );
 };
-export const Stepper = ({
+
+export const Stepper = <T extends string>({
   phases,
   currentPhase,
   onPhaseChange,
-}: StepperProps) => {
+}: StepperProps<T>) => {
   return (
     <div className="relative">
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
