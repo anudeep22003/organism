@@ -1,39 +1,44 @@
+import type { PhaseMapKey } from "@/pages/comic-builder/phaseMap";
+
 interface StepperProps {
-  names: string[];
-  currentStep: number;
-  goToSpecificStep: (step: number) => void;
+  phases: PhaseMapKey[];
+  currentPhase: PhaseMapKey;
+  onPhaseChange: (phase: PhaseMapKey) => void;
 }
 
 type StepItemProps = {
-  step: number;
-  name: string;
-  currentStep: number;
-  goToSpecificStep: (step: number) => void;
+  phase: PhaseMapKey;
+  currentPhase: PhaseMapKey;
+  onPhaseChange: (phase: PhaseMapKey) => void;
 };
 
 const StepItem = ({
-  step,
-  name,
-  currentStep,
-  goToSpecificStep,
+  phase,
+  currentPhase,
+  onPhaseChange,
 }: StepItemProps) => {
+  const handleClick = () => {
+    if (currentPhase !== phase) {
+      onPhaseChange(phase);
+    }
+  };
   return (
     <div
       className={`w-fit ${
-        currentStep === step
+        currentPhase === phase
           ? "bg-gray-900 text-gray-100 cursor-not-allowed"
           : "bg-gray-100 text-gray-900 cursor-pointer"
       } flex items-center justify-center gap-2 p-2 rounded-md`}
-      onClick={() => currentStep !== step && goToSpecificStep(step)}
+      onClick={handleClick}
     >
-      <span className="text-sm font-medium ">{name.toLowerCase()}</span>
+      <span className="text-sm font-medium ">{phase}</span>
     </div>
   );
 };
 export const Stepper = ({
-  names,
-  currentStep,
-  goToSpecificStep,
+  phases,
+  currentPhase,
+  onPhaseChange,
 }: StepperProps) => {
   return (
     <div className="relative">
@@ -42,13 +47,12 @@ export const Stepper = ({
       </div>
 
       <div className="relative flex gap-8 justify-center items-center z-10">
-        {names.map((name, index) => (
+        {phases.map((phase) => (
           <StepItem
-            key={index}
-            step={index}
-            name={name}
-            currentStep={currentStep}
-            goToSpecificStep={goToSpecificStep}
+            key={phase}
+            phase={phase}
+            currentPhase={currentPhase}
+            onPhaseChange={onPhaseChange}
           />
         ))}
       </div>

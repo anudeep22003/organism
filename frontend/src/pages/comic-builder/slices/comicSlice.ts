@@ -1,8 +1,12 @@
 import { httpClient } from "@/lib/httpClient";
-import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import {
+  createAsyncThunk,
+  createSlice,
+  type PayloadAction,
+} from "@reduxjs/toolkit";
 
+import type { PhaseMapKey } from "../phaseMap";
 import type { Comic, ComicState } from "../types/consolidatedState";
-import type { RootState } from "@/store";
 
 export const fetchComicState = createAsyncThunk(
   "comic/fetchComicState",
@@ -16,6 +20,7 @@ export const fetchComicState = createAsyncThunk(
 
 const initialState: ComicState = {
   comic: null,
+  currentPhase: "write-story",
   status: "idle",
   error: null,
 };
@@ -28,6 +33,9 @@ export const comicSlice = createSlice({
       state.comic = null;
       state.status = "idle";
       state.error = null;
+    },
+    setCurrentPhase: (state, action: PayloadAction<PhaseMapKey>) => {
+      state.currentPhase = action.payload;
     },
   },
   extraReducers: (builder) => {
@@ -47,6 +55,6 @@ export const comicSlice = createSlice({
   },
 });
 
-export const { clearComicState } = comicSlice.actions;
+export const { clearComicState, setCurrentPhase } = comicSlice.actions;
 
 export default comicSlice.reducer;

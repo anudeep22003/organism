@@ -1,5 +1,6 @@
 // new consolidated comic state types
 
+import type { PhaseMapKey } from "../phaseMap";
 import type { Project } from "./project";
 
 export type CharacterType =
@@ -60,6 +61,7 @@ export type Comic = Project & {
 
 export type ComicState = {
   comic: Comic | null;
+  currentPhase: PhaseMapKey;
   status: "idle" | "loading" | "succeeded" | "failed";
   error: string | null;
 };
