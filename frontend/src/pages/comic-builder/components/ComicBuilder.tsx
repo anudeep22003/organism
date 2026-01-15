@@ -3,11 +3,8 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { useEffect } from "react";
 import { useParams } from "react-router";
 import phaseMap, { phases, type PhaseMapKey } from "../phaseMap";
-import {
-  clearComicState,
-  fetchComicState,
-  setCurrentPhase,
-} from "../slices/comicSlice";
+import { clearComicState, setCurrentPhase } from "../slices/comicSlice";
+import { fetchComicState } from "../slices/thunks/comicThunks";
 
 const ComicBuilder = () => {
   const { projectId } = useParams<{ projectId: string }>();

@@ -1,9 +1,7 @@
 import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import {
-  selectStoryText,
-  streamComicStory,
-} from "../slices/comicSlice";
+import { selectStoryText } from "../slices/comicSlice";
+import { streamComicStory } from "../slices/thunks/storyThunks";
 import InputArea from "./InputArea";
 
 const WriteStoryPhase = () => {

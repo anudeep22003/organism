@@ -1,40 +1,10 @@
-import { httpClient } from "@/lib/httpClient";
-import {
-  createAsyncThunk,
-  createSlice,
-  type PayloadAction,
-} from "@reduxjs/toolkit";
+import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 
 import type { RootState } from "@/store";
 import type { PhaseMapKey } from "../phaseMap";
-import type { Comic, ComicState } from "../types/consolidatedState";
+import type { ComicState } from "../types/consolidatedState";
 import type { SimpleEnvelope } from "../types/simpleEnvelope";
-
-export const fetchComicState = createAsyncThunk(
-  "comic/fetchComicState",
-  async (projectId: string) => {
-    const comic = await httpClient.get<Comic>(
-      `/api/comic-builder/projects/${projectId}`
-    );
-    return comic;
-  }
-);
-
-export const streamComicStory = createAsyncThunk(
-  "comic/streamStory",
-  async (inputText: string, { dispatch }) => {
-
-    dispatch(commitStoryInput(inputText));
-
-    const stream = httpClient.streamPost<SimpleEnvelope>({
-      storyPrompt: inputText,
-    });
-
-    for await (const envelope of stream) {
-      dispatch(streamStory(envelope));
-    }
-  }
-);
+import { fetchComicState } from "./thunks/comicThunks";
 
 const initialState: ComicState = {
   comic: null,
@@ -59,7 +29,9 @@ export const comicSlice = createSlice({
       if (!state) return;
       const comic = state.comic;
       if (!comic) {
-        console.error("Comic state not found while committing story draft");
+        console.error(
+          "Comic state not found while committing story draft"
+        );
         return;
       }
       comic.state.story.userInputText.push(action.payload);
@@ -109,9 +81,13 @@ export const selectStoryText = (state: RootState) => {
     return "";
   }
   return story.storyText;
-}
+};
 
-export const { clearComicState, setCurrentPhase, commitStoryInput, streamStory } =
-  comicSlice.actions;
+export const {
+  clearComicState,
+  setCurrentPhase,
+  commitStoryInput,
+  streamStory,
+} = comicSlice.actions;
 
 export default comicSlice.reducer;
