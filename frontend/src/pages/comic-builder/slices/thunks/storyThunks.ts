@@ -1,7 +1,7 @@
 import { httpClient } from "@/lib/httpClient";
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import type { SimpleEnvelope } from "../../types/simpleEnvelope";
-import { commitStoryInput, streamStory } from "../comicSlice";
+import { commitStoryInput, streamStoryDeltas } from "../comicSlice";
 
 export const streamComicStory = createAsyncThunk(
   "comicState/streamComicStory",
@@ -13,7 +13,7 @@ export const streamComicStory = createAsyncThunk(
     });
 
     for await (const envelope of stream) {
-      dispatch(streamStory(envelope));
+      dispatch(streamStoryDeltas(envelope));
     }
   }
 );

@@ -36,13 +36,29 @@ export const comicSlice = createSlice({
       }
       comic.state.story.userInputText.push(action.payload);
     },
-    streamStory: (state, action: PayloadAction<SimpleEnvelope>) => {
+    streamStoryDeltas: (
+      state,
+      action: PayloadAction<SimpleEnvelope>
+    ) => {
       const story = state.comic?.state.story;
       if (!story) return;
 
       const { data } = action.payload;
 
-      story.storyText += data.delta;
+      if (data.delta === "") {
+        // this signals the start of the stream.
+        // if any streaing indicvators exist they can be set at this point.
+        return;
+      }
+
+      if (data.delta) {
+        story.storyText += data.delta;
+      }
+
+      if (data.finish_reason === "stop") {
+        console.log("Story streaming completed");
+        return;
+      }
     },
   },
   extraReducers: (builder) => {
@@ -87,7 +103,7 @@ export const {
   clearComicState,
   setCurrentPhase,
   commitStoryInput,
-  streamStory,
+  streamStoryDeltas,
 } = comicSlice.actions;
 
 export default comicSlice.reducer;
