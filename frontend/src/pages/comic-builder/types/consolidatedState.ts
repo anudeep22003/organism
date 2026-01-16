@@ -1,7 +1,28 @@
-// new consolidated comic state types
+// Consolidated comic state types - flat structure matching backend schema
 
 import type { PhaseMapKey } from "../phaseMap";
-import type { Project } from "./project";
+
+// === Status Types ===
+
+export type EntityStatus = "idle" | "streaming" | "completed" | "error";
+
+// === Base Types ===
+
+type BaseComicStateEntity = {
+  id: string;
+  userInputText: string[];
+  status: EntityStatus;
+};
+
+export type Artifact = BaseComicStateEntity & {
+  url: string | null;
+};
+
+// === Domain Types ===
+
+export type Story = BaseComicStateEntity & {
+  storyText: string;
+};
 
 export type CharacterType =
   | "humanoid"
@@ -15,15 +36,6 @@ export type CharacterRole =
   | "supporting"
   | "minor";
 
-type BaseComicStateEntity = {
-  id: string;
-  userInputText: string[];
-};
-
-export type Story = BaseComicStateEntity & {
-  storyText: string;
-};
-
 export type Character = BaseComicStateEntity & {
   name: string;
   brief: string;
@@ -34,7 +46,7 @@ export type Character = BaseComicStateEntity & {
   distinctiveMarkers: string;
   demeanor: string;
   role: CharacterRole;
-  renderUrls: string[];
+  render: Artifact | null;
 };
 
 export type ComicPanel = BaseComicStateEntity & {
@@ -46,22 +58,33 @@ export type ComicPanel = BaseComicStateEntity & {
   border: string;
   shadow: string;
   glow: string;
-  renderUrls: string[];
+  render: Artifact | null;
 };
+
+// === State Shape (flat - no nesting) ===
 
 export type ConsolidatedComicState = {
   story: Story;
-  characters: Record<string, Character>; // keyed by UUID
+  characters: Record<string, Character>;
   panels: ComicPanel[];
 };
 
-export type Comic = Project & {
-  state: ConsolidatedComicState;
-};
-
 export type ComicState = {
-  comic: Comic | null;
+  // Project metadata (was in Comic type before)
+  projectId: string | null;
+  projectName: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+
+  // Phase tracking
   currentPhase: PhaseMapKey;
-  status: "idle" | "loading" | "succeeded" | "failed";
+
+  // Domain data (flat - directly accessible)
+  story: Story | null;
+  characters: Record<string, Character>;
+  panels: ComicPanel[];
+
+  // Fetch status for loading project
+  fetchStatus: "idle" | "loading" | "succeeded" | "failed";
   error: string | null;
 };

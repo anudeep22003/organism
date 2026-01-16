@@ -9,7 +9,9 @@ import { fetchComicState } from "../slices/thunks/comicThunks";
 const ComicBuilder = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const dispatch = useAppDispatch();
-  const comicStatus = useAppSelector((state) => state.comic.status);
+  const comicStatus = useAppSelector(
+    (state) => state.comic.fetchStatus
+  );
   const currentPhase = useAppSelector(
     (state) => state.comic.currentPhase
   );

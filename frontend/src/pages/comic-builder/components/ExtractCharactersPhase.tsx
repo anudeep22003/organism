@@ -1,11 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { useParams } from "react-router";
-import {
-  extractCharacters,
-  selectCurrentPhaseContent,
-} from "../comicBuilderSlice";
-import type { PayloadItem } from "../types";
+import { selectCharacters } from "../slices/comicSlice";
+import { extractCharacters } from "../slices/thunks/characterThunks";
+import type { Character } from "../types/consolidatedState";
 
 const formatKey = (key: string): string => {
   // Convert camelCase to Title Case with spaces
@@ -15,30 +13,38 @@ const formatKey = (key: string): string => {
     .trim();
 };
 
-const renderValue = (value: string | string[]): React.ReactNode => {
-  if (Array.isArray(value)) {
-    return value.join(", ");
-  }
-  return value;
+type CharacterCardProps = {
+  character: Character;
 };
 
-type PayloadCardProps = {
-  item: PayloadItem;
-};
-
-const PayloadCard = ({ item }: PayloadCardProps) => {
-  const entries = Object.entries(item);
+const CharacterCard = ({ character }: CharacterCardProps) => {
+  // Display fields in a readable order, excluding internal fields
+  const displayFields: (keyof Character)[] = [
+    "name",
+    "brief",
+    "characterType",
+    "role",
+    "era",
+    "visualForm",
+    "colorPalette",
+    "distinctiveMarkers",
+    "demeanor",
+  ];
 
   return (
     <div className="border border-neutral-200 bg-white p-4 space-y-2">
-      {entries.map(([key, value]) => (
-        <div key={key} className="text-sm">
-          <span className="font-medium text-neutral-900">
-            {formatKey(key)}:{" "}
-          </span>
-          <span className="text-neutral-600">{renderValue(value)}</span>
-        </div>
-      ))}
+      {displayFields.map((key) => {
+        const value = character[key];
+        if (value === null || value === undefined) return null;
+        return (
+          <div key={key} className="text-sm">
+            <span className="font-medium text-neutral-900">
+              {formatKey(key)}:{" "}
+            </span>
+            <span className="text-neutral-600">{String(value)}</span>
+          </div>
+        );
+      })}
     </div>
   );
 };
@@ -46,13 +52,13 @@ const PayloadCard = ({ item }: PayloadCardProps) => {
 const ExtractCharactersPhase = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const dispatch = useAppDispatch();
-  const content = useAppSelector(selectCurrentPhaseContent);
+  const characters = useAppSelector(selectCharacters);
 
   if (!projectId) {
     return <div>Project ID not found</div>;
   }
 
-  const payloadItems = content?.payload ?? [];
+  const characterList = Object.values(characters);
 
   const handleExtractCharactersClick = () => {
     dispatch(extractCharacters(projectId));
@@ -71,15 +77,15 @@ const ExtractCharactersPhase = () => {
         </Button>
       </div>
 
-      {payloadItems.length === 0 ? (
+      {characterList.length === 0 ? (
         <p className="text-neutral-500 text-sm">
           No characters extracted yet. Click the button above to extract
           characters from your story.
         </p>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
-          {payloadItems.map((item, index) => (
-            <PayloadCard key={index} item={item} />
+          {characterList.map((character) => (
+            <CharacterCard key={character.id} character={character} />
           ))}
         </div>
       )}

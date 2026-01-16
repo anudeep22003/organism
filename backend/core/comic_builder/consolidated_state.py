@@ -5,14 +5,21 @@ from pydantic import Field
 
 from core.common import AliasedBaseModel
 
+StreamingStatus = Literal["idle", "streaming", "completed", "error"]
+
 
 class BaseComicStateEntity(AliasedBaseModel):
     id: uuid.UUID = Field(default_factory=uuid.uuid4)
     user_input_text: list[str] = Field(default_factory=list)
+    status: StreamingStatus = Field(default="idle")
+
+
+class Artifact(BaseComicStateEntity):
+    url: str | None = None
 
 
 class Story(BaseComicStateEntity):
-    story_text: str
+    story_text: str = Field(default="")
 
 
 class Character(BaseComicStateEntity):
@@ -25,7 +32,7 @@ class Character(BaseComicStateEntity):
     distinctive_markers: str
     demeanor: str
     role: Literal["protagonist", "antagonist", "supporting", "minor"]
-    render_urls: list[str] = Field(default_factory=list)
+    render: Artifact | None = None
 
 
 class ComicPanel(BaseComicStateEntity):
@@ -37,7 +44,7 @@ class ComicPanel(BaseComicStateEntity):
     border: str
     shadow: str
     glow: str
-    render_urls: list[str] = Field(default_factory=list)
+    render: Artifact | None = None
 
 
 class ConsolidatedComicState(AliasedBaseModel):
@@ -48,9 +55,7 @@ class ConsolidatedComicState(AliasedBaseModel):
 
 def initialize_empty_consolidated_state_dict() -> dict[str, Any]:
     return ConsolidatedComicState(
-        story=Story(
-            story_text="",
-        ),
+        story=Story(),
         characters={},
         panels=[],
     ).model_dump(by_alias=True)

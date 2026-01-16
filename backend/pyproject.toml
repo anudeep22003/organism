@@ -50,6 +50,11 @@ warn_unreachable = true
 strict_equality = true
 show_error_codes = true
 
+# Add these for performance
+cache_fine_grained = true
+incremental = true
+show_column_numbers = true
+
 # Per-module options
 [[tool.mypy.overrides]]
 module = [

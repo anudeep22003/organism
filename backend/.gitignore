@@ -62,3 +62,6 @@ CLAUDE.md
 .claude/
 scratch.py
 .env*
+writepad/*
+prompts/
+.gitignore
