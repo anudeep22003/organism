@@ -19,10 +19,6 @@ class NoStoryError(CharacterExtractorError):
     pass
 
 
-class NoStoryContentError(CharacterExtractorError):
-    pass
-
-
 class ExtractedCharacters(AliasedBaseModel):
     """Container for all characters extracted from a story."""
 
@@ -73,10 +69,6 @@ class CharacterExtractor:
             )
 
         return response.characters
-
-    def serialize_characters(self, characters: list[CharacterBase]) -> list[dict]:
-        """Convert character models to dicts for storage."""
-        return [character.model_dump() for character in characters]
 
     def sync_characters_to_local_memory(
         self, characters: list[CharacterBase], memory: ConsolidatedComicState
