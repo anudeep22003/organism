@@ -1,4 +1,5 @@
 import { httpClient } from "@/lib/httpClient";
+import type { RootState } from "@/store";
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import type {
   Character,
@@ -6,6 +7,7 @@ import type {
   ConsolidatedComicState,
   Story,
 } from "../../types/consolidatedState";
+import { selectSyncPayload } from "../comicSlice";
 
 /**
  * Response shape from backend API.
@@ -52,5 +54,24 @@ export const fetchComicState = createAsyncThunk(
       characters: response.state.characters,
       panels: response.state.panels,
     };
+  }
+);
+
+export const syncComicState = createAsyncThunk(
+  "comicState/syncComicState",
+  async (_, { getState }) => {
+    const state = getState() as RootState;
+    const comicState = state.comic;
+    if (!comicState) {
+      throw new Error("Comic state not found");
+    }
+    const payload = {
+      state: selectSyncPayload(state),
+    };
+    const response = await httpClient.patch<ComicProjectApiResponse>(
+      `/api/comic-builder/projects/${comicState.projectId}`,
+      payload
+    );
+    return response;
   }
 );

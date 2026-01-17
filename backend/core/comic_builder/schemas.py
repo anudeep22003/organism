@@ -3,7 +3,6 @@ from datetime import datetime
 from typing import Any
 
 from core.comic_builder.consolidated_state import ConsolidatedComicState
-from core.comic_builder.state import ComicState
 from core.common import AliasedBaseModel
 
 
@@ -17,8 +16,6 @@ class ProjectCreateSchema(ProjectSchemaBase):
 
 class ProjectUpdateSchema(ProjectSchemaBase):
     name: str | None = None
-    # state: dict[str, Any]
-    # state: ComicState
     state: ConsolidatedComicState
 
 
@@ -28,6 +25,7 @@ class ProjectResponseSchema(ProjectSchemaBase):
     created_at: datetime
     updated_at: datetime
     state: dict[str, Any]
+
 
 class ProjectListResponseSchema(ProjectSchemaBase):
     id: uuid.UUID

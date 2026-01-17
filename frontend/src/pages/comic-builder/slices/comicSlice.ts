@@ -139,6 +139,14 @@ export const selectCharacterById = (
   characterId: string
 ) => state.comic.characters[characterId] ?? null;
 
+export const selectSyncPayload = (state: RootState) => {
+  return {
+    story: state.comic.story,
+    characters: state.comic.characters,
+    panels: state.comic.panels,
+  };
+};
+
 export const selectPanels = (state: RootState) => state.comic.panels;
 
 export const selectFetchStatus = (state: RootState) =>
