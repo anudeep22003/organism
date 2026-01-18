@@ -17,7 +17,7 @@ type CharacterCardProps = {
   character: Character;
 };
 
-const CharacterCard = ({ character }: CharacterCardProps) => {
+export const CharacterCard = ({ character }: CharacterCardProps) => {
   // Display fields in a readable order, excluding internal fields
   const displayFields: (keyof Character)[] = [
     "name",

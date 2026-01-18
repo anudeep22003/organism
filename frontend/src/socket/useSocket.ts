@@ -114,7 +114,6 @@ export const useSocket = () => {
     // We will remove this later, this is a test
     socket.on("dummy", customHandlers.dummy);
 
-
     for (const actor of ActorListConst) {
       socket.on(`s2c.${actor}.stream.chunk`, (rawMessage: string) => {
         onStreamChunk(rawMessage);
