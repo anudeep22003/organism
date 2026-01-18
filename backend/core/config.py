@@ -19,6 +19,7 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 BUCKET_NAME = os.getenv("BUCKET_NAME", "")
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
 DATABASE_URL = os.getenv("DATABASE_URL", "DB URL NOT SET")
+FAL_API_KEY = os.getenv("FAL_API_KEY", "")
 
 MAX_REPO_SIZE_MB = int(os.getenv("MAX_REPO_SIZE_MB", "100"))
 
@@ -37,3 +38,7 @@ if not GITHUB_TOKEN:
 if not DATABASE_URL:
     logger.error("DATABASE_URL is not set")
     raise ValueError("DATABASE_URL is not set")
+
+if not FAL_API_KEY:
+    logger.error("FAL_API_KEY is not set")
+    raise ValueError("FAL_API_KEY is not set")
