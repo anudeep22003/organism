@@ -1,11 +1,11 @@
-import { useEffect, useRef, useCallback, useState } from "react";
-import io from "socket.io-client";
 import { BACKEND_URL } from "@/constants";
-import { Socket } from "socket.io-client";
-import { type Envelope } from "@/socket/types/envelope";
-import { ActorListConst, type Actor } from "./types/actors";
-import { useMessageStore } from "@/store/useMessageStore";
 import { useAuthContext } from "@/pages/auth/context";
+import { dummyPrint } from "@/pages/comic-builder/components/GenerateCharacterPhase";
+import { type Envelope } from "@/socket/types/envelope";
+import { useMessageStore } from "@/store/useMessageStore";
+import { useCallback, useEffect, useRef, useState } from "react";
+import io, { Socket } from "socket.io-client";
+import { ActorListConst, type Actor } from "./types/actors";
 
 export const useSocket = () => {
   const [isConnected, setIsConnected] = useState(false);
@@ -109,6 +109,11 @@ export const useSocket = () => {
       console.error("Connection error:", error);
       setIsConnected(false);
       setConnectionError(true);
+    });
+
+    // We will remove this later, this is a test
+    socket.on("dummy", () => {
+      dummyPrint();
     });
 
     for (const actor of ActorListConst) {
