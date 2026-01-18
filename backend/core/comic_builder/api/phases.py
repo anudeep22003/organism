@@ -2,11 +2,11 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from loguru import logger
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.auth import get_current_user_id
-from core.auth.models.auth_session import AuthSession
+from core.auth.dependencies import get_session_manager
+from core.auth.managers.session import SessionManager
 from core.services.database import get_async_db_session
 from core.sockets import sio
 
@@ -34,11 +34,9 @@ async def extract_characters(
 @router.get("/dummy")
 async def dummy(
     user_id: Annotated[str, Depends(get_current_user_id)],
-    db: Annotated[AsyncSession, Depends(get_async_db_session)],
+    session_manager: Annotated[SessionManager, Depends(get_session_manager)],
 ) -> dict[str, str]:
-    query = select(AuthSession).where(AuthSession.user_id == user_id)
-    result = await db.execute(query)
-    session = result.scalar_one_or_none()
+    session = await session_manager.find_session_by_user_id(user_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 

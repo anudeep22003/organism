@@ -1,10 +1,10 @@
 import { BACKEND_URL } from "@/constants";
 import { useAuthContext } from "@/pages/auth/context";
-import { dummyPrint } from "@/pages/comic-builder/components/GenerateCharacterPhase";
 import { type Envelope } from "@/socket/types/envelope";
 import { useMessageStore } from "@/store/useMessageStore";
 import { useCallback, useEffect, useRef, useState } from "react";
 import io, { Socket } from "socket.io-client";
+import { customHandlers } from "./customSocketHandlers";
 import { ActorListConst, type Actor } from "./types/actors";
 
 export const useSocket = () => {
@@ -112,9 +112,8 @@ export const useSocket = () => {
     });
 
     // We will remove this later, this is a test
-    socket.on("dummy", () => {
-      dummyPrint();
-    });
+    socket.on("dummy", customHandlers.dummy);
+
 
     for (const actor of ActorListConst) {
       socket.on(`s2c.${actor}.stream.chunk`, (rawMessage: string) => {
