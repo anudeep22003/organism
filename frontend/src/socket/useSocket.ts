@@ -1,6 +1,8 @@
 import { BACKEND_URL } from "@/constants";
 import { useAuthContext } from "@/pages/auth/context";
+import { fetchComicState } from "@/pages/comic-builder/slices/thunks/comicThunks";
 import { type Envelope } from "@/socket/types/envelope";
+import { useAppDispatch } from "@/store/hooks";
 import { useMessageStore } from "@/store/useMessageStore";
 import { useCallback, useEffect, useRef, useState } from "react";
 import io, { Socket } from "socket.io-client";
@@ -12,6 +14,7 @@ export const useSocket = () => {
   const socketRef = useRef<Socket | null>(null);
   const [connectionError, setConnectionError] = useState(false);
   const { accessToken } = useAuthContext();
+  const dispatch = useAppDispatch();
 
   const updateStreamingMessage = useMessageStore(
     (state) => state.updateStreamingMessage
@@ -114,6 +117,13 @@ export const useSocket = () => {
     // We will remove this later, this is a test
     socket.on("dummy", customHandlers.dummy);
 
+    socket.on(
+      "character_rendered",
+      (payload: { projectId: string }) => {
+        dispatch(fetchComicState(payload.projectId));
+      }
+    );
+
     for (const actor of ActorListConst) {
       socket.on(`s2c.${actor}.stream.chunk`, (rawMessage: string) => {
         onStreamChunk(rawMessage);
@@ -139,6 +149,7 @@ export const useSocket = () => {
     createStreamMessage,
     onStreamStart,
     accessToken,
+    dispatch,
   ]);
 
   return {

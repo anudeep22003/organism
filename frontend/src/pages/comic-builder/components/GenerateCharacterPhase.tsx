@@ -5,9 +5,18 @@ import { useSelector } from "react-redux";
 import type { Character } from "../types/consolidatedState";
 import { CharacterCard } from "./ExtractCharactersPhase";
 
-const dummyApiCall = async () => {
-  const response = await httpClient.get<{ message: string }>(
-    "/api/comic-builder/phase/dummy"
+export type GenerateCharacterApiRequest = {
+  character: Character;
+  projectId: string;
+};
+
+const generateCharacterApiCall = async ({
+  character,
+  projectId,
+}: GenerateCharacterApiRequest) => {
+  const response = await httpClient.post<{ message: string }>(
+    `/api/comic-builder/phase/render-character/${projectId}`,
+    character
   );
   console.log(response.message);
   return response;
@@ -23,16 +32,24 @@ const EmptyImage = () => {
 
 const CharacterCardWithImage = ({
   character,
-  onGenerateCharacter,
+  projectId,
 }: {
   character: Character;
-  onGenerateCharacter: () => void;
+  projectId: string;
 }) => {
+  const handleGenerateCharacter = async () => {
+    const response = await generateCharacterApiCall({
+      character,
+      projectId: projectId,
+    });
+    console.log("response from generating a character", response);
+  };
+
   return (
     <div className="flex w-full gap-4">
       <div className="flex flex-col w-1/2">
         <CharacterCard character={character} />
-        <Button onClick={onGenerateCharacter}>
+        <Button onClick={handleGenerateCharacter}>
           Generate Character
         </Button>
       </div>
@@ -53,10 +70,13 @@ const GenerateCharacterPhase = () => {
   const characters = useSelector(
     (state: RootState) => state.comic.characters
   );
+  const projectId = useSelector(
+    (state: RootState) => state.comic.projectId
+  );
 
-  const handleGenerateCharacter = (characterId: string) => {
-    console.log(`Generating character ${characterId}`);
-  };
+  if (!projectId) {
+    return <div>Project ID not found</div>;
+  }
 
   return (
     <div className="w-full max-w-4xl px-4 space-y-6">
@@ -68,13 +88,10 @@ const GenerateCharacterPhase = () => {
           <CharacterCardWithImage
             key={character.id}
             character={character}
-            onGenerateCharacter={() =>
-              handleGenerateCharacter(character.id)
-            }
+            projectId={projectId}
           />
         ))}
       </div>
-      <Button onClick={dummyApiCall}>Generate Characters</Button>
     </div>
   );
 };
