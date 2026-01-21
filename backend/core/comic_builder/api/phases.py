@@ -64,6 +64,6 @@ async def render_character(
 
     character_renderer = CharacterRenderer(db)
     await character_renderer.execute_render_character_pipeline(project_id, character)
-    await sio.emit("character_rendered", {"projectId": str(project_id)}, to=session_id)
+    await sio.emit("state.updated", {"projectId": str(project_id)}, to=session_id)
 
     return {"message": "Character rendered successfully"}

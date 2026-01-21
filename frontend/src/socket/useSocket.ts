@@ -118,7 +118,7 @@ export const useSocket = () => {
     socket.on("dummy", customHandlers.dummy);
 
     socket.on(
-      "character_rendered",
+      "state.updated",
       (payload: { projectId: string }) => {
         dispatch(fetchComicState(payload.projectId));
       }
