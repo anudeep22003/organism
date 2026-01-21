@@ -3,7 +3,6 @@ import uuid
 from typing import cast
 
 import fal_client
-from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,8 +10,15 @@ from core.comic_builder.models import Project
 from core.config import FAL_API_KEY
 
 from .consolidated_state import Artifact, Character, ConsolidatedComicState
+from .exceptions import ComicBuilderError
 
 logger = logging.getLogger(__name__)
+
+
+class RenderError(ComicBuilderError):
+    """External image generation failed."""
+
+    pass
 
 
 class CharacterRenderer:
@@ -35,7 +41,7 @@ class CharacterRenderer:
         result = await self.db.execute(select(Project).where(Project.id == project_id))
         project = result.scalar_one_or_none()
         if not project:
-            raise ValueError(f"Project {project_id} not found")
+            raise ValueError(f"Project {project_id} unexpctednly not found")
         return project
 
     async def sync_state_to_project(
@@ -46,25 +52,25 @@ class CharacterRenderer:
 
     def get_validated_state(self, project: Project) -> ConsolidatedComicState:
         if not project.state:
-            raise ValueError("Project state is not initialized")
-        try:
-            return ConsolidatedComicState.model_validate(project.state)
-        except ValidationError as e:
-            logger.error(f"Error validating project state: {e}")
-            raise ValueError(f"Error validating project state: {e}")
+            raise ValueError("Project state unexpctedly not initialized")
+        return ConsolidatedComicState.model_validate(project.state)
 
     async def render_character(self, character: Character) -> dict:
         prompt = self.build_character_render_prompt(character)
         client = fal_client.AsyncClient(key=FAL_API_KEY)
-        response = await client.subscribe(
-            "fal-ai/flux/dev",
-            arguments={
-                "prompt": prompt,
-            },
-            on_queue_update=lambda status: print(f"Status: {status}"),
-        )
-        logger.info(f"Response: {response}")
-        return response
+        try:
+            response = await client.subscribe(
+                "fal-ai/flux/dev",
+                arguments={
+                    "prompt": prompt,
+                },
+                on_queue_update=lambda status: print(f"Status: {status}"),
+            )
+            logger.info(f"Response: {response}")
+            return response
+        except Exception as e:
+            logger.error(f"Error rendering character: {e}")
+            raise RenderError(f"Failed to render character {character.id}") from e
 
     def get_character_url_from_response(self, response: dict) -> str:
         image_url = cast(str, response.get("images", [])[0].get("url"))

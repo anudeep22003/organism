@@ -8,14 +8,17 @@ from core.common import AliasedBaseModel
 from core.services.intelligence import instructor_client
 
 from .consolidated_state import Character, CharacterBase, ConsolidatedComicState
+from .exceptions import ComicBuilderError
 from .models import Project
 
 
-class CharacterExtractorError(Exception):
+class CharacterExtractorError(ComicBuilderError):
     pass
 
 
-class NoStoryError(CharacterExtractorError):
+class NoStoryError(ComicBuilderError):
+    """No story available for project."""
+
     pass
 
 
@@ -46,26 +49,33 @@ class CharacterExtractor:
     def extract_story(self, memory: ConsolidatedComicState) -> str:
         """Pull story text from the first phase."""
         if not memory.story.story_text:
-            raise NoStoryError(f"No story text for project {self.project_id}")
+            raise NoStoryError(
+                f"No story available for project {self.project_id}, generate store first"
+            )
         return memory.story.story_text
 
     async def extract_characters(self, story: str) -> list[CharacterBase]:
         """Use LLM to identify characters from story text."""
-        response = await instructor_client.chat.completions.create(
-            model="gpt-4o",
-            response_model=ExtractedCharacters,
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are a comic book writer. You will be given a story and you will need to extract the characters from the story.",
-                },
-                {"role": "user", "content": story},
-            ],
-        )
+        try:
+            response = await instructor_client.chat.completions.create(
+                model="gpt-4o",
+                response_model=ExtractedCharacters,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a comic book writer. You will be given a story and you will need to extract the characters from the story.",
+                    },
+                    {"role": "user", "content": story},
+                ],
+            )
+        except Exception as e:
+            raise CharacterExtractorError(
+                f"LLM extraction failed for project {self.project_id}"
+            ) from e
 
         if not response or not response.characters:
             raise CharacterExtractorError(
-                f"No characters found for project {self.project_id}"
+                f"No characters could be identified in your story for project {self.project_id}"
             )
 
         return response.characters

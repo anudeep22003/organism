@@ -1,3 +1,4 @@
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -7,14 +8,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.auth import get_current_user_id
 from core.auth.dependencies import get_session_manager
 from core.auth.managers.session import SessionManager
-from core.comic_builder.character_renderer import CharacterRenderer
 from core.services.database import get_async_db_session
 from core.sockets import sio
 
-from ..character_extractor import CharacterExtractor
+from ..character_extractor import (
+    CharacterExtractor,
+    CharacterExtractorError,
+    NoStoryError,
+)
+from ..character_renderer import CharacterRenderer, RenderError
 from ..consolidated_state import Character, ConsolidatedComicState
-from ..dependencies import get_verified_project
-from ..models import Project
+from ..dependencies import verify_project_access
 
 router = APIRouter(prefix="/phase", tags=["comic", "builder"])
 
@@ -23,13 +27,32 @@ logger = logger.bind(name=__name__)
 
 @router.get("/extract-characters/{project_id}")
 async def extract_characters(
-    project: Annotated[Project, Depends(get_verified_project)],
+    project_id: Annotated[uuid.UUID, Depends(verify_project_access)],
     db: Annotated[AsyncSession, Depends(get_async_db_session)],
 ) -> ConsolidatedComicState:
-    logger.info(f"Extracting characters for project {project.id}")
-    character_extractor = CharacterExtractor(project.id, db)
-    memory = await character_extractor.run_and_return_updated_state()
-    return memory
+    logger.info(f"Extracting characters for project {project_id}")
+    try:
+        character_extractor = CharacterExtractor(project_id, db)
+        memory = await character_extractor.run_and_return_updated_state()
+        return memory
+    except NoStoryError:
+        logger.warning(
+            f"No story available for project {project_id}, generate store first"
+        )
+        raise HTTPException(
+            status_code=400,
+            detail="No story available for project, generate store first",
+        )
+    except CharacterExtractorError as e:
+        logger.warning(f"Error extracting characters: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred while extracting characters") 
+    except Exception as e:
+        error_id = uuid.uuid4().hex[:8]
+        logger.exception(f"Unexpected error extracting characters: [ref: {error_id}]")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred while extracting characters: [ref: {error_id}]",
+        ) from e
 
 
 @router.get("/dummy")
@@ -48,7 +71,7 @@ async def dummy(
 
 @router.post("/render-character/{project_id}")
 async def render_character(
-    project: Annotated[Project, Depends(get_verified_project)],
+    project_id: Annotated[uuid.UUID, Depends(verify_project_access)],
     user_id: Annotated[str, Depends(get_current_user_id)],
     db: Annotated[AsyncSession, Depends(get_async_db_session)],
     character: Character,
@@ -59,11 +82,26 @@ async def render_character(
         raise HTTPException(status_code=404, detail="Session not found")
 
     # Capture IDs before async operations to avoid expired session issues
-    project_id = project.id
     session_id = str(session.id)
 
     character_renderer = CharacterRenderer(db)
-    await character_renderer.execute_render_character_pipeline(project_id, character)
+    try:
+        await character_renderer.execute_render_character_pipeline(
+            project_id, character
+        )
+    except RenderError as e:
+        logger.error(f"Error rendering character: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        error_id = uuid.uuid4().hex[
+            :8
+        ]  # first 8 characters of the UUID without the hyphens (hex removes the hyphens)
+        logger.exception(f"Unexpected error rendering character: [ref: {error_id}]")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred while rendering character: [ref: {error_id}]",
+        )
+
     await sio.emit("state.updated", {"projectId": str(project_id)}, to=session_id)
 
     return {"message": "Character rendered successfully"}

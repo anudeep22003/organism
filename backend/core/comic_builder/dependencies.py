@@ -16,11 +16,11 @@ router = APIRouter(prefix="/phase", tags=["comic", "builder"])
 logger = logger.bind(name=__name__)
 
 
-async def get_verified_project(
+async def verify_project_access(
     project_id: uuid.UUID,
     user_id: Annotated[str, Depends(get_current_user_id)],
     db: Annotated[AsyncSession, Depends(get_async_db_session)],
-) -> Project:
+) -> uuid.UUID:
     # Verify that the user has access to the project.
     # Raise an error if the user does not have access.
     query = select(Project).where(Project.id == project_id)
@@ -30,6 +30,8 @@ async def get_verified_project(
         raise HTTPException(status_code=404, detail="Project not found")
 
     if project.user_id != uuid.UUID(user_id):
-        raise HTTPException(status_code=403, detail="User does not have access to project")
+        raise HTTPException(
+            status_code=403, detail="User does not have access to project"
+        )
 
-    return project
+    return project.id
