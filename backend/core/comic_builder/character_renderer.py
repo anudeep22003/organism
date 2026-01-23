@@ -1,4 +1,5 @@
 import logging
+import textwrap
 import uuid
 from typing import cast
 
@@ -91,36 +92,42 @@ class CharacterRenderer:
         return state
 
     def build_character_render_prompt(self, character: Character) -> str:
-        """Build an optimized image generation prompt from character data."""
-
-        # Core visual description is the foundation
-        prompt_parts: list[str] = [character.visual_form]
-
-        # Era provides aesthetic context
-        prompt_parts.append(f"{character.era} setting")
-
-        # Color palette for visual consistency
-        prompt_parts.append(f"color palette of {character.color_palette}")
-
-        # Distinctive markers (skip if none)
-        if character.distinctive_markers.lower() not in ("none", "n/a", ""):
-            prompt_parts.append(character.distinctive_markers)
-
-        # Demeanor affects pose/mood
-        prompt_parts.append(f"{character.demeanor} expression and posture")
-
-        # Character type can inform rendering style
-        type_hints = {
-            "humanoid": "detailed character portrait",
-            "creature": "creature design, full body visible",
-            "concept": "abstract personification, ethereal",
-            "object": "anthropomorphized object, detailed rendering",
-        }
-        prompt_parts.append(
-            type_hints.get(character.character_type, "character illustration")
+        markers = character.distinctive_markers.strip()
+        markers_line = (
+            f"- Distinctive markers (must be present and clearly visible): {markers}"
+            if markers and markers.lower() not in {"none", "n/a"}
+            else "- Distinctive markers: none"
         )
 
-        # Style suffix
-        prompt_parts.append("comic book art style, high detail, consistent lighting")
+        type_hint = {
+            "humanoid": "human/humanoid anatomy, full body visible",
+            "creature": "creature design, full body visible, clear anatomy and silhouette",
+            "concept": "personified abstract entity, readable form, full body visible",
+            "object": "anthropomorphized object, readable shape and materials, full body visible",
+        }.get(character.character_type, "full body visible")
 
-        return ", ".join(prompt_parts)
+        prompt = f"""Comic book character model sheet / turnaround.
+
+        Layout: square 1:1. Two full-body views of the SAME character: (1) front view (2) side profile view.
+        Both views standing in a neutral relaxed stance, arms at sides, neutral expression.
+        Match scale and proportions between the two views. Centered, clear spacing.
+
+        Background: transparent background (PNG cutout), no environment, no props, no background gradients, no cast shadow on the background.
+
+        Lighting & rendering: consistent neutral studio lighting across both views, readable silhouette,
+        crisp inks, clean linework, high detail, controlled cel shading.
+
+        Character design:
+        - Era / aesthetic context: {character.era}
+        - Character type guidance: {type_hint}
+        - Visual form: {character.visual_form}
+        - Color palette: {character.color_palette}
+        {markers_line}
+        - Demeanor: {character.demeanor} (subtle; keep pose neutral)
+
+        Style: modern comic book illustration, sharp line art, subtle halftone texture, high-resolution character render.
+
+        Avoid: text, logos, watermarks, speech bubbles, extra characters, busy effects, extreme foreshortening,
+        dramatic shadows, camera tilt.
+        """
+        return textwrap.dedent(prompt).strip()
