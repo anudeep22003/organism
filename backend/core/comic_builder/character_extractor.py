@@ -1,15 +1,13 @@
 import uuid
 
 from pydantic import Field
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.common import AliasedBaseModel
 from core.services.intelligence import instructor_client
 
 from .consolidated_state import Character, CharacterBase, ConsolidatedComicState
 from .exceptions import ComicBuilderError
-from .models import Project
+from .project_state_manager import ProjectStateManager
 
 
 class CharacterExtractorError(ComicBuilderError):
@@ -33,28 +31,32 @@ class ExtractedCharacters(AliasedBaseModel):
 class CharacterExtractor:
     """Extracts and persists character profiles from story content via LLM."""
 
-    def __init__(self, project_id: uuid.UUID, db: AsyncSession):
-        self.project_id = project_id
-        self._db = db
+    def __init__(self, state_manager: ProjectStateManager) -> None:
+        self._state_manager = state_manager
 
-    async def load_memory(self) -> ConsolidatedComicState:
-        """Fetch project state from database."""
-        query = select(Project).where(Project.id == self.project_id)
-        result = await self._db.execute(query)
-        project = result.scalar_one_or_none()
-        if not project:
-            raise ValueError(f"Project {self.project_id} not found")
-        return ConsolidatedComicState.model_validate(project.state)
+    async def execute(self, project_id: uuid.UUID) -> ConsolidatedComicState:
+        """Execute full extraction pipeline: load -> extract -> persist."""
+        project = await self._state_manager.fetch_project(project_id)
+        state = self._state_manager.get_validated_state(project)
+        story = self._extract_story(state, project_id)
+        characters = await self._extract_characters_via_llm(story, project_id)
+        state = self._sync_characters_to_state(characters, state)
+        await self._state_manager.sync_state(project, state)
+        return state
 
-    def extract_story(self, memory: ConsolidatedComicState) -> str:
-        """Pull story text from the first phase."""
-        if not memory.story.story_text:
+    def _extract_story(
+        self, state: ConsolidatedComicState, project_id: uuid.UUID
+    ) -> str:
+        """Pull story text from the state."""
+        if not state.story.story_text:
             raise NoStoryError(
-                f"No story available for project {self.project_id}, generate store first"
+                f"No story available for project {project_id}, generate story first"
             )
-        return memory.story.story_text
+        return state.story.story_text
 
-    async def extract_characters(self, story: str) -> list[CharacterBase]:
+    async def _extract_characters_via_llm(
+        self, story: str, project_id: uuid.UUID
+    ) -> list[CharacterBase]:
         """Use LLM to identify characters from story text."""
         try:
             response = await instructor_client.chat.completions.create(
@@ -70,40 +72,21 @@ class CharacterExtractor:
             )
         except Exception as e:
             raise CharacterExtractorError(
-                f"LLM extraction failed for project {self.project_id}"
+                f"LLM extraction failed for project {project_id}"
             ) from e
 
         if not response or not response.characters:
             raise CharacterExtractorError(
-                f"No characters could be identified in your story for project {self.project_id}"
+                f"No characters could be identified in your story for project {project_id}"
             )
 
         return response.characters
 
-    def sync_characters_to_local_memory(
-        self, characters: list[CharacterBase], memory: ConsolidatedComicState
+    def _sync_characters_to_state(
+        self, characters: list[CharacterBase], state: ConsolidatedComicState
     ) -> ConsolidatedComicState:
-        """Write extracted characters into memory state."""
+        """Write extracted characters into state."""
         for character in characters:
             consolidated_character = Character(**character.model_dump())
-            memory.characters[consolidated_character.id] = consolidated_character
-        return memory
-
-    async def sync_local_memory_to_db(self, memory: ConsolidatedComicState) -> None:
-        """Persist updated memory state to database."""
-        query = select(Project).where(Project.id == self.project_id)
-        result = await self._db.execute(query)
-        project = result.scalar_one_or_none()
-        if not project:
-            raise ValueError(f"Project {self.project_id} not found")
-        project.state = memory.model_dump()
-        await self._db.commit()
-
-    async def run_and_return_updated_state(self) -> ConsolidatedComicState:
-        """Execute full extraction pipeline: load → extract → persist."""
-        memory = await self.load_memory()
-        story = self.extract_story(memory)
-        characters = await self.extract_characters(story)
-        memory = self.sync_characters_to_local_memory(characters, memory)
-        await self.sync_local_memory_to_db(memory)
-        return memory
+            state.characters[consolidated_character.id] = consolidated_character
+        return state

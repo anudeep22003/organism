@@ -3,14 +3,11 @@ import textwrap
 import uuid
 from typing import cast
 
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from core.comic_builder.models import Project
 from core.services.intelligence.media_generator import fal_async_client as client
 
 from .consolidated_state import Artifact, Character, ConsolidatedComicState
 from .exceptions import ComicBuilderError
+from .project_state_manager import ProjectStateManager
 
 logger = logging.getLogger(__name__)
 
@@ -22,40 +19,23 @@ class RenderError(ComicBuilderError):
 
 
 class CharacterRenderer:
-    def __init__(self, db: AsyncSession) -> None:
-        self.db = db
+    """Renders character images via external image generation service."""
 
-    async def execute_render_character_pipeline(
-        self, project_id: uuid.UUID, character: Character
-    ) -> None:
-        project = await self._fetch_project(project_id)
-        state = self.get_validated_state(project)
-        render_response = await self.render_character(character)
-        image_url = self.get_character_url_from_response(render_response)
-        updated_character = self.update_character_with_url(character, image_url)
-        state = self.add_new_character_to_state(state, updated_character)
-        await self.sync_state_to_project(project, state)
+    def __init__(self, state_manager: ProjectStateManager) -> None:
+        self._state_manager = state_manager
 
-    async def _fetch_project(self, project_id: uuid.UUID) -> Project:
-        """Fetch project within this session to ensure proper tracking."""
-        result = await self.db.execute(select(Project).where(Project.id == project_id))
-        project = result.scalar_one_or_none()
-        if not project:
-            raise ValueError(f"Project {project_id} unexpctednly not found")
-        return project
+    async def execute(self, project_id: uuid.UUID, character: Character) -> None:
+        """Execute full render pipeline: fetch -> render -> update -> sync."""
+        project = await self._state_manager.fetch_project(project_id)
+        state = self._state_manager.get_validated_state(project)
+        render_response = await self._render_character(character)
+        image_url = self._get_character_url_from_response(render_response)
+        updated_character = self._update_character_with_url(character, image_url)
+        state = self._add_character_to_state(state, updated_character)
+        await self._state_manager.sync_state(project, state)
 
-    async def sync_state_to_project(
-        self, project: Project, state: ConsolidatedComicState
-    ) -> None:
-        project.state = state.model_dump()
-        await self.db.commit()
-
-    def get_validated_state(self, project: Project) -> ConsolidatedComicState:
-        if not project.state:
-            raise ValueError("Project state unexpctedly not initialized")
-        return ConsolidatedComicState.model_validate(project.state)
-
-    async def render_character(self, character: Character) -> dict:
+    async def _render_character(self, character: Character) -> dict:
+        """Call external service to generate character image."""
         prompt = self.build_character_render_prompt(character)
         try:
             response = await client.subscribe(
@@ -71,25 +51,28 @@ class CharacterRenderer:
             logger.error(f"Error rendering character: {e}")
             raise RenderError(f"Failed to render character {character.id}") from e
 
-    def get_character_url_from_response(self, response: dict) -> str:
+    def _get_character_url_from_response(self, response: dict) -> str:
+        """Extract image URL from render response."""
         image_url = cast(str, response.get("images", [])[0].get("url"))
         if not image_url:
             logger.error(f"No image URL found in response: {response}")
             raise ValueError("No image URL found in response")
         return image_url
 
-    def update_character_with_url(self, character: Character, url: str) -> Character:
+    def _update_character_with_url(self, character: Character, url: str) -> Character:
+        """Create new character instance with render artifact."""
         render_artifact = Artifact(url=url)
-        new_character = character.model_copy(update={"render": render_artifact})
-        return new_character
+        return character.model_copy(update={"render": render_artifact})
 
-    def add_new_character_to_state(
+    def _add_character_to_state(
         self, state: ConsolidatedComicState, character: Character
     ) -> ConsolidatedComicState:
+        """Add or update character in state."""
         state.characters[character.id] = character
         return state
 
     def build_character_render_prompt_advanced(self, character: Character) -> str:
+        """Build detailed model-sheet style prompt for character rendering."""
         markers = character.distinctive_markers.strip()
         markers_line = (
             f"- Distinctive markers (must be present and clearly visible): {markers}"

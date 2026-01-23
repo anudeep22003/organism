@@ -19,6 +19,7 @@ from ..character_extractor import (
 from ..character_renderer import CharacterRenderer, RenderError
 from ..consolidated_state import Character, ConsolidatedComicState
 from ..dependencies import verify_project_access
+from ..project_state_manager import ProjectStateManager
 
 router = APIRouter(prefix="/phase", tags=["comic", "builder"])
 
@@ -32,8 +33,9 @@ async def extract_characters(
 ) -> ConsolidatedComicState:
     logger.info(f"Extracting characters for project {project_id}")
     try:
-        character_extractor = CharacterExtractor(project_id, db)
-        memory = await character_extractor.run_and_return_updated_state()
+        state_manager = ProjectStateManager(db)
+        character_extractor = CharacterExtractor(state_manager)
+        memory = await character_extractor.execute(project_id)
         return memory
     except NoStoryError:
         logger.warning(
@@ -45,7 +47,9 @@ async def extract_characters(
         )
     except CharacterExtractorError as e:
         logger.warning(f"Error extracting characters: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred while extracting characters") 
+        raise HTTPException(
+            status_code=500, detail="An error occurred while extracting characters"
+        )
     except Exception as e:
         error_id = uuid.uuid4().hex[:8]
         logger.exception(f"Unexpected error extracting characters: [ref: {error_id}]")
@@ -84,11 +88,10 @@ async def render_character(
     # Capture IDs before async operations to avoid expired session issues
     session_id = str(session.id)
 
-    character_renderer = CharacterRenderer(db)
+    state_manager = ProjectStateManager(db)
+    character_renderer = CharacterRenderer(state_manager)
     try:
-        await character_renderer.execute_render_character_pipeline(
-            project_id, character
-        )
+        await character_renderer.execute(project_id, character)
     except RenderError as e:
         logger.error(f"Error rendering character: {e}")
         raise HTTPException(status_code=500, detail=str(e))
