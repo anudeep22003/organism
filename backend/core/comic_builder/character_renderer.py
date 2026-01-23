@@ -3,12 +3,11 @@ import textwrap
 import uuid
 from typing import cast
 
-import fal_client
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.comic_builder.models import Project
-from core.config import FAL_API_KEY
+from core.services.intelligence.media_generator import fal_async_client as client
 
 from .consolidated_state import Artifact, Character, ConsolidatedComicState
 from .exceptions import ComicBuilderError
@@ -58,7 +57,6 @@ class CharacterRenderer:
 
     async def render_character(self, character: Character) -> dict:
         prompt = self.build_character_render_prompt(character)
-        client = fal_client.AsyncClient(key=FAL_API_KEY)
         try:
             response = await client.subscribe(
                 "fal-ai/flux/dev",
