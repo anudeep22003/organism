@@ -108,15 +108,20 @@ class Character(BaseComicStateEntity, CharacterBase):
     render: Artifact | None = None
 
 
-class ComicPanel(BaseComicStateEntity):
-    image_url: str
-    text: str
-    characters: list[uuid.UUID]
-    background: str
-    foreground: str
-    border: str
-    shadow: str
-    glow: str
+class ComicPanelBase(BaseComicStateEntity):
+    background: str = Field(
+        ...,
+        description="The background of the panel that will be rendered as a background image.",
+    )
+    characters: list[str] = Field(
+        ..., description="The names of the characters in the panel."
+    )
+    dialogue: str = Field(
+        ...,
+        description="The dialogue in the panel that will be rendered as speech bubbles.",
+    )
+
+class ComicPanel(ComicPanelBase):
     render: Artifact | None = None
 
 

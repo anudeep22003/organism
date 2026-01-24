@@ -6,18 +6,8 @@ from core.common import AliasedBaseModel
 from core.services.intelligence import instructor_client
 
 from .consolidated_state import Character, CharacterBase, ConsolidatedComicState
-from .exceptions import ComicBuilderError
+from .exceptions import CharacterExtractorError, NoStoryError
 from .project_state_manager import ProjectStateManager
-
-
-class CharacterExtractorError(ComicBuilderError):
-    pass
-
-
-class NoStoryError(ComicBuilderError):
-    """No story available for project."""
-
-    pass
 
 
 class ExtractedCharacters(AliasedBaseModel):

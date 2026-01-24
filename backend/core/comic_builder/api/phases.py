@@ -19,6 +19,7 @@ from ..character_extractor import (
 from ..character_renderer import CharacterRenderer, RenderError
 from ..consolidated_state import Character, ConsolidatedComicState
 from ..dependencies import verify_project_access
+from ..panel_generator import PanelGenerator
 from ..project_state_manager import ProjectStateManager
 
 router = APIRouter(prefix="/phase", tags=["comic", "builder"])
@@ -108,3 +109,24 @@ async def render_character(
     await sio.emit("state.updated", {"projectId": str(project_id)}, to=session_id)
 
     return {"message": "Character rendered successfully"}
+
+
+@router.get("/generate-panels/{project_id}")
+async def generate_panels(
+    project_id: Annotated[uuid.UUID, Depends(verify_project_access)],
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    db: Annotated[AsyncSession, Depends(get_async_db_session)],
+    session_manager: Annotated[SessionManager, Depends(get_session_manager)],
+) -> dict:
+    session = await session_manager.find_session_by_user_id(user_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Capture IDs before async operations to avoid expired session issues
+    session_id = str(session.id)
+
+    state_manager = ProjectStateManager(db)
+    panel_generator = PanelGenerator(state_manager)
+    await panel_generator.execute(project_id)
+    await sio.emit("state.updated", {"projectId": str(project_id)}, to=session_id)
+    return {"message": "Panels generated successfully"}
