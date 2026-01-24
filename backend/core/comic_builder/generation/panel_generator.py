@@ -7,7 +7,7 @@ from core.common import AliasedBaseModel
 from core.services.intelligence import instructor_client
 
 from ..exceptions import NoStoryError, PanelGeneratorError
-from ..state import ComicPanelBase, ConsolidatedComicState
+from ..state import ComicPanel, ComicPanelBase, ConsolidatedComicState
 from ..state_manager import ProjectStateManager
 
 
@@ -71,10 +71,9 @@ class PanelGenerator:
     def _build_new_state_with_panels(
         self, panels: PanelsGeneratorResponse, state: ConsolidatedComicState
     ) -> ConsolidatedComicState:
-        new_state = state.model_copy(
-            update={
-                "panels": panels.panels,
-            }
-        )
+        completed_panels = [
+            ComicPanel(**panel.model_dump(), status="completed")
+            for panel in panels.panels
+        ]
+        new_state = state.model_copy(update={"panels": completed_panels})
         return new_state
-

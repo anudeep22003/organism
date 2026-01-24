@@ -55,6 +55,10 @@ class StoryPhase:
         project = await self._state_manager.fetch_project(project_id)
         state = self._state_manager.get_validated_state(project)
 
+        # TODO: Keeping this simple for now, to avoid orhapned streaming state
+        # state.story.status = "streaming"
+        # await self._state_manager.sync_state(project, state)
+
         accumulated: list[str] = []
         try:
             stream = await self._generator.stream(prompt)
@@ -65,10 +69,13 @@ class StoryPhase:
 
                 if chunk.choices[0].finish_reason is not None:
                     state.story.story_text = "".join(accumulated)
+                    state.story.status = "completed"
                     await self._state_manager.sync_state(project, state)
                     yield {"finish_reason": chunk.choices[0].finish_reason}
                     break
         except Exception as e:
+            state.story.status = "error"
+            await self._state_manager.sync_state(project, state)
             raise StoryGeneratorError(
                 f"Story generation failed for project {project_id}"
             ) from e

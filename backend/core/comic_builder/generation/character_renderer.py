@@ -56,7 +56,9 @@ class CharacterRenderer:
     def _update_character_with_url(self, character: Character, url: str) -> Character:
         """Create new character instance with render artifact."""
         render_artifact = Artifact(url=url)
-        return character.model_copy(update={"render": render_artifact})
+        return character.model_copy(
+            update={"render": render_artifact, "status": "completed"}
+        )
 
     def _add_character_to_state(
         self, state: ConsolidatedComicState, character: Character
@@ -192,4 +194,3 @@ class CharacterRenderer:
         prompt_parts.append("comic book art style, high detail, consistent lighting")
 
         return ", ".join(prompt_parts)
-

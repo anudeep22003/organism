@@ -77,7 +77,8 @@ class CharacterExtractor:
     ) -> ConsolidatedComicState:
         """Write extracted characters into state."""
         for character in characters:
-            consolidated_character = Character(**character.model_dump())
+            consolidated_character = Character(
+                **character.model_dump(), status="completed"
+            )
             state.characters[consolidated_character.id] = consolidated_character
         return state
-
