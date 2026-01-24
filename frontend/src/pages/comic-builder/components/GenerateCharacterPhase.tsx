@@ -1,26 +1,10 @@
 import { Button } from "@/components/ui/button";
-import { httpClient } from "@/lib/httpClient";
 import type { RootState } from "@/store";
+import { useAppDispatch } from "@/store/hooks";
 import { useSelector } from "react-redux";
+import { renderCharacter } from "../slices/thunks/renderCharacterThunk";
 import type { Character } from "../types/consolidatedState";
 import { CharacterCard } from "./ExtractCharactersPhase";
-
-export type GenerateCharacterApiRequest = {
-  character: Character;
-  projectId: string;
-};
-
-const generateCharacterApiCall = async ({
-  character,
-  projectId,
-}: GenerateCharacterApiRequest) => {
-  const response = await httpClient.post<{ message: string }>(
-    `/api/comic-builder/phase/render-character/${projectId}`,
-    character
-  );
-  console.log(response.message);
-  return response;
-};
 
 const EmptyImage = () => {
   return (
@@ -37,12 +21,10 @@ const CharacterCardWithImage = ({
   character: Character;
   projectId: string;
 }) => {
-  const handleGenerateCharacter = async () => {
-    const response = await generateCharacterApiCall({
-      character,
-      projectId: projectId,
-    });
-    console.log("response from generating a character", response);
+  const dispatch = useAppDispatch();
+
+  const handleGenerateCharacter = () => {
+    dispatch(renderCharacter({ projectId, character }));
   };
 
   return (
