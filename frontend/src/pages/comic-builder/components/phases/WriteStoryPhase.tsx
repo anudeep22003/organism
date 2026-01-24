@@ -1,8 +1,8 @@
 import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { selectStoryText } from "../slices/comicSlice";
-import { streamComicStory } from "../slices/thunks/storyThunks";
-import InputArea from "./InputArea";
+import { selectStoryText } from "../../slices/comicSlice";
+import { streamComicStory } from "../../slices/thunks/storyThunks";
+import InputArea from "../InputArea";
 
 const WriteStoryPhase = () => {
   const dispatch = useAppDispatch();
@@ -25,3 +25,4 @@ const WriteStoryPhase = () => {
 };
 
 export default WriteStoryPhase;
+

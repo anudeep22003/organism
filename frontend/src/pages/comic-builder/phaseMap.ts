@@ -1,7 +1,7 @@
-import ExtractCharactersPhase from "./components/ExtractCharactersPhase";
-import GenerateCharacterPhase from "./components/GenerateCharacterPhase";
-import GeneratePanelsPhase from "./components/GeneratePanelsPhase";
-import WriteStoryPhase from "./components/WriteStoryPhase";
+import ExtractCharactersPhase from "./components/phases/ExtractCharactersPhase";
+import GenerateCharacterPhase from "./components/phases/GenerateCharacterPhase";
+import GeneratePanelsPhase from "./components/phases/GeneratePanelsPhase";
+import WriteStoryPhase from "./components/phases/WriteStoryPhase";
 
 /**
  * Single source of truth for phases - order matters here.

@@ -1,9 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { useState } from "react";
-import { selectPanels } from "../slices/comicSlice";
-import { generatePanels } from "../slices/thunks/panelThunks";
-import type { ComicPanel } from "../types/consolidatedState";
+import { selectPanels } from "../../slices/comicSlice";
+import { generatePanels } from "../../slices/thunks/panelThunks";
+import type { ComicPanel } from "../../types/consolidatedState";
 
 type PanelCardProps = {
   panel: ComicPanel;
@@ -124,3 +124,4 @@ const GeneratePanelsPhase = () => {
 };
 
 export default GeneratePanelsPhase;
+

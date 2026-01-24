@@ -15,7 +15,7 @@ import {
   selectProjectsStatus,
 } from "./slices/projectsSlice";
 
-const Projects = () => {
+const ProjectsPage = () => {
   const dispatch = useAppDispatch();
   const projects = useAppSelector(selectProjects);
   const status = useAppSelector(selectProjectsStatus);
@@ -92,4 +92,5 @@ const Projects = () => {
   );
 };
 
-export default Projects;
+export default ProjectsPage;
+
