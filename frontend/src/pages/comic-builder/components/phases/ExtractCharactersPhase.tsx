@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { useState } from "react";
 import { selectCharacters } from "../../slices/comicSlice";
 import { extractCharacters } from "../../slices/thunks/characterThunks";
 import { CharacterCard } from "../CharacterCard";
@@ -8,6 +9,7 @@ const ExtractCharactersPhase = () => {
   const dispatch = useAppDispatch();
   const projectId = useAppSelector((state) => state.comic.projectId);
   const characters = useAppSelector(selectCharacters);
+  const [isExtracting, setIsExtracting] = useState(false);
 
   if (!projectId) {
     return <div>Project ID not found</div>;
@@ -15,8 +17,15 @@ const ExtractCharactersPhase = () => {
 
   const characterList = Object.values(characters);
 
-  const handleExtractCharactersClick = () => {
-    dispatch(extractCharacters(projectId));
+  const handleExtractCharactersClick = async () => {
+    setIsExtracting(true);
+    try {
+      await dispatch(extractCharacters(projectId)).unwrap();
+    } catch (error) {
+      console.error("Failed to extract characters:", error);
+    } finally {
+      setIsExtracting(false);
+    }
   };
 
   return (
@@ -25,10 +34,11 @@ const ExtractCharactersPhase = () => {
         <h2 className="text-xl font-semibold text-black">Characters</h2>
         <Button
           onClick={handleExtractCharactersClick}
+          disabled={isExtracting}
           variant="outline"
           className="border-black text-black hover:bg-neutral-100"
         >
-          Extract Characters
+          {isExtracting ? "Extracting..." : "Extract Characters"}
         </Button>
       </div>
 

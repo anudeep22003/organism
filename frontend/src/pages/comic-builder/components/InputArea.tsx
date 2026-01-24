@@ -17,9 +17,10 @@ import { useState } from "react";
 
 type InputAreaProps = {
   onSubmit: (draft: string) => void;
+  disabled?: boolean;
 };
 
-const InputArea = ({ onSubmit }: InputAreaProps) => {
+const InputArea = ({ onSubmit, disabled = false }: InputAreaProps) => {
   const [draft, setDraft] = useState("");
 
   const handleSubmitClick = () => {
@@ -32,12 +33,14 @@ const InputArea = ({ onSubmit }: InputAreaProps) => {
         <InputGroupTextarea
           placeholder="Ask, Search or Chat..."
           value={draft}
+          disabled={disabled}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
             if (
               e.key === "Enter" &&
               (e.metaKey || e.ctrlKey) &&
-              draft.trim() !== ""
+              draft.trim() !== "" &&
+              !disabled
             ) {
               e.preventDefault();
               handleSubmitClick();
@@ -71,6 +74,7 @@ const InputArea = ({ onSubmit }: InputAreaProps) => {
             className="rounded-full ml-auto"
             size="icon-xs"
             onClick={handleSubmitClick}
+            disabled={disabled || draft.trim() === ""}
           >
             <ArrowUpIcon />
             <span className="sr-only">Send</span>

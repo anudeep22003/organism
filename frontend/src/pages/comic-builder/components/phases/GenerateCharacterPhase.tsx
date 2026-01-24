@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import type { RootState } from "@/store";
 import { useAppDispatch } from "@/store/hooks";
+import { useState } from "react";
 import { useSelector } from "react-redux";
 import { renderCharacter } from "../../slices/thunks/characterThunks";
 import type { Character } from "../../types/consolidatedState";
@@ -22,28 +23,48 @@ const CharacterCardWithImage = ({
   projectId: string;
 }) => {
   const dispatch = useAppDispatch();
+  const [isRendering, setIsRendering] = useState(false);
 
-  const handleGenerateCharacter = () => {
-    dispatch(renderCharacter({ projectId, character }));
+  const handleGenerateCharacter = async () => {
+    setIsRendering(true);
+    try {
+      await dispatch(renderCharacter({ projectId, character })).unwrap();
+    } catch (error) {
+      console.error("Failed to render character:", error);
+    } finally {
+      setIsRendering(false);
+    }
+  };
+
+  const renderImageArea = () => {
+    if (isRendering) {
+      return (
+        <div className="flex bg-neutral-100 grow items-center justify-center animate-pulse">
+          <p className="text-neutral-500">Generating...</p>
+        </div>
+      );
+    }
+    if (character.render) {
+      return (
+        <img
+          src={character.render.url ?? ""}
+          alt={character.name}
+          className="w-full h-auto"
+        />
+      );
+    }
+    return <EmptyImage />;
   };
 
   return (
     <div className="flex w-full gap-4">
       <div className="flex flex-col w-1/2">
         <CharacterCard character={character} />
-        <Button onClick={handleGenerateCharacter}>
-          Generate Character
+        <Button onClick={handleGenerateCharacter} disabled={isRendering}>
+          {isRendering ? "Generating..." : "Generate Character"}
         </Button>
       </div>
-      {character.render ? (
-        <img
-          src={character.render.url ?? ""}
-          alt={character.name}
-          className="w-full h-auto"
-        />
-      ) : (
-        <EmptyImage />
-      )}
+      {renderImageArea()}
     </div>
   );
 };

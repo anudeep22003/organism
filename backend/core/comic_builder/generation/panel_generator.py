@@ -72,7 +72,7 @@ class PanelGenerator:
         self, panels: PanelsGeneratorResponse, state: ConsolidatedComicState
     ) -> ConsolidatedComicState:
         completed_panels = [
-            ComicPanel(**panel.model_dump(), status="completed")
+            ComicPanel(**panel.model_dump(exclude={"status"}), status="completed")
             for panel in panels.panels
         ]
         new_state = state.model_copy(update={"panels": completed_panels})
