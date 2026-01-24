@@ -30,3 +30,9 @@ class RenderError(ComicBuilderError):
     """External image generation failed."""
 
     pass
+
+
+class StoryGeneratorError(ComicBuilderError):
+    """Error generating story."""
+
+    pass

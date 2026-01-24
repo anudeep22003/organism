@@ -62,6 +62,13 @@ export const comicSlice = createSlice({
 
       const { data } = action.payload;
 
+      if (data.error) {
+        state.story.status = "error";
+        state.error = data.error;
+        console.error("Story generation error:", data.error);
+        return;
+      }
+
       if (data.delta === "") {
         // Start of stream - set status
         state.story.status = "streaming";

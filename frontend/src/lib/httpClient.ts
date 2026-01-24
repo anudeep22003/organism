@@ -169,10 +169,11 @@ class HttpClient {
   }
 
   public async *streamPost<T = unknown>(
+    url: string,
     data?: unknown
   ): AsyncGenerator<T> {
-    const url = `${BACKEND_URL}/api/comic-builder/story`;
-    const response = await fetch(url, {
+    const fullUrl = `${BACKEND_URL}${url}`;
+    const response = await fetch(fullUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -191,8 +192,8 @@ class HttpClient {
     ) {
       await this.refreshAccessToken();
 
-      // Retry the reqyest
-      yield* this.streamPost(data);
+      // Retry the request
+      yield* this.streamPost(url, data);
       return;
     }
 

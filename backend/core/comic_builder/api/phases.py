@@ -1,7 +1,8 @@
 import uuid
-from typing import Annotated
+from typing import Annotated, AsyncGenerator
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,8 +12,19 @@ from core.auth.managers.session import SessionManager
 from core.services.database import get_async_db_session
 from core.sockets import sio
 
-from ..exceptions import CharacterExtractorError, NoStoryError, RenderError
-from ..generation import CharacterExtractor, CharacterRenderer, PanelGenerator
+from ..exceptions import (
+    CharacterExtractorError,
+    NoStoryError,
+    RenderError,
+    StoryGeneratorError,
+)
+from ..generation import (
+    CharacterExtractor,
+    CharacterRenderer,
+    PanelGenerator,
+    StoryPhase,
+)
+from ..schemas import SimpleEnvelope, StoryPromptRequest
 from ..state import Character, ConsolidatedComicState
 from ..state_manager import ProjectStateManager
 from .dependencies import verify_project_access
@@ -125,3 +137,35 @@ async def generate_panels(
     await panel_generator.execute(project_id)
     await sio.emit("state.updated", {"projectId": str(project_id)}, to=session_id)
     return {"message": "Panels generated successfully"}
+
+
+async def _story_envelope_stream(
+    phase: StoryPhase, project_id: uuid.UUID, prompt: str
+) -> AsyncGenerator[str, None]:
+    """Wrap phase output in SimpleEnvelope JSON lines."""
+    try:
+        async for data in phase.execute_streaming(project_id, prompt):
+            yield SimpleEnvelope(data=data).model_dump_json() + "\n"
+    except StoryGeneratorError as e:
+        logger.error(f"Story generation error for project {project_id}: {e}")
+        yield SimpleEnvelope(data={"error": str(e)}).model_dump_json() + "\n"
+
+
+@router.post("/generate-story/{project_id}")
+async def generate_story(
+    project_id: Annotated[uuid.UUID, Depends(verify_project_access)],
+    db: Annotated[AsyncSession, Depends(get_async_db_session)],
+    request: StoryPromptRequest,
+) -> StreamingResponse:
+    """Generate story for a project with streaming response.
+
+    Streams story chunks as they are generated and persists the
+    complete story to project state on completion.
+    """
+    logger.info(f"Generating story for project {project_id}")
+    state_manager = ProjectStateManager(db)
+    phase = StoryPhase(state_manager)
+    return StreamingResponse(
+        content=_story_envelope_stream(phase, project_id, request.story_prompt),
+        media_type="application/x-ndjson",
+    )
