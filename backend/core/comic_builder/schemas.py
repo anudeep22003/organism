@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from core.comic_builder.consolidated_state import ConsolidatedComicState
+from core.comic_builder.state import ConsolidatedComicState
 from core.common import AliasedBaseModel
 
 

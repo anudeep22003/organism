@@ -5,9 +5,9 @@ from pydantic import Field
 from core.common import AliasedBaseModel
 from core.services.intelligence import instructor_client
 
-from .consolidated_state import Character, CharacterBase, ConsolidatedComicState
-from .exceptions import CharacterExtractorError, NoStoryError
-from .project_state_manager import ProjectStateManager
+from ..exceptions import CharacterExtractorError, NoStoryError
+from ..state import Character, CharacterBase, ConsolidatedComicState
+from ..state_manager import ProjectStateManager
 
 
 class ExtractedCharacters(AliasedBaseModel):
@@ -80,3 +80,4 @@ class CharacterExtractor:
             consolidated_character = Character(**character.model_dump())
             state.characters[consolidated_character.id] = consolidated_character
         return state
+

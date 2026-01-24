@@ -11,16 +11,11 @@ from core.auth.managers.session import SessionManager
 from core.services.database import get_async_db_session
 from core.sockets import sio
 
-from ..character_extractor import (
-    CharacterExtractor,
-    CharacterExtractorError,
-    NoStoryError,
-)
-from ..character_renderer import CharacterRenderer, RenderError
-from ..consolidated_state import Character, ConsolidatedComicState
-from ..dependencies import verify_project_access
-from ..panel_generator import PanelGenerator
-from ..project_state_manager import ProjectStateManager
+from ..exceptions import CharacterExtractorError, NoStoryError, RenderError
+from ..generation import CharacterExtractor, CharacterRenderer, PanelGenerator
+from ..state import Character, ConsolidatedComicState
+from ..state_manager import ProjectStateManager
+from .dependencies import verify_project_access
 
 router = APIRouter(prefix="/phase", tags=["comic", "builder"])
 

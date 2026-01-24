@@ -5,17 +5,11 @@ from typing import cast
 
 from core.services.intelligence.media_generator import fal_async_client as client
 
-from .consolidated_state import Artifact, Character, ConsolidatedComicState
-from .exceptions import ComicBuilderError
-from .project_state_manager import ProjectStateManager
+from ..exceptions import RenderError
+from ..state import Artifact, Character, ConsolidatedComicState
+from ..state_manager import ProjectStateManager
 
 logger = logging.getLogger(__name__)
-
-
-class RenderError(ComicBuilderError):
-    """External image generation failed."""
-
-    pass
 
 
 class CharacterRenderer:
@@ -198,3 +192,4 @@ class CharacterRenderer:
         prompt_parts.append("comic book art style, high detail, consistent lighting")
 
         return ", ".join(prompt_parts)
+

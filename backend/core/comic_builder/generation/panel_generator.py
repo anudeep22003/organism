@@ -6,9 +6,9 @@ from pydantic import Field
 from core.common import AliasedBaseModel
 from core.services.intelligence import instructor_client
 
-from .consolidated_state import ComicPanelBase, ConsolidatedComicState
-from .exceptions import NoStoryError, PanelGeneratorError
-from .project_state_manager import ProjectStateManager
+from ..exceptions import NoStoryError, PanelGeneratorError
+from ..state import ComicPanelBase, ConsolidatedComicState
+from ..state_manager import ProjectStateManager
 
 
 class PanelsGeneratorResponse(AliasedBaseModel):
@@ -77,3 +77,4 @@ class PanelGenerator:
             }
         )
         return new_state
+

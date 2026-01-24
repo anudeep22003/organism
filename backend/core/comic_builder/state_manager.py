@@ -3,9 +3,9 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .consolidated_state import ConsolidatedComicState
 from .exceptions import ProjectNotFoundError
 from .models import Project
+from .state import ConsolidatedComicState
 
 
 class ProjectStateManager:
@@ -32,3 +32,4 @@ class ProjectStateManager:
         """Persist state back to project and commit."""
         project.state = state.model_dump()
         await self._db.commit()
+

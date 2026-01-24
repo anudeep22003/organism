@@ -24,3 +24,9 @@ class PanelGeneratorError(ComicBuilderError):
     """Error generating panel."""
 
     pass
+
+
+class RenderError(ComicBuilderError):
+    """External image generation failed."""
+
+    pass
