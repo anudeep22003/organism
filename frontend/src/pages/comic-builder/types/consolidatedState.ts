@@ -50,14 +50,9 @@ export type Character = BaseComicStateEntity & {
 };
 
 export type ComicPanel = BaseComicStateEntity & {
-  imageUrl: string;
-  text: string;
-  characters: string[]; // UUIDs of characters
   background: string;
-  foreground: string;
-  border: string;
-  shadow: string;
-  glow: string;
+  characters: string[]; // character names
+  dialogue: string;
   render: Artifact | null;
 };
 

@@ -1,5 +1,6 @@
 import ExtractCharactersPhase from "./components/ExtractCharactersPhase";
 import GenerateCharacterPhase from "./components/GenerateCharacterPhase";
+import GeneratePanelsPhase from "./components/GeneratePanelsPhase";
 import WriteStoryPhase from "./components/WriteStoryPhase";
 
 /**
@@ -10,6 +11,7 @@ const phaseConfig = [
   { key: "write-story", component: WriteStoryPhase },
   { key: "extract-characters", component: ExtractCharactersPhase },
   { key: "generate-characters", component: GenerateCharacterPhase },
+  { key: "generate-panels", component: GeneratePanelsPhase },
 ] as const;
 
 export type PhaseMapKey = (typeof phaseConfig)[number]["key"];
