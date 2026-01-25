@@ -54,7 +54,12 @@ const GeneratePanelsPhase = () => {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {panels.map((panel, index) => (
-            <PanelCard key={panel.id} panel={panel} index={index} />
+            <PanelCard
+              key={panel.id}
+              panel={panel}
+              index={index}
+              showRender={false}
+            />
           ))}
         </div>
       )}

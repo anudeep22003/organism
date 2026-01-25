@@ -3,9 +3,14 @@ import type { ComicPanel } from "../types/consolidatedState";
 type PanelCardProps = {
   panel: ComicPanel;
   index: number;
+  showRender?: boolean;
 };
 
-export const PanelCard = ({ panel, index }: PanelCardProps) => {
+export const PanelCard = ({
+  panel,
+  index,
+  showRender = true,
+}: PanelCardProps) => {
   return (
     <div className="border border-neutral-300 bg-white">
       {/* Panel number header */}
@@ -13,20 +18,22 @@ export const PanelCard = ({ panel, index }: PanelCardProps) => {
         Panel {index + 1}
       </div>
 
-      {/* Render placeholder or image */}
-      <div className="aspect-square bg-neutral-100 flex items-center justify-center border-b border-neutral-200">
-        {panel.render?.url ? (
-          <img
-            src={panel.render.url}
-            alt={`Panel ${index + 1}`}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <span className="text-neutral-400 text-sm">
-            Render not yet generated
-          </span>
-        )}
-      </div>
+      {/* Render placeholder or image - only show when showRender is true */}
+      {showRender && (
+        <div className="aspect-square bg-neutral-100 flex items-center justify-center border-b border-neutral-200">
+          {panel.render?.url ? (
+            <img
+              src={panel.render.url}
+              alt={`Panel ${index + 1}`}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <span className="text-neutral-400 text-sm">
+              Render not yet generated
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Panel details */}
       <div className="p-3 space-y-2 text-sm">
