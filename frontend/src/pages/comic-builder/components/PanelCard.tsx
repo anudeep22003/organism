@@ -7,7 +7,7 @@ type PanelCardProps = {
 
 export const PanelCard = ({ panel, index }: PanelCardProps) => {
   return (
-    <div className="flex-shrink-0 w-80 snap-center border border-neutral-300 bg-white">
+    <div className="border border-neutral-300 bg-white">
       {/* Panel number header */}
       <div className="bg-neutral-900 text-white px-3 py-1 text-sm font-medium">
         Panel {index + 1}

@@ -32,7 +32,7 @@ const PanelCardWithRender = ({
   };
 
   return (
-    <div className="flex-shrink-0 w-80 snap-center flex flex-col gap-2">
+    <div className="flex flex-col gap-2">
       <PanelCard panel={panel} index={index} />
       <Button
         onClick={handleRenderPanel}
@@ -71,17 +71,15 @@ const RenderPanelsPhase = () => {
       {panels.length === 0 ? (
         <EmptyState />
       ) : (
-        <div className="overflow-x-auto pb-4">
-          <div className="flex gap-4 snap-x snap-mandatory">
-            {panels.map((panel, index) => (
-              <PanelCardWithRender
-                key={panel.id}
-                panel={panel}
-                index={index}
-                projectId={projectId}
-              />
-            ))}
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {panels.map((panel, index) => (
+            <PanelCardWithRender
+              key={panel.id}
+              panel={panel}
+              index={index}
+              projectId={projectId}
+            />
+          ))}
         </div>
       )}
     </div>

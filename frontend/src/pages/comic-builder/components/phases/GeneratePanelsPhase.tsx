@@ -52,12 +52,10 @@ const GeneratePanelsPhase = () => {
       {panels.length === 0 ? (
         <EmptyState />
       ) : (
-        <div className="overflow-x-auto pb-4">
-          <div className="flex gap-4 snap-x snap-mandatory">
-            {panels.map((panel, index) => (
-              <PanelCard key={panel.id} panel={panel} index={index} />
-            ))}
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {panels.map((panel, index) => (
+            <PanelCard key={panel.id} panel={panel} index={index} />
+          ))}
         </div>
       )}
     </div>
