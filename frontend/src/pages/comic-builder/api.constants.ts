@@ -14,5 +14,7 @@ export const ComicBuilderEndpoints = {
       `${API_BASE}/phase/render-character/${projectId}`,
     generatePanels: (projectId: string) =>
       `${API_BASE}/phase/generate-panels/${projectId}`,
+    renderPanel: (projectId: string) =>
+      `${API_BASE}/phase/render-panel/${projectId}`,
   },
 } as const;
