@@ -1,7 +1,8 @@
-import logging
 import textwrap
 import uuid
 from typing import cast
+
+from loguru import logger
 
 from core.services.intelligence.media_generator import fal_async_client as client
 
@@ -9,7 +10,7 @@ from ..exceptions import RenderError
 from ..state import Artifact, Character, ConsolidatedComicState
 from ..state_manager import ProjectStateManager
 
-logger = logging.getLogger(__name__)
+logger = logger.bind(name=__name__)
 
 
 class CharacterRenderer:
