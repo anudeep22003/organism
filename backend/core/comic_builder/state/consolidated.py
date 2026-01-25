@@ -22,4 +22,3 @@ def initialize_empty_consolidated_state_dict() -> dict[str, Any]:
         characters={},
         panels=[],
     ).model_dump(by_alias=True)
-

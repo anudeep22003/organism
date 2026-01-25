@@ -22,10 +22,11 @@ from ..generation import (
     CharacterExtractor,
     CharacterRenderer,
     PanelGenerator,
+    PanelRenderer,
     StoryPhase,
 )
 from ..schemas import SimpleEnvelope, StoryPromptRequest
-from ..state import Character, ConsolidatedComicState
+from ..state import Character, ComicPanel, ConsolidatedComicState
 from ..state_manager import ProjectStateManager
 from .dependencies import verify_project_access
 
@@ -169,3 +170,39 @@ async def generate_story(
         content=_story_envelope_stream(phase, project_id, request.story_prompt),
         media_type="application/x-ndjson",
     )
+
+@router.post("/render-panel/{project_id}")
+async def render_panel(
+    project_id: Annotated[uuid.UUID, Depends(verify_project_access)],
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    db: Annotated[AsyncSession, Depends(get_async_db_session)],
+    panel: ComicPanel,
+    session_manager: Annotated[SessionManager, Depends(get_session_manager)],
+) -> dict:
+    session = await session_manager.find_session_by_user_id(user_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Capture IDs before async operations to avoid expired session issues
+    session_id = str(session.id)
+
+    state_manager = ProjectStateManager(db)
+    panel_renderer = PanelRenderer(state_manager)
+    try:
+        await panel_renderer.execute(project_id, panel)
+    except RenderError as e:
+        logger.error(f"Error rendering character: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        error_id = uuid.uuid4().hex[
+            :8
+        ]  # first 8 characters of the UUID without the hyphens (hex removes the hyphens)
+        logger.exception(f"Unexpected error rendering character: [ref: {error_id}]")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred while rendering panel: [ref: {error_id}]",
+        )
+
+    await sio.emit("state.updated", {"projectId": str(project_id)}, to=session_id)
+
+    return {"message": "Panel rendered successfully"}
