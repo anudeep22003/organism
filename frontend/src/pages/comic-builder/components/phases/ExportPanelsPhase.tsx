@@ -19,6 +19,9 @@ import { downloadPanelsZip } from "../../utils";
 
 const ExportPanelsPhase = () => {
   const panels = useAppSelector(selectPanels);
+  const projectName = useAppSelector(
+    (state) => state.comic.projectName
+  );
   const renderedPanels = panels.filter(
     (panel) => panel.render && panel.render.url
   );
@@ -37,7 +40,7 @@ const ExportPanelsPhase = () => {
       index,
       imageUrl: panel.render!.url!,
     }));
-    await downloadPanelsZip(downloadablePanels);
+    await downloadPanelsZip(downloadablePanels, projectName!);
   };
 
   return (

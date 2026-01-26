@@ -6,10 +6,14 @@ export type DownloadablePanelData = {
 };
 
 export const downloadPanelsZip = async (
-  downloadablePanels: DownloadablePanelData[]
+  downloadablePanels: DownloadablePanelData[],
+  projectName: string = "comic-panels"
 ): Promise<void> => {
   console.log("downloading panels", downloadablePanels);
   const zip = new JSZip();
+  const zipFileName = `${projectName
+    .toLowerCase()
+    .replace(/\s+/g, "-")}-${Date.now()}.zip`;
 
   // Fetch all images in parallel
   const fetchImages = downloadablePanels.map(
@@ -37,7 +41,7 @@ export const downloadPanelsZip = async (
   const url = URL.createObjectURL(zipBlob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `comic-panels-${Date.now()}.zip`;
+  a.download = zipFileName;
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
