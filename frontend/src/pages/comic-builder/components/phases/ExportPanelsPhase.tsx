@@ -15,21 +15,29 @@ import {
   Layers,
 } from "lucide-react";
 import { selectPanels } from "../../slices/comicSlice";
+import { downloadPanelsZip } from "../../utils";
 
 const ExportPanelsPhase = () => {
   const panels = useAppSelector(selectPanels);
-
-  const totalPanels = panels.length;
   const renderedPanels = panels.filter(
-    (panel) => panel.render?.url
-  ).length;
-  const progress =
-    totalPanels > 0 ? (renderedPanels / totalPanels) * 100 : 0;
-  const isReadyToExport = renderedPanels > 0;
+    (panel) => panel.render && panel.render.url
+  );
 
-  const downloadPanels = () => {
-    // TODO: Implement JSZip export
-    console.log("downloading panels");
+  const totalPanelsLength = panels.length;
+  const renderedPanelsLength = renderedPanels.length;
+
+  const progress =
+    totalPanelsLength > 0
+      ? (renderedPanelsLength / totalPanelsLength) * 100
+      : 0;
+  const isReadyToExport = renderedPanelsLength > 0;
+
+  const handleDownloadClick = async () => {
+    const downloadablePanels = renderedPanels.map((panel, index) => ({
+      index,
+      imageUrl: panel.render!.url!,
+    }));
+    await downloadPanelsZip(downloadablePanels);
   };
 
   return (
@@ -62,7 +70,7 @@ const ExportPanelsPhase = () => {
                 </span>
               </div>
               <p className="text-3xl font-bold text-black tabular-nums">
-                {totalPanels}
+                {totalPanelsLength}
               </p>
             </div>
 
@@ -74,7 +82,7 @@ const ExportPanelsPhase = () => {
                 </span>
               </div>
               <p className="text-3xl font-bold text-black tabular-nums">
-                {renderedPanels}
+                {renderedPanelsLength}
               </p>
             </div>
           </div>
@@ -98,7 +106,7 @@ const ExportPanelsPhase = () => {
 
         <CardFooter className="bg-neutral-50 border-t border-neutral-200 pt-4">
           <Button
-            onClick={downloadPanels}
+            onClick={handleDownloadClick}
             disabled={!isReadyToExport}
             variant="outline"
             size="lg"
@@ -106,8 +114,8 @@ const ExportPanelsPhase = () => {
           >
             <Download className="h-4 w-4" />
             {isReadyToExport
-              ? `Export ${renderedPanels} Panel${
-                  renderedPanels !== 1 ? "s" : ""
+              ? `Export ${renderedPanelsLength} Panel${
+                  renderedPanelsLength === 1 ? "" : "s"
                 }`
               : "No Panels to Export"}
           </Button>
