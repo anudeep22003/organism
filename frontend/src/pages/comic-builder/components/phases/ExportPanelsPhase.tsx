@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { selectPanels } from "../../slices/comicSlice";
 
-const ExportPanels = () => {
+const ExportPanelsPhase = () => {
   const panels = useAppSelector(selectPanels);
 
   const totalPanels = panels.length;
@@ -117,4 +117,4 @@ const ExportPanels = () => {
   );
 };
 
-export default ExportPanels;
+export default ExportPanelsPhase;
