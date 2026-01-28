@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.auth import get_current_user_id
 from core.auth.dependencies import get_session_manager
 from core.auth.managers.session import SessionManager
+from core.comic_builder.generation.bulk_panel_generator import BulkPanelGenerator
 from core.services.database import get_async_db_session
 from core.sockets import sio
 
@@ -171,6 +172,7 @@ async def generate_story(
         media_type="application/x-ndjson",
     )
 
+
 @router.post("/render-panel/{project_id}")
 async def render_panel(
     project_id: Annotated[uuid.UUID, Depends(verify_project_access)],
@@ -206,3 +208,28 @@ async def render_panel(
     await sio.emit("state.updated", {"projectId": str(project_id)}, to=session_id)
 
     return {"message": "Panel rendered successfully"}
+
+
+@router.post("/render-all-panels/{project_id}")
+async def render_all_panels(
+    project_id: Annotated[uuid.UUID, Depends(verify_project_access)],
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    db: Annotated[AsyncSession, Depends(get_async_db_session)],
+    session_manager: Annotated[SessionManager, Depends(get_session_manager)],
+) -> dict:
+    session = await session_manager.find_session_by_user_id(user_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    logger.info(f"Rendering all panels for project {project_id}")
+
+    session_id = str(session.id)
+    state_manager = ProjectStateManager(db)
+    bulk_panel_generator = BulkPanelGenerator(state_manager)
+
+    async def notify_callback() -> None:
+        await sio.emit("state.updated", {"projectId": str(project_id)}, to=session_id)
+
+    await bulk_panel_generator.execute(project_id, notify_callback)
+
+    return {"message": "All panels rendered successfully"}
