@@ -1,5 +1,5 @@
 import uuid
-from typing import NamedTuple, cast
+from typing import cast
 
 from loguru import logger
 
@@ -11,31 +11,6 @@ from ..state import Artifact, ComicPanel, ConsolidatedComicState
 from ..state_manager import ProjectStateManager
 
 logger = logger.bind(name=__name__)
-
-
-class ImageGenerationModel(NamedTuple):
-    """Image generation model."""
-
-    edit_model: str
-    generation_model: str
-
-
-nano_banana_pro = ImageGenerationModel(
-    edit_model="fal-ai/nano-banana-pro/edit",
-    generation_model="fal-ai/nano-banana-pro",
-)
-
-nano_banana = ImageGenerationModel(
-    edit_model="fal-ai/nano-banana/edit",
-    generation_model="fal-ai/nano-banana",
-)
-
-seedream = ImageGenerationModel(
-    edit_model="fal-ai/bytedance/seedream/v4/edit",
-    generation_model="fal-ai/bytedance/seedream/v4/text-to-image",
-)
-
-DEFAULT_IMAGE_GENERATION_MODEL = nano_banana
 
 
 class PanelRenderError(ComicBuilderError):
@@ -91,37 +66,14 @@ class PanelRenderer:
             )
         return character_urls
 
-    def _get_render_model(self, character_urls: list[str]) -> str:
-        """Get the model to use for rendering the panel."""
-        characters_are_present = bool(character_urls)
-        return (
-            DEFAULT_IMAGE_GENERATION_MODEL.edit_model
-            if characters_are_present
-            else DEFAULT_IMAGE_GENERATION_MODEL.generation_model
-        )
-
-    def _get_render_arguments(
-        self, panel: ComicPanel, character_urls: list[str]
-    ) -> dict[str, str | list[str]]:
-        """Get the render arguments to use for rendering the panel."""
-        render_prompt = self._build_panel_render_prompt(panel)
-        characters_are_present = bool(character_urls)
-
-        if characters_are_present:
-            return {
-                "prompt": render_prompt,
-                "image_urls": character_urls,
-            }
-        return {"prompt": render_prompt}
-
     async def _render_panel(self, panel: ComicPanel, character_urls: list[str]) -> dict:
         """Call external service to generate panel image."""
-        render_arguments = self._get_render_arguments(panel, character_urls)
-        model = self._get_render_model(character_urls)
         try:
             response = await client.subscribe(
-                model,
-                arguments=render_arguments,
+                arguments={
+                    "prompt": self._build_panel_render_prompt(panel),
+                    "image_urls": character_urls,
+                },
                 on_queue_update=lambda status: print(f"Status: {status}"),
             )
             logger.info(f"Response: {response}")

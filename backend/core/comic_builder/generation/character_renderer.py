@@ -34,7 +34,6 @@ class CharacterRenderer:
         prompt = self.build_character_render_prompt(character)
         try:
             response = await client.subscribe(
-                "fal-ai/flux/dev",
                 arguments={
                     "prompt": prompt,
                 },
