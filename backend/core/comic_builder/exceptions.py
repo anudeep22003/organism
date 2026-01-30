@@ -36,3 +36,9 @@ class StoryGeneratorError(ComicBuilderError):
     """Error generating story."""
 
     pass
+
+
+class CharacterNotFoundError(ComicBuilderError):
+    """Character not found in asset manager."""
+
+    pass
