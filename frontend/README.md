@@ -1,69 +1,61 @@
-# React + TypeScript + Vite
+# Comic Builder Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This app currently ships a working comic builder flow. The core loop is: create a project, write a story, extract characters, generate panels, render panels, and export as a ZIP.
 
-Currently, two official plugins are available:
+**Quick start**
+1. `npm install`
+2. `npm run dev`
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+**Environment**
+1. `VITE_BACKEND_URL` - API + Socket base URL (default `http://localhost:8080`)
 
-## Expanding the ESLint configuration
+**Routing**
+1. `/` shows the Projects list.
+2. `/:projectId` opens the comic builder for a specific project.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+**Project lifecycle**
+1. Projects are fetched and created via `src/pages/comic-builder/slices/projectsSlice.ts`.
+2. The Projects UI is `src/pages/comic-builder/ProjectsPage.tsx`, with cards in `ProjectCard` and a create dialog in `CreateProjectDialog`.
+3. Clicking a project navigates to `/:projectId`.
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+**Builder workflow (what works today)**
+1. The builder UI is `src/pages/comic-builder/components/ComicBuilder.tsx`.
+2. A stepper drives phases defined in `src/pages/comic-builder/phaseMap.ts`.
+3. Phases are:
+4. `write-story` - `WriteStoryPhase` streams story text from the backend.
+5. `extract-characters` - `ExtractCharactersPhase` fetches characters from the story.
+6. `generate-characters` - `GenerateCharacterPhase` renders images per character.
+7. `generate-panels` - `GeneratePanelsPhase` generates comic panels from the story.
+8. `render-panels` - `RenderPanelsPhase` renders images per panel, single or bulk.
+9. `export-panels` - `ExportPanelsPhase` downloads rendered panels as a ZIP.
 
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
+**How the data flows**
+1. Active project state lives in Redux `comicSlice` (`src/pages/comic-builder/slices/comicSlice.ts`).
+2. On page load, `fetchComicState` pulls the project and flattens `state` into the slice.
+3. Story generation uses `httpClient.streamPost` to consume newline-delimited JSON and append deltas.
+4. Character/panel generation and rendering call phase endpoints and then rely on `state.updated` from Socket.IO to refetch (`useSocket` triggers `fetchComicState`).
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+**Key APIs used**
+1. Project CRUD: `GET/POST /api/comic-builder/projects`
+2. Project detail: `GET /api/comic-builder/projects/:id`
+3. Story stream: `POST /api/comic-builder/phase/generate-story/:id`
+4. Characters: `GET /api/comic-builder/phase/extract-characters/:id`
+5. Character render: `POST /api/comic-builder/phase/render-character/:id`
+6. Panels: `GET /api/comic-builder/phase/generate-panels/:id`
+7. Panel render: `POST /api/comic-builder/phase/render-panel/:id`
+8. Bulk render: `POST /api/comic-builder/phase/render-all-panels/:id`
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+**Export**
+1. `ExportPanelsPhase` uses `src/pages/comic-builder/utils.ts` to fetch rendered images and zip them client-side with JSZip.
+2. Export only enables once at least one panel has a render URL.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+**State + realtime**
+1. Redux stores the canonical comic state: `story`, `characters`, and `panels`.
+2. The backend emits `state.updated` over Socket.IO, and the frontend refetches the project to stay in sync.
 
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+**Where to look first**
+1. `src/pages/comic-builder/components/ComicBuilder.tsx` - phase router and stepper.
+2. `src/pages/comic-builder/phaseMap.ts` - single source of truth for phases.
+3. `src/pages/comic-builder/components/phases/*` - each phase’s UI and action.
+4. `src/pages/comic-builder/slices/thunks/*` - API calls for story/characters/panels.
+5. `src/pages/comic-builder/slices/comicSlice.ts` - state shape and streaming updates.
