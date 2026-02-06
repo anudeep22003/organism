@@ -1,5 +1,9 @@
-import ExtractCharactersPhase from "./components/ExtractCharactersPhase";
-import WriteStoryPhase from "./components/WriteStoryPhase";
+import ExportPanelsPhase from "./components/phases/ExportPanelsPhase";
+import ExtractCharactersPhase from "./components/phases/ExtractCharactersPhase";
+import GenerateCharacterPhase from "./components/phases/GenerateCharacterPhase";
+import GeneratePanelsPhase from "./components/phases/GeneratePanelsPhase";
+import RenderPanelsPhase from "./components/phases/RenderPanelsPhase";
+import WriteStoryPhase from "./components/phases/WriteStoryPhase";
 
 /**
  * Single source of truth for phases - order matters here.
@@ -8,6 +12,10 @@ import WriteStoryPhase from "./components/WriteStoryPhase";
 const phaseConfig = [
   { key: "write-story", component: WriteStoryPhase },
   { key: "extract-characters", component: ExtractCharactersPhase },
+  { key: "generate-characters", component: GenerateCharacterPhase },
+  { key: "generate-panels", component: GeneratePanelsPhase },
+  { key: "render-panels", component: RenderPanelsPhase },
+  { key: "export-panels", component: ExportPanelsPhase },
 ] as const;
 
 export type PhaseMapKey = (typeof phaseConfig)[number]["key"];

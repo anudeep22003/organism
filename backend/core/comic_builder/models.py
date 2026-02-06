@@ -7,9 +7,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.schema import ForeignKey
 
-from core.comic_builder.consolidated_state import (
-    initialize_empty_consolidated_state_dict,
-)
+from core.comic_builder.state import initialize_empty_consolidated_state_dict
 from core.common import ORMBase
 from core.common.utils import get_current_datetime_utc
 

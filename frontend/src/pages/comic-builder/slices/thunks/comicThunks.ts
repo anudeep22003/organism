@@ -1,6 +1,7 @@
 import { httpClient } from "@/lib/httpClient";
 import type { RootState } from "@/store";
 import { createAsyncThunk } from "@reduxjs/toolkit";
+import { ComicBuilderEndpoints } from "../../api.constants";
 import type {
   Character,
   ComicPanel,
@@ -41,7 +42,7 @@ export const fetchComicState = createAsyncThunk(
   "comicState/fetchComicState",
   async (projectId: string): Promise<ComicProjectPayload> => {
     const response = await httpClient.get<ComicProjectApiResponse>(
-      `/api/comic-builder/projects/${projectId}`
+      ComicBuilderEndpoints.projects.detail(projectId)
     );
 
     // Transform nested response to flat slice payload
@@ -62,14 +63,14 @@ export const syncComicState = createAsyncThunk(
   async (_, { getState }) => {
     const state = getState() as RootState;
     const comicState = state.comic;
-    if (!comicState) {
-      throw new Error("Comic state not found");
+    if (!comicState?.projectId) {
+      throw new Error("Comic state or project ID not found");
     }
     const payload = {
       state: selectSyncPayload(state),
     };
     const response = await httpClient.patch<ComicProjectApiResponse>(
-      `/api/comic-builder/projects/${comicState.projectId}`,
+      ComicBuilderEndpoints.projects.detail(comicState.projectId),
       payload
     );
     return response;

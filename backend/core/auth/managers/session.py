@@ -58,8 +58,9 @@ class SessionManager:
         if isinstance(user_id, str):
             user_id = uuid.UUID(user_id)
 
-        query = select(AuthSession).where(AuthSession.user_id == user_id)
-        session = await self._db.scalar(query)
+        query = select(AuthSession).where(AuthSession.user_id == user_id).order_by(AuthSession.created_at.desc())
+        result = await self._db.execute(query)
+        session = result.scalar()
         return session
 
     async def find_best_matching_session(

@@ -29,6 +29,9 @@ dependencies = [
     "argon2-cffi>=25.1.0",
     "greenlet>=3.2.4",
     "ollama>=0.6.0",
+    "fal-client>=0.11.0",
+    "unidecode>=1.4.0",
+    "python-slugify[unidecode]>=8.0.4",
 ]
 
 [dependency-groups]

@@ -1,12 +1,17 @@
 import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { selectStoryText } from "../slices/comicSlice";
-import { streamComicStory } from "../slices/thunks/storyThunks";
-import InputArea from "./InputArea";
+import {
+  selectStoryStatus,
+  selectStoryText,
+} from "../../slices/comicSlice";
+import { streamComicStory } from "../../slices/thunks/storyThunks";
+import InputArea from "../InputArea";
 
 const WriteStoryPhase = () => {
   const dispatch = useAppDispatch();
   const storyText = useAppSelector(selectStoryText);
+  const storyStatus = useAppSelector(selectStoryStatus);
+  const isStreaming = storyStatus === "streaming";
 
   const handleSubmit = (draft: string) => {
     dispatch(streamComicStory(draft));
@@ -14,7 +19,12 @@ const WriteStoryPhase = () => {
 
   return (
     <div className="flex flex-col gap-4 w-full max-w-4xl px-4">
-      <InputArea onSubmit={handleSubmit} />
+      <InputArea onSubmit={handleSubmit} disabled={isStreaming} />
+      {isStreaming && (
+        <div className="flex items-center gap-2 text-sm text-neutral-500">
+          <span className="animate-pulse">●</span> Generating story...
+        </div>
+      )}
       {storyText && (
         <div className="text-sm text-muted-foreground p-2 border border-border rounded-md">
           <MarkdownRenderer content={storyText} />

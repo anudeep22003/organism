@@ -1,6 +1,7 @@
 import { httpClient } from "@/lib/httpClient";
 import type { RootState } from "@/store";
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import { ComicBuilderEndpoints } from "../api.constants";
 
 import type {
   Project,
@@ -20,7 +21,7 @@ export const fetchProjects = createAsyncThunk(
   "projects/fetchProjects",
   async () => {
     const projects = await httpClient.get<Project[]>(
-      "/api/comic-builder/projects"
+      ComicBuilderEndpoints.projects.list()
     );
     return projects;
   }
@@ -30,7 +31,7 @@ export const fetchProject = createAsyncThunk(
   "projects/fetchProject",
   async (projectId: string) => {
     const project = await httpClient.get<Project>(
-      `/api/comic-builder/projects/${projectId}`
+      ComicBuilderEndpoints.projects.detail(projectId)
     );
     return project;
   }
@@ -40,7 +41,7 @@ export const createProject = createAsyncThunk(
   "projects/createProject",
   async (payload: ProjectCreatePayload) => {
     const project = await httpClient.post<Project>(
-      "/api/comic-builder/projects",
+      ComicBuilderEndpoints.projects.list(),
       payload
     );
     return project;
@@ -57,7 +58,7 @@ export const updateProject = createAsyncThunk(
     payload: ProjectUpdatePayload;
   }) => {
     const project = await httpClient.patch<Project>(
-      `/api/comic-builder/projects/${id}`,
+      ComicBuilderEndpoints.projects.detail(id),
       payload
     );
     return project;
@@ -67,7 +68,7 @@ export const updateProject = createAsyncThunk(
 export const deleteProject = createAsyncThunk(
   "projects/deleteProject",
   async (id: string) => {
-    await httpClient.delete(`/api/comic-builder/projects/${id}`);
+    await httpClient.delete(ComicBuilderEndpoints.projects.detail(id));
     return id;
   }
 );
@@ -94,7 +95,6 @@ export const projectsSlice = createSlice({
       state.status = "failed";
       state.error = action.error.message ?? "Failed to fetch projects";
     });
-
 
     // Create project
     builder.addCase(createProject.pending, (state) => {
@@ -129,8 +129,7 @@ export const projectsSlice = createSlice({
   },
 });
 
-export const { resetCreateStatus } =
-  projectsSlice.actions;
+export const { resetCreateStatus } = projectsSlice.actions;
 
 const selectProjects = (state: RootState) => state.projects.projects;
 const selectProjectsStatus = (state: RootState) =>

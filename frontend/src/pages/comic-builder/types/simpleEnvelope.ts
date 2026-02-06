@@ -7,5 +7,5 @@ export type SimpleEnvelope = {
   streamId?: string;
   seq?: number;
 
-  data: { delta?: string; finish_reason?: string };
+  data: { delta?: string; finish_reason?: string; error?: string };
 };
