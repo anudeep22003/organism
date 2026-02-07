@@ -92,4 +92,3 @@ class CharacterBase(AliasedBaseModel):
 
 class Character(BaseComicStateEntity, CharacterBase):
     render: Artifact | None = None
-

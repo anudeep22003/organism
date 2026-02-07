@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Generic, Protocol, Type, TypeVar
 from loguru import logger
 from pydantic import BaseModel, ValidationError
 
+from core.services.intelligence import ModelsEnum
 from core.sockets.types.envelope import (
     AckFail,
     AckOk,
@@ -13,7 +14,6 @@ from core.sockets.types.envelope import (
     Envelope,
     Error,
 )
-from core.services.intelligence import ModelsEnum
 from core.sockets.types.message import Message
 
 DEFAULT_MODEL = ModelsEnum.GPT_4O

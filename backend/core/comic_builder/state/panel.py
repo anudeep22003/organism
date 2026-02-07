@@ -20,4 +20,3 @@ class ComicPanelBase(BaseComicStateEntity):
 
 class ComicPanel(ComicPanelBase):
     render: Artifact | None = None
-

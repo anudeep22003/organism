@@ -58,7 +58,11 @@ class SessionManager:
         if isinstance(user_id, str):
             user_id = uuid.UUID(user_id)
 
-        query = select(AuthSession).where(AuthSession.user_id == user_id).order_by(AuthSession.created_at.desc())
+        query = (
+            select(AuthSession)
+            .where(AuthSession.user_id == user_id)
+            .order_by(AuthSession.created_at.desc())
+        )
         result = await self._db.execute(query)
         session = result.scalar()
         return session
@@ -167,7 +171,7 @@ class SessionManager:
 
         # return the new session
         return AuthSessionSchema.model_validate(new_session)
-    
+
     async def revoke_session(self, session: AuthSession) -> None:
         session.revoked_at = get_current_datetime_utc()
         await self._db.commit()

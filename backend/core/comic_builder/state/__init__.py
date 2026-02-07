@@ -20,4 +20,3 @@ __all__ = [
     "ConsolidatedComicState",
     "initialize_empty_consolidated_state_dict",
 ]
-

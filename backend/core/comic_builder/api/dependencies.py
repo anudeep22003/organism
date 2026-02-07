@@ -35,4 +35,3 @@ async def verify_project_access(
         )
 
     return project.id
-

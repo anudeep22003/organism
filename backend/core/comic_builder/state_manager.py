@@ -32,4 +32,3 @@ class ProjectStateManager:
         """Persist state back to project and commit."""
         project.state = state.model_dump()
         await self._db.commit()
-
