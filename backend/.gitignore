@@ -64,4 +64,3 @@ scratch.py
 .env*
 writepad/*
 prompts/
-.gitignore
