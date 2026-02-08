@@ -6,7 +6,7 @@ from slugify import slugify
 from .exceptions import CharacterNotFoundError
 from .state import ConsolidatedComicState
 
-type RegistryType = dict[UUID, str | None]
+RegistryType = dict[UUID, str | None]
 
 
 class AssetManager:
