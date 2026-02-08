@@ -12,3 +12,5 @@ check: lint typecheck
 format:
 	ruff format .
 	ruff check --fix .
+
+format-check: format check
