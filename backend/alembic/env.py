@@ -6,9 +6,7 @@ from alembic import context
 from core.auth import models  # noqa: F401
 
 # from core.comic_builder import models as comic_builder_models  # noqa: F401
-from core.comic_builder.state import (
-    relational as comic_builder_state_relational,  # noqa: F401
-)
+from core.comic_builder import models as comic_builder_models  # noqa: F401
 from core.common import ORMBase
 from core.config import DATABASE_URL
 

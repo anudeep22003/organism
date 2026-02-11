@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from ...state.relational.schemas import ProjectCreateSchema
+from ...schemas import ProjectCreateSchema
 
 router = APIRouter(tags=["comic", "builder", "v2", "projects"])
 
