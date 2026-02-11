@@ -7,14 +7,15 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.auth.dependencies import get_current_user_id
-from core.comic_builder.models import Project
-from core.comic_builder.schemas import (
+from core.services.database import get_async_db_session
+
+from ..state.relational.models import Project
+from ..state.relational.schemas import (
     ProjectCreateSchema,
     ProjectListResponseSchema,
     ProjectResponseSchema,
     ProjectUpdateSchema,
 )
-from core.services.database import get_async_db_session
 
 router = APIRouter(tags=["comic", "builder"])
 

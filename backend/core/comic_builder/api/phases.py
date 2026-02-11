@@ -10,6 +10,7 @@ from core.auth import get_current_user_id
 from core.auth.dependencies import get_session_manager
 from core.auth.managers.session import SessionManager
 from core.comic_builder.generation.bulk_panel_generator import BulkPanelGenerator
+from core.common import AliasedBaseModel
 from core.services.database import get_async_db_session
 from core.sockets import sio
 
@@ -26,7 +27,7 @@ from ..generation import (
     PanelRenderer,
     StoryPhase,
 )
-from ..schemas import SimpleEnvelope, StoryPromptRequest
+from ..simple_envelope_schema import SimpleEnvelope
 from ..state import Character, ComicPanel, ConsolidatedComicState
 from ..state_manager import ProjectStateManager
 from .dependencies import verify_project_access
@@ -139,6 +140,10 @@ async def generate_panels(
     await panel_generator.execute(project_id)
     await sio.emit("state.updated", {"projectId": str(project_id)}, to=session_id)
     return {"message": "Panels generated successfully"}
+
+
+class StoryPromptRequest(AliasedBaseModel):
+    story_prompt: str
 
 
 async def _story_envelope_stream(
