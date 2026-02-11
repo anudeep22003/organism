@@ -8,21 +8,38 @@ from pydantic import Field
 
 from core.common import AliasedBaseModel
 
+from ...state import ConsolidatedComicState
 from .models import RenderableType, RenderJobStatus
 
 
 class ProjectSchemaBase(AliasedBaseModel):
     name: str | None = None
     meta: dict[str, Any] = Field(default_factory=dict)
-
-
-class ProjectCreateSchema(ProjectSchemaBase):
     pass
 
 
-class ProjectUpdateSchema(AliasedBaseModel):
+class ProjectCreateSchema(ProjectSchemaBase):
     name: str | None = None
-    meta: dict[str, Any] | None = None
+
+
+class ProjectUpdateSchema(ProjectSchemaBase):
+    name: str | None = None
+    state: ConsolidatedComicState
+
+
+class ProjectResponseSchema(ProjectSchemaBase):
+    id: uuid.UUID
+    name: str | None = None
+    created_at: datetime
+    updated_at: datetime
+    state: dict[str, Any]
+
+
+class ProjectListResponseSchema(ProjectSchemaBase):
+    id: uuid.UUID
+    name: str | None = None
+    created_at: datetime
+    updated_at: datetime
 
 
 class StorySchemaBase(AliasedBaseModel):
@@ -139,14 +156,6 @@ class PanelCharacterResponseSchema(AliasedBaseModel):
     panel_id: uuid.UUID
     character_id: uuid.UUID
     meta: dict[str, Any] = Field(default_factory=dict)
-
-
-class ProjectResponseSchema(ProjectSchemaBase):
-    id: uuid.UUID
-    user_id: uuid.UUID
-    created_at: datetime
-    updated_at: datetime
-    stories: list[StoryResponseSchema] = Field(default_factory=list)
 
 
 class ProjectRelationalStateSchema(AliasedBaseModel):

@@ -11,6 +11,9 @@ from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import Mapped, foreign, mapped_column, relationship
 from sqlalchemy.schema import UniqueConstraint
 
+from core.comic_builder.state.consolidated import (
+    initialize_empty_consolidated_state_dict,
+)
 from core.common import ORMBase
 from core.common.utils import get_current_datetime_utc
 
@@ -45,7 +48,10 @@ class Project(ORMBase):
         onupdate=get_current_datetime_utc,
     )
     meta: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
-    state: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    # TODO: default state initialization for backward compatibilty, can be removed after full migration
+    state: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, default=initialize_empty_consolidated_state_dict
+    )
 
     stories: Mapped[list[Story]] = relationship(
         "Story",

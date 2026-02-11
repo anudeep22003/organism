@@ -4,8 +4,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .exceptions import ProjectNotFoundError
-from .models import Project
 from .state import ConsolidatedComicState
+from .state.relational.models import Project
 
 
 class ProjectStateManager:
