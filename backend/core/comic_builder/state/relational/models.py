@@ -93,6 +93,7 @@ class Story(ORMBase):
         "Character",
         secondary="story_character",
         back_populates="stories",
+        viewonly=True,
     )
     panels: Mapped[list[ComicPanel]] = relationship(
         "ComicPanel",
@@ -131,6 +132,7 @@ class Character(ORMBase):
         "Story",
         secondary="story_character",
         back_populates="characters",
+        viewonly=True,
     )
     panel_characters: Mapped[list[PanelCharacter]] = relationship(
         "PanelCharacter",
@@ -141,6 +143,7 @@ class Character(ORMBase):
         "ComicPanel",
         secondary="panel_character",
         back_populates="characters",
+        viewonly=True,
     )
     render_jobs: Mapped[list[RenderJob]] = relationship(
         "RenderJob",
@@ -201,6 +204,7 @@ class ComicPanel(ORMBase):
         "Character",
         secondary="panel_character",
         back_populates="panels",
+        viewonly=True,
     )
     render_jobs: Mapped[list[RenderJob]] = relationship(
         "RenderJob",
