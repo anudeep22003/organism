@@ -1,35 +1,92 @@
 import { BACKEND_URL } from "@/constants";
-import {
-  ACCESS_TOKEN_EXPIRY_TIME,
-  AUTH_SERVICE_ENDPOINTS,
-  HTTP_STATUS,
-} from "@/pages/auth/constants";
-import { type LoginResponse } from "@/pages/auth/types";
 import axios, { AxiosError, type AxiosInstance } from "axios";
 import { apiLogger, authLogger } from "./logger";
+
+const ACCESS_TOKEN_EXPIRY_TIME = 1000 * 60 * 30;
+const HTTP_STATUS_UNAUTHORIZED = 401;
+const AUTH_REFRESH_ENDPOINT = "/api/auth/refresh";
+const AUTH_LOGOUT_ENDPOINT = "/api/auth/logout";
+
+type RefreshResponse = {
+  accessToken: string;
+};
 
 class HttpClient {
   private static instance: HttpClient;
   private axiosInstance: AxiosInstance;
   private accessToken: string | null = null;
-  private updateReactStateCallback?: (token: string | null) => void;
   private refreshTimer: NodeJS.Timeout | null = null;
-  private isRefreshing: boolean = false;
+  private refreshPromise: Promise<void> | null = null;
+  private accessTokenSubscribers = new Set<
+    (token: string | null) => void
+  >();
 
   private constructor() {
     this.axiosInstance = axios.create({
       baseURL: BACKEND_URL,
       withCredentials: true,
-      timeout: 30000, // 30 seconds timeout
+      timeout: 30_000,
     });
 
     this.setupInterceptors();
   }
 
-  public setReactStateUpdateFn(
+  public static getInstance(): HttpClient {
+    if (!HttpClient.instance) {
+      HttpClient.instance = new HttpClient();
+    }
+    return HttpClient.instance;
+  }
+
+  public subscribeToAccessToken(
     callback: (token: string | null) => void
   ) {
-    this.updateReactStateCallback = callback;
+    this.accessTokenSubscribers.add(callback);
+    callback(this.accessToken);
+
+    return () => {
+      this.accessTokenSubscribers.delete(callback);
+    };
+  }
+
+  private notifyAccessTokenSubscribers() {
+    for (const callback of this.accessTokenSubscribers) {
+      callback(this.accessToken);
+    }
+  }
+
+  public getAccessToken() {
+    return this.accessToken;
+  }
+
+  public setAccessToken(token: string) {
+    if (!token) {
+      throw new Error("Null access token being tried to set");
+    }
+
+    if (this.refreshTimer) {
+      clearTimeout(this.refreshTimer);
+    }
+
+    this.accessToken = token;
+
+    this.refreshTimer = setTimeout(() => {
+      void this.refreshAccessToken();
+    }, ACCESS_TOKEN_EXPIRY_TIME);
+
+    this.notifyAccessTokenSubscribers();
+  }
+
+  public async clearSession(): Promise<void> {
+    if (this.refreshTimer) {
+      clearTimeout(this.refreshTimer);
+    }
+
+    this.refreshTimer = null;
+    this.accessToken = null;
+
+    this.notifyAccessTokenSubscribers();
+    authLogger.debug("Cleared session");
   }
 
   public async post<T = unknown>(
@@ -78,102 +135,43 @@ class HttpClient {
     }
   }
 
-  public static getInstance(): HttpClient {
-    if (!HttpClient.instance) {
-      HttpClient.instance = new HttpClient();
-    }
-    return HttpClient.instance;
-  }
-
-  public setAccessToken(token: string) {
-    if (!token) {
-      throw new Error("Null access token being tried to set");
-    }
-
-    // Clear any existing timer
-    if (this.refreshTimer) {
-      clearTimeout(this.refreshTimer);
-    }
-
-    this.accessToken = token;
-
-    // Start new refresh timer
-    this.refreshTimer = setTimeout(() => {
-      this.refreshAccessToken();
-    }, ACCESS_TOKEN_EXPIRY_TIME);
-
-    if (this.updateReactStateCallback) {
-      this.updateReactStateCallback(token);
-    }
-  }
-
   public async refreshAccessToken(): Promise<void> {
-    if (this.isRefreshing) {
-      authLogger.debug("Already refreshing access token");
-      return;
+    if (this.refreshPromise) {
+      authLogger.debug("Awaiting ongoing access token refresh");
+      return this.refreshPromise;
     }
 
-    this.isRefreshing = true;
+    this.refreshPromise = (async () => {
+      const { accessToken: newAccessToken } =
+        await this.post<RefreshResponse>(AUTH_REFRESH_ENDPOINT, {});
+      this.setAccessToken(newAccessToken);
+    })();
 
     try {
-      const { accessToken: newAccessToken } =
-        await this.post<LoginResponse>(
-          AUTH_SERVICE_ENDPOINTS.REFRESH,
-          {}
-        );
-      this.setAccessToken(newAccessToken);
-    } catch (err) {
-      throw new Error(`Error refreshing Access token, ${err}`);
+      await this.refreshPromise;
     } finally {
-      this.isRefreshing = false;
+      this.refreshPromise = null;
     }
-  }
-
-  public async clearSession(): Promise<void> {
-    if (this.refreshTimer) {
-      clearTimeout(this.refreshTimer);
-    }
-    this.refreshTimer = null;
-
-    // clear the access token (dont call setAccessToken)
-    this.accessToken = null;
-
-    // Notify react
-    if (this.updateReactStateCallback) {
-      this.updateReactStateCallback(null);
-    }
-
-    authLogger.debug("Cleared session");
   }
 
   private shouldAttemptRefresh(error: AxiosError): boolean {
-    // Dont try to refresh if:
-    // 1. The request itself is a refresh request
-    // 2. Already refreshing (prevents concurrent refresh attempts)
-    // 3. The request is a logout request
-    // 4. The request is authorized
+    const isUnauthorized =
+      error.response?.status === HTTP_STATUS_UNAUTHORIZED;
     const isRefreshRequest = error.config?.url?.includes(
-      AUTH_SERVICE_ENDPOINTS.REFRESH
+      AUTH_REFRESH_ENDPOINT
     );
     const isLogoutRequest = error.config?.url?.includes(
-      AUTH_SERVICE_ENDPOINTS.LOGOUT
+      AUTH_LOGOUT_ENDPOINT
     );
-    const isAuthorized =
-      error.response?.status !== HTTP_STATUS.UNAUTHORIZED;
-    return (
-      !isAuthorized &&
-      !isRefreshRequest &&
-      !this.isRefreshing &&
-      !isLogoutRequest
-    );
+
+    return isUnauthorized && !isRefreshRequest && !isLogoutRequest;
   }
 
   public async *streamPost<T = unknown>(
     url: string,
     data?: unknown
   ): AsyncGenerator<T> {
-    const fullUrl = `${BACKEND_URL}${url}`;
-    const response = await fetch(fullUrl, {
+    const response = await fetch(`${BACKEND_URL}${url}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -185,14 +183,8 @@ class HttpClient {
       credentials: "include",
     });
 
-    // Handle 401 - attempt refresh and retry
-    if (
-      response.status === HTTP_STATUS.UNAUTHORIZED &&
-      !this.isRefreshing
-    ) {
+    if (response.status === HTTP_STATUS_UNAUTHORIZED) {
       await this.refreshAccessToken();
-
-      // Retry the request
       yield* this.streamPost(url, data);
       return;
     }
@@ -215,24 +207,21 @@ class HttpClient {
       buffer += decoder.decode(value, { stream: true });
 
       const lines = buffer.split("\n");
-      buffer = lines.pop() ?? ""; // keep incomplete line in buffer
+      buffer = lines.pop() ?? "";
 
       for (const line of lines) {
         yield JSON.parse(line) as T;
       }
     }
 
-    // yield the last line if it exists
     if (buffer.trim()) {
       yield JSON.parse(buffer) as T;
     }
   }
 
   private setupInterceptors(): void {
-    // Request interceptor
     this.axiosInstance.interceptors.request.use(
       (config) => {
-        // set auth header globally or set it to undefined
         config.headers.Authorization = this.accessToken
           ? `Bearer ${this.accessToken}`
           : undefined;
@@ -245,7 +234,6 @@ class HttpClient {
       }
     );
 
-    // Response interceptor
     this.axiosInstance.interceptors.response.use(
       (response) => {
         apiLogger.debug("HTTP Response", {
@@ -255,30 +243,19 @@ class HttpClient {
         return response;
       },
       async (error) => {
-        // storing the original request to reattempt
         const originalRequest = error.config;
-        if (this.shouldAttemptRefresh(error)) {
-          authLogger.debug(
-            "No accessToken or unauthorized meaning token expired. Will attempt refresh",
-            error,
-            "current accessToken = ",
-            this.accessToken
-          );
-          try {
-            // the accessToken is refreshed and public instance is updated
-            await this.refreshAccessToken();
 
-            // Retry the failed request
-            authLogger.debug("Reattempting the failed request.");
+        if (this.shouldAttemptRefresh(error)) {
+          try {
+            await this.refreshAccessToken();
             return this.axiosInstance.request(originalRequest);
           } catch (refreshError) {
-            // add an onAuthFailure callback here to let react know of the failure
             authLogger.debug("Refresh failed", refreshError);
-            // Clear the session to reset the access token
-            this.clearSession();
+            await this.clearSession();
           }
-          return Promise.reject(error);
         }
+
+        return Promise.reject(error);
       }
     );
   }
@@ -304,5 +281,4 @@ export const getAxiosErrorDetails = (err: unknown) => {
   return { detail: "Unknown error", status: 500 };
 };
 
-// Export singleton instance
 export const httpClient = HttpClient.getInstance();

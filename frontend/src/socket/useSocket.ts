@@ -1,5 +1,5 @@
 import { BACKEND_URL } from "@/constants";
-import { useAuthContext } from "@/pages/auth/context";
+import { useAuth } from "@/features/auth";
 import { fetchComicState } from "@/pages/comic-builder/slices/thunks/comicThunks";
 import { type Envelope } from "@/socket/types/envelope";
 import { useAppDispatch } from "@/store/hooks";
@@ -13,7 +13,7 @@ export const useSocket = () => {
   const [isConnected, setIsConnected] = useState(false);
   const socketRef = useRef<Socket | null>(null);
   const [connectionError, setConnectionError] = useState(false);
-  const { accessToken } = useAuthContext();
+  const { accessToken } = useAuth();
   const dispatch = useAppDispatch();
 
   const updateStreamingMessage = useMessageStore(

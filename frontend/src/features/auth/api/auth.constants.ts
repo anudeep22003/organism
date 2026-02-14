@@ -3,10 +3,11 @@ export const AUTH_TABS = {
   SIGNUP: "signup",
 } as const;
 
-export const AUTH_ROUTES = {
-  HOME: "/",
-  SIGNIN: "/auth?tab=" + AUTH_TABS.SIGNIN,
-  SIGNUP: "/auth?tab=" + AUTH_TABS.SIGNUP,
+export type AuthTab = (typeof AUTH_TABS)[keyof typeof AUTH_TABS];
+
+export const AUTH_QUERY_PARAMS = {
+  TAB: "tab",
+  REDIRECT: "redirect",
 } as const;
 
 export const AUTH_FIELDS = {
@@ -14,12 +15,6 @@ export const AUTH_FIELDS = {
   PASSWORD: "password",
   FULL_NAME: "fullName",
   ACCEPT_TERMS: "acceptTerms",
-} as const;
-
-export const HTTP_STATUS = {
-  UNAUTHORIZED: 401,
-  BAD_REQUEST: 400,
-  NO_CONTENT: 204,
 } as const;
 
 export const AUTH_SERVICE_ENDPOINTS = {
@@ -30,4 +25,15 @@ export const AUTH_SERVICE_ENDPOINTS = {
   LOGOUT: "/api/auth/logout",
 } as const;
 
-export const ACCESS_TOKEN_EXPIRY_TIME = 1000 * 60 * 30; // 30 minutes
+export const AUTH_ROUTES = {
+  ROOT: "/auth",
+  HOME_FALLBACK: "/",
+} as const;
+
+export const HTTP_STATUS = {
+  UNAUTHORIZED: 401,
+  BAD_REQUEST: 400,
+  NO_CONTENT: 204,
+} as const;
+
+export const ACCESS_TOKEN_EXPIRY_TIME = 1000 * 60 * 30;
