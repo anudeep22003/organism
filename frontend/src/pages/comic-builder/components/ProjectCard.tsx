@@ -16,7 +16,7 @@ export const ProjectCard = ({ project }: Props) => {
   const createdDate = new Date(project.createdAt).toLocaleDateString();
 
   return (
-    <Link to={`/${project.id}`}>
+    <Link to={`/comic/${project.id}`}>
       <Card className="cursor-pointer transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
         <CardHeader className="pb-2">
           <CardTitle className="text-base font-medium">

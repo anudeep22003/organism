@@ -1,22 +1,27 @@
-import AuthPage from "./pages/auth";
-import ProtectedLayout from "./pages/auth/ProtectedLayout";
-import PublicLayout from "./pages/auth/PublicLayout";
+import { AuthPage, RequireAuth, RequireGuest } from "./features/auth";
 import { comicBuilderRoutes } from "./pages/comic-builder/routes";
 import HumanAiWorkspace from "./pages/HumanAiWorkspace";
+import { storyBuilderRoutes } from "./story-builder/routes";
+import { Navigate } from "react-router";
 
 export const routes = [
   {
-    element: <ProtectedLayout />,
+    element: <RequireAuth />,
     children: [
+      {
+        path: "/",
+        element: <Navigate to="/comic" replace />,
+      },
       {
         path: "/generative-space",
         element: <HumanAiWorkspace />,
       },
       ...comicBuilderRoutes,
+      ...storyBuilderRoutes,
     ],
   },
   {
-    element: <PublicLayout />,
+    element: <RequireGuest />,
     children: [
       {
         path: "/auth",

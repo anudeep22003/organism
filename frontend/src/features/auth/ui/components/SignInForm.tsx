@@ -1,21 +1,27 @@
-import { AlertCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { PasswordInput } from './PasswordInput';
-import { useSignIn } from '../hooks/useSignIn';
-import type { SignInFormData } from '../types';
+import { AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import type { SignInInput } from "../../model/auth.types";
+import { useSignIn } from "../hooks/useSignIn";
+import { PasswordInput } from "./PasswordInput";
 
 interface SignInFormProps {
-  onSubmit: (data: SignInFormData) => Promise<void>;
+  onSubmit: (data: SignInInput) => Promise<void>;
 }
 
 export const SignInForm = ({ onSubmit }: SignInFormProps) => {
-  const { formData, formState, handleSubmit, updateField, getFieldError } = useSignIn(onSubmit);
+  const {
+    formData,
+    formState,
+    handleSubmit,
+    updateField,
+    getFieldError,
+  } = useSignIn(onSubmit);
 
-  const emailError = getFieldError('email');
-  const passwordError = getFieldError('password');
+  const emailError = getFieldError("email");
+  const passwordError = getFieldError("password");
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -34,8 +40,12 @@ export const SignInForm = ({ onSubmit }: SignInFormProps) => {
           autoComplete="email"
           placeholder="you@example.com"
           value={formData.email}
-          onChange={e => updateField('email', e.target.value)}
-          className={emailError ? 'border-red-500 focus-visible:ring-red-500' : ''}
+          onChange={(event) =>
+            updateField("email", event.target.value)
+          }
+          className={
+            emailError ? "border-red-500 focus-visible:ring-red-500" : ""
+          }
           disabled={formState.isLoading}
         />
         {emailError && <p className="text-sm text-red-500">{emailError}</p>}
@@ -48,15 +58,19 @@ export const SignInForm = ({ onSubmit }: SignInFormProps) => {
           autoComplete="current-password"
           placeholder="••••••••"
           value={formData.password}
-          onChange={e => updateField('password', e.target.value)}
-          error={!!passwordError}
+          onChange={(event) =>
+            updateField("password", event.target.value)
+          }
+          error={Boolean(passwordError)}
           disabled={formState.isLoading}
         />
-        {passwordError && <p className="text-sm text-red-500">{passwordError}</p>}
+        {passwordError && (
+          <p className="text-sm text-red-500">{passwordError}</p>
+        )}
       </div>
 
       <Button type="submit" className="w-full" disabled={formState.isLoading}>
-        {formState.isLoading ? 'Signing in...' : 'Sign In'}
+        {formState.isLoading ? "Signing in..." : "Sign In"}
       </Button>
     </form>
   );

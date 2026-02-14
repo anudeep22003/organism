@@ -1,9 +1,14 @@
-export interface SignInFormData {
+export type AuthStatus =
+  | "checking"
+  | "authenticated"
+  | "unauthenticated";
+
+export interface SignInInput {
   email: string;
   password: string;
 }
 
-export interface SignUpFormData {
+export interface SignUpInput {
   fullName: string;
   email: string;
   password: string;
@@ -45,4 +50,17 @@ export interface LoginResponse {
 
 export interface LogoutResponse {
   message: "LOGGED_OUT";
+}
+
+export interface AuthState {
+  status: AuthStatus;
+  accessToken: string | null;
+  user: User | null;
+}
+
+export interface AuthContextValue extends AuthState {
+  signIn: (input: SignInInput) => Promise<void>;
+  signUp: (input: SignUpInput) => Promise<void>;
+  signOut: () => Promise<void>;
+  refreshSession: () => Promise<void>;
 }
