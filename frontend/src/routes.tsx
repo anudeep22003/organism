@@ -1,8 +1,8 @@
+import { Navigate } from "react-router";
 import { AuthPage, RequireAuth, RequireGuest } from "./features/auth";
+import { storyRoutes } from "./features/story";
 import { comicBuilderRoutes } from "./pages/comic-builder/routes";
 import HumanAiWorkspace from "./pages/HumanAiWorkspace";
-import { storyBuilderRoutes } from "./story-builder/routes";
-import { Navigate } from "react-router";
 
 export const routes = [
   {
@@ -17,7 +17,7 @@ export const routes = [
         element: <HumanAiWorkspace />,
       },
       ...comicBuilderRoutes,
-      ...storyBuilderRoutes,
+      ...storyRoutes,
     ],
   },
   {
