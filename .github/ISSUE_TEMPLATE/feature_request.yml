@@ -1,0 +1,43 @@
+name: Feature request
+description: Suggest an idea to improve the project.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the idea.
+
+        Clear problem statements help prioritize faster.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: What pain point are you trying to solve?
+      placeholder: A clear and concise problem statement.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe your ideal approach.
+      placeholder: What should happen?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any alternative approaches or workarounds?
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - Backend (FastAPI / Python)
+        - Frontend (React / TypeScript)
+        - Developer experience / CI
+        - Documentation
+        - Other

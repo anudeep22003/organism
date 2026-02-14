@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Questions and discussions
+    url: https://github.com/anudeep22003
+    about: Please open a discussion if your report is not a bug or feature request.
