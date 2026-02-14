@@ -35,7 +35,12 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["mypy>=1.17.1", "ruff>=0.12.8", "types-pyyaml>=6.0.12.20250822"]
+dev = [
+    "mypy>=1.17.1",
+    "ruff>=0.12.8",
+    "types-pyyaml>=6.0.12.20250822",
+    "types-passlib>=1.7.7.20250602",
+]
 
 [tool.mypy]
 python_version = "3.12"
