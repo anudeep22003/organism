@@ -1,12 +1,14 @@
-import { useMemo } from 'react';
-import type { PasswordValidation } from '../types';
+import { useMemo } from "react";
+import type { PasswordValidation } from "../../model/auth.types";
 import {
-  getPasswordRequirements,
   calculatePasswordStrength,
+  getPasswordRequirements,
   isPasswordValid,
-} from '../utils/validation';
+} from "../utils/validation";
 
-export const usePasswordValidation = (password: string): PasswordValidation => {
+export const usePasswordValidation = (
+  password: string
+): PasswordValidation => {
   return useMemo(() => {
     const requirements = getPasswordRequirements(password);
     const strength = calculatePasswordStrength(requirements);

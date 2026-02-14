@@ -2,8 +2,7 @@ import type { RouteObject } from "react-router";
 import ComicBuilder from "./components/ComicBuilder";
 import ProjectsPage from "./ProjectsPage";
 
-// const ROOT_PATH = "/comic-builder";
-const ROOT_PATH = "/";
+const ROOT_PATH = "/comic";
 
 export const comicBuilderRoutes: RouteObject[] = [
   {
