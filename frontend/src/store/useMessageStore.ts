@@ -162,6 +162,7 @@ export const useMessageStore = create<MessageState>()(
 
     {
       name: "message-storage",
+      // @ts-expect-error partialize is not recognized in DevtoolsOptions type
       partialize: (state: MessageState) => ({
         // Don't persist all messages to reduce memory usage
         allMessages: state.allMessages.slice(-50),
