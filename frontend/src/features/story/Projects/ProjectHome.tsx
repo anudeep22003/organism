@@ -1,9 +1,9 @@
 import { httpClient } from "@/lib/httpClient";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { useParams } from "react-router";
+import { recursivePrinter } from "../utils";
 import { PROJECT_ENDPOINT } from "./constants";
 import type { ProjectHomeType } from "./types";
-import { recursivePrinter } from "../utils";
 
 const projectHomeQueryKeys = {
   all: ["project", "home"] as const,
@@ -27,7 +27,13 @@ const ProjectHome = () => {
   const { data: projectHome } = useQuery(
     getProjectHomeDetailsQueryOptions(projectId ?? ""),
   );
-  return <div>{recursivePrinter(projectHome ?? {})}</div>;
+  return (
+    <div className="flex flex-col">
+        <h1 className="text-2xl font-bold">Project Home</h1>
+        {}
+      {recursivePrinter(projectHome ?? {})}
+    </div>
+  );
 };
 
 export default ProjectHome;

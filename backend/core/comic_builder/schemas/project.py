@@ -43,8 +43,7 @@ class ProjectListResponseSchema(ProjectSchemaBase):
     story_count: int
 
 
-class ProjectRelationalStateSchema(AliasedBaseModel):
-    id: uuid.UUID
+class ProjectRelationalStateSchema(ProjectResponseSchema):
     stories: list[StoryResponseSchema] = Field(default_factory=list)
     characters: list[CharacterResponseSchema] = Field(default_factory=list)
     panels: list[ComicPanelResponseSchema] = Field(default_factory=list)

@@ -3,7 +3,7 @@ const renderFunction = (
   value: string | number | boolean | null | undefined,
 ): React.ReactNode => {
   return (
-    <div>
+    <div className="flex bg-gray-100 p-2 rounded-md">
       {key}: {value}
     </div>
   );
