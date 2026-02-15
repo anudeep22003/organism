@@ -13,6 +13,7 @@ import type { SubmitEvent } from "react";
 import { recursivePrinter } from "../utils";
 import { PROJECT_ENDPOINT } from "./constants";
 import type { ProjectListEntryType } from "./types";
+import { Link } from "react-router";
 
 export const projectKeys = {
   all: ["projects"] as const,
@@ -84,7 +85,10 @@ const ProjectList = () => {
       <Button onClick={handleNewProjectClick}>New Project</Button>`
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 m-4">
         {projects?.map((project) => (
-          <ProjectCard key={project.id} project={project} />
+          <div className="flex flex-col gap-2">
+            <ProjectCard key={project.id} project={project} />
+            <Link to={`/story/${project.id}`}>View Project</Link>
+          </div>
         ))}
       </div>
     </>

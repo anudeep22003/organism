@@ -1,8 +1,9 @@
 import { httpClient } from "@/lib/httpClient";
-import { queryOptions } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import { useParams } from "react-router";
 import { PROJECT_ENDPOINT } from "./constants";
 import type { ProjectHomeType } from "./types";
+import { recursivePrinter } from "../utils";
 
 const projectHomeQueryKeys = {
   all: ["project", "home"] as const,
@@ -10,11 +11,10 @@ const projectHomeQueryKeys = {
     [...projectHomeQueryKeys.all, projectId] as const,
 };
 
-// eslint-disable-next-line
 const getProjectHomeDetailsQueryOptions = (projectId: string) => {
   return queryOptions({
     queryKey: projectHomeQueryKeys.details(projectId),
-    queryFn: (projectId) =>
+    queryFn: () =>
       httpClient.get<ProjectHomeType>(
         `${PROJECT_ENDPOINT}/${projectId}`,
       ),
@@ -23,7 +23,11 @@ const getProjectHomeDetailsQueryOptions = (projectId: string) => {
 
 const ProjectHome = () => {
   const { projectId } = useParams();
-  return <div>ProjectHome {projectId}</div>;
+  console.log("projectId", projectId);
+  const { data: projectHome } = useQuery(
+    getProjectHomeDetailsQueryOptions(projectId ?? ""),
+  );
+  return <div>{recursivePrinter(projectHome ?? {})}</div>;
 };
 
 export default ProjectHome;
