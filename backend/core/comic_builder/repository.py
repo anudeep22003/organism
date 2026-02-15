@@ -7,6 +7,10 @@ from sqlalchemy.orm import selectinload
 
 from .models import Project, Story
 
+class NotFoundError(Exception):
+    """Base class for not found errors."""
+    pass
+
 
 class Repository:
     def __init__(self, db: AsyncSession):
@@ -44,3 +48,18 @@ class Repository:
         )
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
+
+    async def create_new_story(self, project_id: uuid.UUID) -> Story:
+        story = Story(project_id=project_id)
+        self.db.add(story)
+        await self.db.commit()
+        await self.db.refresh(story)
+        return story
+    
+    async def get_story(self, story_id: uuid.UUID) -> Story | None:
+        return await self.db.get(Story, story_id)
+
+    async def delete_story(self, story_id: uuid.UUID) -> None:
+        story = await self.db.get(Story, story_id)
+        await self.db.delete(story)
+        await self.db.commit()
