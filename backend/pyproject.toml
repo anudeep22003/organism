@@ -3,7 +3,7 @@ name = "eventengine"
 version = "0.0.1"
 description = "Event engine"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.13"
 dependencies = [
     "claude-code-sdk",
     "click>=8.2.1",
