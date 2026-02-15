@@ -9,6 +9,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import type { SubmitEvent } from "react";
 
 export const projectKeys = {
   all: ["projects"] as const,
@@ -54,10 +55,10 @@ const Projects = () => {
   };
 
   const handleCreateProjectSubmit = (
-    e: React.FormEvent<HTMLFormElement>,
+    e: SubmitEvent<HTMLFormElement>,
   ) => {
     e.preventDefault();
-    const formData = new FormData(e.target as HTMLFormElement);
+    const formData = new FormData(e.currentTarget);
     const projectName = formData.get("projectName") as string;
     createProjectMutation.mutate({ name: projectName });
   };
