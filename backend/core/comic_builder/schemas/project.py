@@ -40,6 +40,7 @@ class ProjectListResponseSchema(ProjectSchemaBase):
     name: str | None = None
     created_at: datetime
     updated_at: datetime
+    story_count: int
 
 
 class ProjectRelationalStateSchema(AliasedBaseModel):
