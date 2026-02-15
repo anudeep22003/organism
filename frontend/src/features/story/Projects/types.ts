@@ -6,8 +6,16 @@ export type ProjectListEntryType = {
   storyCount: number;
 };
 
+export type StoryListEntryType = {
+  id: string;
+  projectId: string;
+  storyText: string;
+  userInputText: string[];
+  meta: Record<string, unknown>;
+};
+
 export type ProjectHomeType = ProjectListEntryType & {
-  stories?: Record<string, unknown>;
-  characters?: Record<string, unknown>;
-  panels?: Record<string, unknown>;
+  stories?: Array<StoryListEntryType>;
+  characters?: Array<Record<string, unknown>>;
+  panels?: Array<Record<string, unknown>>;
 };

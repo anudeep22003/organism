@@ -13,6 +13,8 @@ from ...schemas import (
     ProjectListResponseSchema,
     ProjectRelationalStateSchema,
     ProjectResponseSchema,
+    StoryCreateSchema,
+    StoryResponseSchema,
 )
 
 router = APIRouter(tags=["comic", "builder", "v2", "projects"])
@@ -61,3 +63,35 @@ async def get_project(
             status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
         )
     return ProjectRelationalStateSchema.model_validate(project)
+
+
+@router.post("/projects/{project_id}/story")
+async def create_story(
+    project_id: uuid.UUID,
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    db: Annotated[AsyncSession, Depends(get_async_db_session)],
+    story_data: StoryCreateSchema,
+) -> StoryResponseSchema:
+    repository = Repository(db)
+    # TODO verify use_id project ownership
+    story = await repository.create_new_story(project_id)
+    return StoryResponseSchema.model_validate(story)
+
+
+@router.delete("/projects/{project_id}/story/{story_id}")
+async def delete_story(
+    project_id: uuid.UUID,
+    story_id: uuid.UUID,
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    db: Annotated[AsyncSession, Depends(get_async_db_session)],
+) -> None:
+    repository = Repository(db)
+    # TODO verify use_id project ownership
+    # This is stuff that should happen in service layer
+    story = await repository.get_story(story_id)
+    if story is None or story.project_id != project_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Story not found"
+        )
+    await repository.delete_story(story_id)
+    return None
