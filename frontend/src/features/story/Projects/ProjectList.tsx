@@ -11,18 +11,11 @@ import {
 } from "@tanstack/react-query";
 import type { SubmitEvent } from "react";
 import { recursivePrinter } from "../utils";
+import { PROJECT_ENDPOINT } from "./constants";
+import type { ProjectListEntryType } from "./types";
 
 export const projectKeys = {
   all: ["projects"] as const,
-};
-
-const PROJECT_ENDPOINT = "/api/comic-builder/v2/projects" as const;
-
-export type Project = {
-  id: string;
-  name: string | null;
-  createdAt: string;
-  updatedAt: string;
 };
 
 export type CreateProject = {
@@ -32,7 +25,8 @@ export type CreateProject = {
 export const getProjectsQueryOptions = () =>
   queryOptions({
     queryKey: projectKeys.all,
-    queryFn: () => httpClient.get<Project[]>(PROJECT_ENDPOINT),
+    queryFn: () =>
+      httpClient.get<ProjectListEntryType[]>(PROJECT_ENDPOINT),
     staleTime: Infinity,
   });
 
@@ -41,13 +35,17 @@ const useCreateProjectMutation = () => {
 
   return useMutation({
     mutationFn: (payload: CreateProject) =>
-      httpClient.post<Project>(PROJECT_ENDPOINT, payload),
+      httpClient.post<ProjectListEntryType>(PROJECT_ENDPOINT, payload),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: projectKeys.all }),
   });
 };
 
-const ProjectCard = ({ project }: { project: Project }) => {
+const ProjectCard = ({
+  project,
+}: {
+  project: ProjectListEntryType;
+}) => {
   return (
     <div className="flex flex-col gap-2 border p-4 rounded-md">
       {recursivePrinter(project)}
