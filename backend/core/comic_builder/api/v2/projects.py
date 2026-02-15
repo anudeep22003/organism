@@ -11,8 +11,8 @@ from ...repository import Repository
 from ...schemas import (
     ProjectCreateSchema,
     ProjectListResponseSchema,
-    ProjectResponseSchema,
     ProjectRelationalStateSchema,
+    ProjectResponseSchema,
 )
 
 router = APIRouter(tags=["comic", "builder", "v2", "projects"])
