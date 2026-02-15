@@ -15,8 +15,7 @@ from .story import StoryResponseSchema
 
 
 class ProjectSchemaBase(AliasedBaseModel):
-    name: str | None = None
-    meta: dict[str, Any] = Field(default_factory=dict)
+    pass
 
 
 class ProjectCreateSchema(ProjectSchemaBase):
