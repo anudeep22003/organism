@@ -1,9 +1,9 @@
 import type { RouteObject } from "react-router";
-import { Projects } from "./Projects";
+import ProjectList from "./Projects/ProjectList";
 
 export const storyRoutes: RouteObject[] = [
   {
     path: "/story",
-    element: <Projects />,
+    element: <ProjectList />,
   },
 ];

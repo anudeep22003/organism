@@ -48,10 +48,14 @@ const useCreateProjectMutation = () => {
 };
 
 const ProjectCard = ({ project }: { project: Project }) => {
-  return <div className="flex flex-col gap-2 border p-4 rounded-md">{recursivePrinter(project)}</div>;
+  return (
+    <div className="flex flex-col gap-2 border p-4 rounded-md">
+      {recursivePrinter(project)}
+    </div>
+  );
 };
 
-const Projects = () => {
+const ProjectList = () => {
   const { data: projects } = useQuery(getProjectsQueryOptions());
   const createProjectMutation = useCreateProjectMutation();
 
@@ -89,4 +93,4 @@ const Projects = () => {
   );
 };
 
-export default Projects;
+export default ProjectList;
