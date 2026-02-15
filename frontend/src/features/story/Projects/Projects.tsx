@@ -10,6 +10,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import type { SubmitEvent } from "react";
+import { recursivePrinter } from "../utils";
 
 export const projectKeys = {
   all: ["projects"] as const,
@@ -46,6 +47,10 @@ const useCreateProjectMutation = () => {
   });
 };
 
+const ProjectCard = ({ project }: { project: Project }) => {
+  return <div className="flex flex-col gap-2 border p-4 rounded-md">{recursivePrinter(project)}</div>;
+};
+
 const Projects = () => {
   const { data: projects } = useQuery(getProjectsQueryOptions());
   const createProjectMutation = useCreateProjectMutation();
@@ -75,7 +80,11 @@ const Projects = () => {
         <Button type="submit">Create Project</Button>
       </form>
       <Button onClick={handleNewProjectClick}>New Project</Button>`
-      {JSON.stringify(projects)}`
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 m-4">
+        {projects?.map((project) => (
+          <ProjectCard key={project.id} project={project} />
+        ))}
+      </div>
     </>
   );
 };
