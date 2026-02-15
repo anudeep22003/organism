@@ -1,16 +1,16 @@
 .PHONY: lint typecheck check format
 
 lint:
-	ruff check .
-	ruff format --check .
+	uv run ruff check .
+	uv run ruff format --check .
 
 typecheck:
-	mypy .
+	uv run mypy .
 
 check: lint typecheck
 
 format:
-	ruff format .
-	ruff check --fix .
+	uv run ruff format .
+	uv run ruff check --fix .
 
 format-check: format check
