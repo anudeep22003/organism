@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   IconMicrophone,
   IconPlayerStop,
@@ -9,16 +9,15 @@ import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
-  InputGroupTextarea,
 } from "@/components/ui/input-group";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 import WaveformIndicator from "./WaveformIndicator";
 import { useVoiceRecorder } from "./useVoiceRecorder";
-import { useAutoExpandTextarea } from "./useAutoExpandTextarea";
 import type { InputBoxProps } from "./types";
 
 function InputBox({
@@ -28,8 +27,16 @@ function InputBox({
   submitLabel = "Send",
 }: InputBoxProps) {
   const [text, setText] = useState("");
-  const { textareaRef, adjustHeight, resetHeight } =
-    useAutoExpandTextarea();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const adjustHeight = useCallback(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "0";
+    const maxHeight = window.innerHeight * 0.8;
+    el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`;
+    el.style.overflowY = el.scrollHeight > maxHeight ? "auto" : "hidden";
+  }, []);
 
   const handleTranscription = useCallback(
     (transcribed: string) => {
@@ -49,8 +56,12 @@ function InputBox({
     if (!trimmed || disabled) return;
     onSubmit(trimmed);
     setText("");
-    resetHeight();
-  }, [text, disabled, onSubmit, resetHeight]);
+    const el = textareaRef.current;
+    if (el) {
+      el.style.height = "auto";
+      el.style.overflowY = "hidden";
+    }
+  }, [text, disabled, onSubmit]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
@@ -59,28 +70,31 @@ function InputBox({
     }
   };
 
-  const handleTextChange = (
-    e: React.ChangeEvent<HTMLTextAreaElement>,
-  ) => {
-    setText(e.target.value);
-    adjustHeight();
-  };
-
   const isRecording = recordingState === "recording";
   const isTranscribing = recordingState === "transcribing";
   const canSubmit = text.trim().length > 0 && !disabled;
 
   return (
     <InputGroup className="border-border bg-background">
-      <InputGroupTextarea
+      <textarea
         ref={textareaRef}
+        data-slot="input-group-control"
         value={text}
-        onChange={handleTextChange}
+        onChange={(e) => {
+          setText(e.target.value);
+          adjustHeight();
+        }}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         disabled={disabled || isTranscribing}
-        className="min-h-[60px] max-h-[80vh] text-sm leading-relaxed"
         rows={2}
+        className={cn(
+          "w-full resize-none rounded-none border-0 bg-transparent py-3 px-3 shadow-none outline-none",
+          "min-h-[60px] text-sm leading-relaxed",
+          "placeholder:text-muted-foreground",
+          "focus-visible:ring-0",
+          "disabled:cursor-not-allowed disabled:opacity-50",
+        )}
       />
       <InputGroupAddon align="block-end" className="border-t border-border/60">
         <Tooltip>
