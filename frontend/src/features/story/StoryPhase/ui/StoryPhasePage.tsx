@@ -22,7 +22,7 @@ function StoryPhasePage() {
           onSubmit={submitPrompt}
           isGenerating={isGenerating}
         />
-        <div className="bg-border/30" />
+        <div className="bg-border" />
         <div className="h-full overflow-hidden bg-card/30">
           <ArtifactPanel
             storyText={storyText}

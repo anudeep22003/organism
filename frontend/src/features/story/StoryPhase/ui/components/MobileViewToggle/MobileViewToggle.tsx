@@ -10,8 +10,8 @@ function MobileViewToggle({
   onViewChange,
 }: MobileViewToggleProps) {
   return (
-    <div className="flex items-center justify-center p-2 md:hidden">
-      <div className="inline-flex rounded-lg bg-muted p-0.5">
+    <div className="flex items-center justify-center p-2 md:hidden border-b border-border">
+      <div className="inline-flex rounded-lg bg-muted border border-border/60 p-0.5">
         <button
           onClick={() => onViewChange("prompt")}
           className={`px-4 py-1.5 text-xs font-medium rounded-md transition-colors ${
