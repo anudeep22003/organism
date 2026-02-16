@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Pre-commit hook for StoryEngine monorepo
+# Runs targeted checks based on which directories have staged changes.
+#
+# Backend  (backend/)  → make format-check (auto-format + lint + typecheck)
+# Frontend (frontend/) → npm run lint && npm run type-check
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+STAGED_FILES="$(git diff --cached --name-only --diff-filter=ACMR)"
+
+if [ -z "$STAGED_FILES" ]; then
+  exit 0
+fi
+
+BACKEND_CHANGED=false
+FRONTEND_CHANGED=false
+
+while IFS= read -r file; do
+  case "$file" in
+    backend/*) BACKEND_CHANGED=true ;;
+    frontend/*) FRONTEND_CHANGED=true ;;
+  esac
+done <<< "$STAGED_FILES"
+
+EXIT_CODE=0
+
+# --- Backend checks ---
+if [ "$BACKEND_CHANGED" = true ]; then
+  echo "==> Backend changes detected — running make format-check..."
+  if (cd "$REPO_ROOT/backend" && make format-check); then
+    # Re-stage any files that were auto-formatted
+    BACKEND_STAGED=$(echo "$STAGED_FILES" | grep '^backend/' || true)
+    if [ -n "$BACKEND_STAGED" ]; then
+      echo "$BACKEND_STAGED" | xargs git add
+    fi
+    echo "==> Backend checks passed."
+  else
+    echo "==> Backend checks FAILED."
+    EXIT_CODE=1
+  fi
+fi
+
+# --- Frontend checks ---
+if [ "$FRONTEND_CHANGED" = true ]; then
+  echo "==> Frontend changes detected — running lint + type-check..."
+  if (cd "$REPO_ROOT/frontend" && npm run lint && npm run type-check); then
+    echo "==> Frontend checks passed."
+  else
+    echo "==> Frontend checks FAILED."
+    EXIT_CODE=1
+  fi
+fi
+
+if [ $EXIT_CODE -ne 0 ]; then
+  echo ""
+  echo "Pre-commit checks failed. Fix the issues above and try again."
+fi
+
+exit $EXIT_CODE
