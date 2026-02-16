@@ -9,7 +9,7 @@ export default function App() {
       <RouterProvider router={router} />
       <ReactQueryDevtools
         initialIsOpen={false}
-        buttonPosition="bottom-left"
+        buttonPosition="top-left"
         theme="system"
       />
     </RootProvider>

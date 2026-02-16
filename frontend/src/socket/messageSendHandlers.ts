@@ -1,21 +1,21 @@
-import type { Envelope } from "@/socket/types/envelope";
-import type { Actor } from "./types/actors";
 import {
   constructChatStreamMessages,
   prepareCodeMessage,
 } from "@/lib/messageUtils";
+import type { Envelope } from "@/socket/types/envelope";
 import type { TypedMessage } from "@/store/useMessageStore";
+import type { Actor } from "./types/actors";
 
 type EmitCallback = (
   event: string,
   data: unknown,
-  callback?: (ack: string) => void
+  callback?: (ack: string) => void,
 ) => void;
 type AddMessage = (message: TypedMessage) => void;
 type CreateStreamMessage = (
   streamId: string,
   requestId: string,
-  actor: Actor
+  actor: Actor,
 ) => void;
 
 const createHumanMessage = (inputText: string): TypedMessage => ({
@@ -27,7 +27,7 @@ const createHumanMessage = (inputText: string): TypedMessage => ({
 
 const createStreamStartEnvelope = <T>(
   actor: Actor,
-  data: T
+  data: T,
 ): Envelope<T> => ({
   v: "1",
   id: `human-${Date.now()}`,
@@ -43,7 +43,7 @@ const createStreamStartEnvelope = <T>(
 const handleStreamAck = (
   ack: string,
   actor: Actor,
-  createStreamMessage: CreateStreamMessage
+  createStreamMessage: CreateStreamMessage,
 ) => {
   console.log("ack", ack);
   const { streamId, requestId } = JSON.parse(ack) as {
@@ -59,7 +59,7 @@ export const sendCodeMessage = async (
   emit: EmitCallback,
   addMessage: AddMessage,
   humanAreaMessages: TypedMessage[],
-  createStreamMessage: CreateStreamMessage
+  createStreamMessage: CreateStreamMessage,
 ) => {
   const humanMessage = createHumanMessage(inputText);
   addMessage(humanMessage);
@@ -72,7 +72,7 @@ export const sendCodeMessage = async (
   setInputText("");
 
   emit(`c2s.coder.stream.start`, envelope, (ack) =>
-    handleStreamAck(ack, "coder", createStreamMessage)
+    handleStreamAck(ack, "coder", createStreamMessage),
   );
 };
 
@@ -82,7 +82,7 @@ export const sendChatMessage = async (
   emit: EmitCallback,
   addMessage: AddMessage,
   humanAreaMessages: TypedMessage[],
-  createStreamMessage: CreateStreamMessage
+  createStreamMessage: CreateStreamMessage,
 ) => {
   if (!inputText.trim()) return;
 
@@ -100,7 +100,7 @@ export const sendChatMessage = async (
   setInputText("");
 
   emit(`c2s.assistant.stream.start`, envelope, (ack) =>
-    handleStreamAck(ack, "assistant", createStreamMessage)
+    handleStreamAck(ack, "assistant", createStreamMessage),
   );
 };
 
@@ -110,7 +110,7 @@ export const sendWriterMessage = async (
   emit: EmitCallback,
   _addMessage: AddMessage,
   humanAreaMessages: TypedMessage[],
-  createStreamMessage: CreateStreamMessage
+  createStreamMessage: CreateStreamMessage,
 ) => {
   const data = {
     history: constructChatStreamMessages(humanAreaMessages),
@@ -121,7 +121,7 @@ export const sendWriterMessage = async (
   setInputText("");
 
   emit(`c2s.writer.stream.start`, envelope, (ack) =>
-    handleStreamAck(ack, "writer", createStreamMessage)
+    handleStreamAck(ack, "writer", createStreamMessage),
   );
 };
 
@@ -131,7 +131,7 @@ export const sendClaudeMessage = async (
   emit: EmitCallback,
   _addMessage: AddMessage,
   _humanAreaMessages: TypedMessage[],
-  createStreamMessage: CreateStreamMessage
+  createStreamMessage: CreateStreamMessage,
 ) => {
   const data = {
     query: `
@@ -159,7 +159,7 @@ export const sendClaudeMessage = async (
   setInputText("");
 
   emit(`c2s.claude.stream.start`, envelope, (ack) =>
-    handleStreamAck(ack, "claude", createStreamMessage)
+    handleStreamAck(ack, "claude", createStreamMessage),
   );
 };
 
@@ -168,8 +168,10 @@ export const sendDirectorMessage = async (
   setInputText: (text: string) => void,
   emit: EmitCallback,
   addMessage: AddMessage,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _humanAreaMessages: TypedMessage[],
-  _createStreamMessage: CreateStreamMessage
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _createStreamMessage: CreateStreamMessage,
 ) => {
   if (!inputText.trim()) return;
 
