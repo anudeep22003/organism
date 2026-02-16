@@ -71,7 +71,7 @@ function InputBox({
   const canSubmit = text.trim().length > 0 && !disabled;
 
   return (
-    <InputGroup className="border-border/50 bg-background">
+    <InputGroup className="border-border bg-background">
       <InputGroupTextarea
         ref={textareaRef}
         value={text}
@@ -82,7 +82,7 @@ function InputBox({
         className="min-h-[60px] max-h-[80vh] text-sm leading-relaxed"
         rows={2}
       />
-      <InputGroupAddon align="block-end" className="border-t border-border/30">
+      <InputGroupAddon align="block-end" className="border-t border-border/60">
         <Tooltip>
           <TooltipTrigger asChild>
             <InputGroupButton
@@ -118,7 +118,7 @@ function InputBox({
         {isRecording && visualizationData ? (
           <WaveformIndicator data={visualizationData} />
         ) : (
-          <span className="text-muted-foreground/50 text-xs select-none">
+          <span className="text-muted-foreground text-xs select-none">
             {navigator.platform.includes("Mac") ? "⌘" : "Ctrl"}+↵
           </span>
         )}

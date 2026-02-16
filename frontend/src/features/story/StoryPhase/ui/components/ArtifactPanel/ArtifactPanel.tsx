@@ -9,12 +9,12 @@ type ArtifactPanelProps = {
 function ArtifactPlaceholder() {
   return (
     <div className="flex flex-col items-center justify-center h-full gap-4 select-none">
-      <IconFeather className="size-10 text-muted-foreground/20" strokeWidth={1} />
+      <IconFeather className="size-10 text-muted-foreground/40" strokeWidth={1} />
       <div className="text-center space-y-1">
-        <p className="text-sm text-muted-foreground/40">
+        <p className="text-sm text-muted-foreground">
           Your story will appear here
         </p>
-        <p className="text-xs text-muted-foreground/25">
+        <p className="text-xs text-muted-foreground/60">
           Enter a prompt to begin
         </p>
       </div>

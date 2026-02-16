@@ -26,7 +26,7 @@ function PromptPanel({
       <ScrollArea className="flex-1 min-h-0 px-4">
         {messages.length === 0 ? (
           <div className="flex items-center justify-center h-full min-h-[200px]">
-            <p className="text-sm text-muted-foreground/50 text-center select-none">
+            <p className="text-sm text-muted-foreground text-center select-none">
               Begin shaping your story...
             </p>
           </div>
