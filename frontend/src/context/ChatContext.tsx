@@ -106,7 +106,6 @@ const ChatProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const useChatContext = () => {
   const chatContext = useContext(ChatContext);
   if (!chatContext) {

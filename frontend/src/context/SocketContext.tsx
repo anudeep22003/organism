@@ -32,7 +32,6 @@ export const SocketProvider = ({
   );
 };
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const useSocketContext = () => {
   const socketContext = useContext(SocketContext);
   if (!socketContext) {
