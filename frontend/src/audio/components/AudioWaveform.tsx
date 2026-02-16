@@ -1,8 +1,8 @@
 import {
-  useEffect,
-  useRef,
   forwardRef,
+  useEffect,
   useImperativeHandle,
+  useRef,
 } from "react";
 
 import audioLogger from "../init";
@@ -34,7 +34,7 @@ export const AudioWaveform = forwardRef<
       waveColor = "#00ff88",
       lineWidth = 2,
     },
-    ref
+    ref,
   ) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -78,7 +78,7 @@ export const AudioWaveform = forwardRef<
       // Debug: Log first few values to see if we're getting data
       audioLogger.debug(
         "Drawing waveform, sample values:",
-        dataArray.slice(0, 5)
+        dataArray.slice(0, 5),
       );
 
       // Clear canvas
@@ -124,7 +124,8 @@ export const AudioWaveform = forwardRef<
       () => ({
         drawWaveform,
       }),
-      [width, height, backgroundColor, waveColor, lineWidth] // Include all dependencies
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [width, height, backgroundColor, waveColor, lineWidth], // Include all dependencies
     );
 
     return (
@@ -136,7 +137,7 @@ export const AudioWaveform = forwardRef<
         style={{ border: "1px solid #333" }}
       />
     );
-  }
+  },
 );
 
 AudioWaveform.displayName = "AudioWaveform";

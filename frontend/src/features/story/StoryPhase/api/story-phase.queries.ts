@@ -1,8 +1,15 @@
 import { queryOptions } from "@tanstack/react-query";
 import { httpClient } from "@/lib/httpClient";
-import { PROJECT_ENDPOINT } from "./story-phase.constants";
-import { storyPhaseKeys } from "./story-phase.query-keys";
 import type { ProjectDetails } from "./story-phase.types";
+
+export const PROJECT_ENDPOINT =
+  "/api/comic-builder/v2/projects" as const;
+
+export const storyPhaseKeys = {
+  all: ["storyPhase"] as const,
+  project: (projectId: string) =>
+    [...storyPhaseKeys.all, "project", projectId] as const,
+};
 
 export const getProjectDetailsQueryOptions = (projectId: string) =>
   queryOptions({
