@@ -92,9 +92,33 @@ High level only; see the individual READMEs for details.
    - Follow setup in `frontend/README.md`
    - Point `VITE_BACKEND_URL` at the backend
 
-3. Open the app
+3. Install git hooks
+   ```bash
+   ./scripts/install-hooks.sh
+   ```
+
+4. Open the app
    - Visit the frontend dev URL
    - Create a project and walk through the builder
+
+---
+
+## Pre-Commit Hooks
+
+The repo includes a pre-commit hook that runs targeted checks based on which files you changed:
+
+| Directory | What runs | Effect |
+|---|---|---|
+| `backend/` | `make format-check` | Auto-formats with Ruff, then runs lint + mypy typecheck |
+| `frontend/` | `npm run lint && npm run type-check` | ESLint + TypeScript type checking |
+
+If only backend files are staged, frontend checks are skipped (and vice versa). The hook auto-formats backend code and re-stages the fixed files so your commit includes the corrections.
+
+Install once after cloning:
+
+```bash
+./scripts/install-hooks.sh
+```
 
 ---
 

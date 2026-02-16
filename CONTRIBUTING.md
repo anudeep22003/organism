@@ -12,6 +12,21 @@ This project has:
 - Link issues when relevant.
 - Be respectful in discussions.
 
+## Git hooks
+
+After cloning, install the pre-commit hook:
+
+```bash
+./scripts/install-hooks.sh
+```
+
+This sets up a hook that automatically runs checks on staged files before each commit:
+
+- **Backend changes** → `make format-check` (auto-format + lint + typecheck)
+- **Frontend changes** → `npm run lint` + `npm run type-check`
+
+Only the relevant checks run based on which directories you changed.
+
 ## Local setup
 
 ### Backend
