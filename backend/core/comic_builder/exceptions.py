@@ -42,3 +42,38 @@ class CharacterNotFoundError(ComicBuilderError):
     """Character not found in asset manager."""
 
     pass
+
+
+#############################################
+############### New Errors ################
+#############################################
+
+
+class BaseError(Exception):
+    """Base for domain errors that callers handle specifically."""
+
+    pass
+
+
+class DatabaseError(BaseError):
+    """Error accessing the database."""
+
+    pass
+
+
+class NotFoundError(BaseError):
+    """Resource not found."""
+
+    pass
+
+
+class NotOwnedError(BaseError):
+    """User does not own the story."""
+
+    pass
+
+
+class InvalidUserIDError(BaseError):
+    """Invalid user ID format."""
+
+    pass
