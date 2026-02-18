@@ -33,3 +33,7 @@ class StoryCharacterResponseSchema(AliasedBaseModel):
     story_id: uuid.UUID
     character_id: uuid.UUID
     meta: dict[str, Any] = Field(default_factory=dict)
+
+
+class GenerateStoryRequest(AliasedBaseModel):
+    story_prompt: str

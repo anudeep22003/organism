@@ -3,12 +3,14 @@ from typing import Sequence
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import joinedload, selectinload
 
 from .models import Project, Story
 
+
 class NotFoundError(Exception):
     """Base class for not found errors."""
+
     pass
 
 
@@ -55,7 +57,7 @@ class Repository:
         await self.db.commit()
         await self.db.refresh(story)
         return story
-    
+
     async def get_story(self, story_id: uuid.UUID) -> Story | None:
         return await self.db.get(Story, story_id)
 
@@ -63,3 +65,10 @@ class Repository:
         story = await self.db.get(Story, story_id)
         await self.db.delete(story)
         await self.db.commit()
+
+    async def get_story_with_project(self, story_id: uuid.UUID) -> Story | None:
+        stmt = (
+            select(Story).where(Story.id == story_id).options(joinedload(Story.project))
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
