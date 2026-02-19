@@ -1,7 +1,8 @@
 import uuid
-from typing import Annotated
+from typing import Annotated, AsyncIterator
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
 )
@@ -13,6 +14,7 @@ from core.services.database import (
     get_async_db_session,
 )
 
+from ...events import EventEnvelope
 from ...exceptions import InvalidUserIDError, NotFoundError, NotOwnedError
 from ...repository import Repository
 from ...schemas.story import (
@@ -21,6 +23,11 @@ from ...schemas.story import (
 from ...service import Service
 
 router = APIRouter(prefix="/story", tags=["story"])
+
+
+async def _as_ndjson(stream: AsyncIterator[EventEnvelope]) -> AsyncIterator[str]:
+    async for event in stream:
+        yield event.model_dump_json() + "\n"
 
 
 @router.post("/{story_id}/generate")
@@ -35,11 +42,14 @@ async def generate_story(
         Depends(get_async_db_session),
     ],
     request: GenerateStoryRequest,
-) -> None:
+) -> StreamingResponse:
     repository = Repository(db)
     service = Service(repository)
     try:
-        await service.generate_story(user_id, story_id, request)
+        stream = await service.generate_story(user_id, story_id, request)
+        return StreamingResponse(
+            content=_as_ndjson(stream),
+            media_type="application/x-ndjson",
+        )
     except (InvalidUserIDError, NotFoundError, NotOwnedError) as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    return None
