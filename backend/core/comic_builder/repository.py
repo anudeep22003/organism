@@ -72,3 +72,15 @@ class Repository:
         )
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def update_story_with_story_text_and_input_text(
+        self, story_id: uuid.UUID, story_text: str, input_text: list[str]
+    ) -> Story:
+        story = await self.db.get(Story, story_id)
+        if story is None:
+            raise NotFoundError(f"Story {story_id} not found")
+        story.story_text = story_text
+        story.user_input_text = input_text
+        await self.db.commit()
+        await self.db.refresh(story)
+        return story
