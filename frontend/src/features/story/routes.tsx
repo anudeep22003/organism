@@ -13,7 +13,7 @@ export const storyRoutes: RouteObject[] = [
     element: <ProjectHome />,
   },
   {
-    path: "/story/:projectId/create",
+    path: "/story/:storyId/create",
     element: <StoryPhasePage />,
   },
 ];

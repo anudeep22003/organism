@@ -18,8 +18,8 @@ export type StoryEntry = {
 };
 
 export type StoryStreamChunk = {
-  text: string;
-  done?: boolean;
+  delta?: string;
+  finishReason?: string;
 };
 
 export type PromptMessage = {

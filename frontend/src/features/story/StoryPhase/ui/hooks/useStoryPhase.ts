@@ -1,78 +1,71 @@
+import type { EventEnvelope } from "@/features/story/events/baseEvents";
 import { httpClient } from "@/lib/httpClient";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { useCallback, useRef, useState } from "react";
-import { PROJECT_ENDPOINT } from "../../api/story-phase.queries";
+import EventRouter from "../../../events/eventRouter";
 import type {
   PromptMessage,
   StoryStreamChunk,
 } from "../../api/story-phase.types";
 
-// const PLACEHOLDER_STORY = `The old lighthouse keeper had not spoken to another soul in eleven years. Not out of spite or sorrow, but because the light demanded silence — a deep, reverential quiet that settled into his bones like salt into driftwood.
+export const STREAM_ENDPOINT = (storyId: string) =>
+  `/api/comic-builder/v2/story/${storyId}/generate` as const;
 
-// Each evening he climbed the spiral staircase, one hundred and forty-seven steps worn smooth by generations of careful feet. The lamp at the top was not electric. It had never been electric. It burned with something older, something that pulsed in rhythm with the tides.
+const useStoryStream = (storyId: string) => {
+  const queryClient = useQueryClient();
+  const eventRouter = useRef(new EventRouter(queryClient));
 
-// "You understand," the light had told him on his first night, "that this is not a job. It is a conversation."
+  const mutation = useMutation({
+    mutationFn: (userInputText: string) =>
+      startGeneration(userInputText, storyId),
+  });
 
-// He had nodded, unsure what it meant. Now he knew. The light spoke in colors — amber for calm seas, deep violet before a storm, a pale trembling green when something ancient stirred beneath the waves. And he answered with his presence, his stillness, his willingness to watch.
+  async function startGeneration(userInputText: string, storyId: string) {
+    queryClient.setQueryData(["batman"], () => "");
 
-// The fishermen in the village below thought him mad. They left provisions at the base of the cliff every Tuesday — bread, cheese, dried fish, a bottle of wine — and retreated before he could descend. He always waited until their boats were specks on the horizon before collecting the basket.
+    const stream = httpClient.streamPost<EventEnvelope<StoryStreamChunk>>(
+      STREAM_ENDPOINT(storyId),
+      { storyPrompt: userInputText },
+    );
 
-// Tonight the light burned a color he had never seen. Not quite red, not quite gold. Something between a warning and an invitation. He pressed his palm against the glass and felt it vibrate, a low hum that traveled up his arm and settled behind his eyes.
+    for await (const event of stream) {
+      eventRouter.current.handle(event);
+    }
+  }
 
-// "Someone is coming," the light said. Not in words. In the way the shadows shifted on the wall, forming shapes that his mind assembled into meaning.
+  return mutation;
+};
 
-// He looked out toward the sea. The horizon was dark, featureless, the sky and water merged into a single black canvas. But there — far out — a pinprick of answering light. Faint. Uncertain. Growing.
-
-// For the first time in eleven years, the keeper opened his mouth to speak. The words that came out were not his own. They were old words, salt-crusted and barnacled, dredged up from whatever deep place the lighthouse drew its power.
-
-// The approaching light flickered in response.
-
-// And the conversation, at last, became something more.`;
-
-const PLACEHOLDER_STORY = "";
-
-export function useStoryPhase(projectId: string) {
+export function useStoryPhase(storyId: string) {
   const [messages, setMessages] = useState<PromptMessage[]>([]);
-  const [storyText, setStoryText] = useState(PLACEHOLDER_STORY);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const abortRef = useRef(false);
+  const { mutate: generate, isPending: isGenerating } =
+    useStoryStream(storyId);
+
+  const { data: storyTextRaw } = useQuery<string | undefined>({
+    queryKey: ["batman"],
+    queryFn: () => Promise.resolve(undefined),
+  });
 
   const submitPrompt = useCallback(
-    async (text: string) => {
-      const newMessage: PromptMessage = {
+    (text: string) => {
+      const message: PromptMessage = {
         id: crypto.randomUUID(),
         text,
         timestamp: Date.now(),
       };
-
-      const updatedMessages = [...messages, newMessage];
-      setMessages(updatedMessages);
-      setStoryText("");
-      setIsGenerating(true);
-      abortRef.current = false;
-
-      try {
-        const allInputTexts = updatedMessages.map((m) => m.text);
-        const stream = httpClient.streamPost<StoryStreamChunk>(
-          `${PROJECT_ENDPOINT}/${projectId}/story/generate`,
-          { userInputText: allInputTexts },
-        );
-
-        for await (const chunk of stream) {
-          if (abortRef.current) break;
-          setStoryText((prev) => prev + chunk.text);
-        }
-      } catch (error) {
-        console.error("Story generation failed:", error);
-      } finally {
-        setIsGenerating(false);
-      }
+      setMessages((prev) => [...prev, message]);
+      generate(text);
     },
-    [messages, projectId],
+    [generate],
   );
 
   return {
     messages,
-    storyText,
+    storyText: storyTextRaw ?? "",
     isGenerating,
     submitPrompt,
   };
