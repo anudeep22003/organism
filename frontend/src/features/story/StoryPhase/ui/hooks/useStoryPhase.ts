@@ -1,7 +1,7 @@
 import type { EventEnvelope } from "@/features/story/events/baseEvents";
 import { httpClient } from "@/lib/httpClient";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import EventRouter from "../../../events/eventRouter";
 import type {
   PromptMessage,
@@ -37,11 +37,23 @@ const useStoryStream = (projectId: string, storyId: string) => {
 };
 
 export function useStoryPhase(projectId: string, storyId: string) {
-  const [messages, setMessages] = useState<PromptMessage[]>([]);
+  const [sessionMessages, setSessionMessages] = useState<PromptMessage[]>([]);
   const { mutate: generate, isPending: isGenerating } =
     useStoryStream(projectId, storyId);
 
   const { data: storyDetail } = useStoryDetail(projectId, storyId);
+
+  // Synthetic id and null timestamp. 
+  // CONSIDER: storing richer userinputtext in the db not just as strings
+  const pastMessages: PromptMessage[] = useMemo(
+    () =>
+      (storyDetail?.userInputText ?? []).map((text, index) => ({
+        id: `past-${index}`,
+        text,
+        timestamp: 0,
+      })),
+    [storyDetail?.userInputText],
+  );
 
   const submitPrompt = useCallback(
     (text: string) => {
@@ -50,14 +62,14 @@ export function useStoryPhase(projectId: string, storyId: string) {
         text,
         timestamp: Date.now(),
       };
-      setMessages((prev) => [...prev, message]);
+      setSessionMessages((prev) => [...prev, message]);
       generate(text);
     },
     [generate],
   );
 
   return {
-    messages,
+    messages: [...pastMessages, ...sessionMessages],
     storyText: storyDetail?.storyText ?? "",
     isGenerating,
     submitPrompt,
