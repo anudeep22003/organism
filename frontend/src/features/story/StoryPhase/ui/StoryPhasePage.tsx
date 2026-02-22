@@ -8,10 +8,10 @@ import { useStoryPhase } from "./hooks/useStoryPhase";
 type ActiveView = "prompt" | "artifact";
 
 function StoryPhasePage() {
-  const { storyId } = useParams();
+  const { projectId, storyId } = useParams();
   const [activeView, setActiveView] = useState<ActiveView>("prompt");
   const { messages, storyText, isGenerating, submitPrompt } =
-    useStoryPhase(storyId ?? "");
+    useStoryPhase(projectId ?? "", storyId ?? "");
 
   return (
     <div className="fixed inset-0 top-[41px]">

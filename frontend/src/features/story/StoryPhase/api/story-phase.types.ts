@@ -1,15 +1,4 @@
-export type ProjectDetails = {
-  id: string;
-  name: string | null;
-  createdAt: string;
-  updatedAt: string;
-  storyCount: number;
-  stories?: StoryEntry[];
-  characters?: Record<string, unknown>[];
-  panels?: Record<string, unknown>[];
-};
-
-export type StoryEntry = {
+export type StoryDetailType = {
   id: string;
   projectId: string;
   storyText: string;
