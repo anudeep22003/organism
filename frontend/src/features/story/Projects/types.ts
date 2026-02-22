@@ -14,6 +14,14 @@ export type StoryListEntryType = {
   meta: Record<string, unknown>;
 };
 
+export type StoryResponseType = {
+  id: string;
+  projectId: string;
+  storyText: string;
+  userInputText: string[];
+  meta: Record<string, unknown>;
+};
+
 export type ProjectHomeType = ProjectListEntryType & {
   stories?: Array<StoryListEntryType>;
   characters?: Array<Record<string, unknown>>;
