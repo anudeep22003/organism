@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useParams } from "react-router";
-import PromptPanel from "./components/PromptPanel/PromptPanel";
-import ArtifactPanel from "./components/ArtifactPanel/ArtifactPanel";
-import MobileViewToggle from "./components/MobileViewToggle/MobileViewToggle";
+import PromptPanel from "./components/PromptPanel";
+import ArtifactPanel from "./components/ArtifactPanel";
+import MobileViewToggle from "./components/MobileViewToggle";
 import { useStoryPhase } from "./hooks/useStoryPhase";
 
 type ActiveView = "prompt" | "artifact";

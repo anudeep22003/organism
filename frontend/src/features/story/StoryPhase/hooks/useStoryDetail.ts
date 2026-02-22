@@ -1,6 +1,6 @@
 import { httpClient } from "@/lib/httpClient";
 import { queryOptions, useQuery } from "@tanstack/react-query";
-import type { StoryDetailType } from "../../api/story-phase.types";
+import type { StoryDetailType } from "../types";
 
 const STORY_ENDPOINT = "/api/comic-builder/v2" as const;
 

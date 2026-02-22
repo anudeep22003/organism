@@ -1,8 +1,8 @@
 import { useRef, useEffect } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import InputBox from "@/components/InputBox/InputBox";
-import PromptMessage from "../PromptMessage/PromptMessage";
-import type { PromptMessage as PromptMessageType } from "../../../api/story-phase.types";
+import PromptMessage from "./PromptMessage";
+import type { PromptMessage as PromptMessageType } from "../types";
 
 type PromptPanelProps = {
   messages: PromptMessageType[];

@@ -1,6 +1,6 @@
 import type { QueryClient } from "@tanstack/react-query";
-import type { StoryDetailType } from "../StoryPhase/api/story-phase.types";
-import type { StoryStreamChunk } from "../StoryPhase/api/story-phase.types";
+import type { StoryDetailType } from "../StoryPhase/types";
+import type { StoryStreamChunk } from "../StoryPhase/types";
 import type { EventEnvelope } from "./baseEvents";
 
 class EventRouter {
