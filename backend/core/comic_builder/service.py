@@ -115,8 +115,9 @@ class Service:
                 processed_chunk = await processor.process(chunk, accumulator)
                 yield processed_chunk
                 if processed_chunk.event_type == EventType.STREAM_END:
-                    await self.repository.update_story_with_story_text_and_input_text(
-                        story_id, "".join(accumulator), accumulator
+                    full_story = "".join(accumulator)
+                    await self.repository.update_story_with_story_and_prompt(
+                        story_id, full_story, prompt
                     )
                     break
         except Exception as e:
