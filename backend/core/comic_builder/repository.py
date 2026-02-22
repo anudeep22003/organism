@@ -58,11 +58,17 @@ class Repository:
         await self.db.refresh(story)
         return story
 
-    async def get_story(self, story_id: uuid.UUID) -> Story | None:
-        return await self.db.get(Story, story_id)
+    async def get_story(
+        self, project_id: uuid.UUID, story_id: uuid.UUID
+    ) -> Story | None:
+        stmt = select(Story).where(Story.id == story_id, Story.project_id == project_id)
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
 
-    async def delete_story(self, story_id: uuid.UUID) -> None:
-        story = await self.db.get(Story, story_id)
+    async def delete_story(self, project_id: uuid.UUID, story_id: uuid.UUID) -> None:
+        story = await self.get_story(project_id, story_id)
+        if story is None:
+            raise NotFoundError(f"Story {story_id} not found in project {project_id}")
         await self.db.delete(story)
         await self.db.commit()
 

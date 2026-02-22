@@ -19,10 +19,27 @@ from ...exceptions import InvalidUserIDError, NotFoundError, NotOwnedError
 from ...repository import Repository
 from ...schemas.story import (
     GenerateStoryRequest,
+    StoryResponseSchema,
 )
 from ...service import Service
 
-router = APIRouter(prefix="/story", tags=["story"])
+router = APIRouter(tags=["story"])
+
+
+@router.get("/project/{project_id}/story/{story_id}")
+async def get_story(
+    project_id: uuid.UUID,
+    story_id: uuid.UUID,
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    db: Annotated[AsyncSession, Depends(get_async_db_session)],
+) -> StoryResponseSchema:
+    repository = Repository(db)
+    story = await repository.get_story(project_id, story_id)
+    if story is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Story not found in project"
+        )
+    return StoryResponseSchema.model_validate(story)
 
 
 async def _as_ndjson(stream: AsyncIterator[EventEnvelope]) -> AsyncIterator[str]:
@@ -30,7 +47,7 @@ async def _as_ndjson(stream: AsyncIterator[EventEnvelope]) -> AsyncIterator[str]
         yield event.model_dump_json() + "\n"
 
 
-@router.post("/{story_id}/generate")
+@router.post("/story/{story_id}/generate")
 async def generate_story(
     user_id: Annotated[
         str,
