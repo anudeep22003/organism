@@ -1,46 +1,44 @@
 import type { QueryClient } from "@tanstack/react-query";
+import type { StoryDetailType } from "../StoryPhase/api/story-phase.types";
 import type { StoryStreamChunk } from "../StoryPhase/api/story-phase.types";
 import type { EventEnvelope } from "./baseEvents";
 
 class EventRouter {
   private queryClient: QueryClient;
+  private queryKey: readonly unknown[];
 
-  constructor(queryClient: QueryClient) {
+  constructor(queryClient: QueryClient, queryKey: readonly unknown[]) {
     this.queryClient = queryClient;
+    this.queryKey = queryKey;
   }
 
   handle(event: EventEnvelope<StoryStreamChunk>) {
     switch (event.eventType) {
       case "stream.start":
-        this.handleStreamStart(event);
+        this.handleStreamStart();
         break;
       case "stream.chunk":
         this.handleStreamChunk(event);
         break;
       case "stream.end":
-        this.handleStreamEnd(event);
         break;
     }
   }
 
-  private handleStreamStart(event: EventEnvelope<StoryStreamChunk>) {
-    this.queryClient.setQueryData(
-      ["batman"],
-      () => `stream started: ${event.payload.delta}`,
+  private handleStreamStart() {
+    this.queryClient.setQueryData<StoryDetailType>(
+      this.queryKey,
+      (old) => (old ? { ...old, storyText: "" } : undefined),
     );
   }
 
   private handleStreamChunk(event: EventEnvelope<StoryStreamChunk>) {
-    this.queryClient.setQueryData(
-      ["batman"],
-      (old: string) => old + (event.payload.delta ?? ""),
-    );
-  }
-
-  private handleStreamEnd(event: EventEnvelope<StoryStreamChunk>) {
-    this.queryClient.setQueryData(
-      ["batman"],
-      (old: string) => old + (event.payload.finishReason ?? ""),
+    this.queryClient.setQueryData<StoryDetailType>(
+      this.queryKey,
+      (old) =>
+        old
+          ? { ...old, storyText: old.storyText + (event.payload.delta ?? "") }
+          : undefined,
     );
   }
 }
