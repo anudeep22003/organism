@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.auth.dependencies import get_current_user_id
 from core.services.database import get_async_db_session
 
-from ...repository import Repository
+from ...repository import NotFoundError, Repository
 from ...schemas import (
     ProjectCreateSchema,
     ProjectListResponseSchema,
@@ -86,12 +86,9 @@ async def delete_story(
     db: Annotated[AsyncSession, Depends(get_async_db_session)],
 ) -> None:
     repository = Repository(db)
-    # TODO verify use_id project ownership
-    # This is stuff that should happen in service layer
-    story = await repository.get_story(story_id)
-    if story is None or story.project_id != project_id:
+    try:
+        await repository.delete_story(project_id, story_id)
+    except NotFoundError:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Story not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Story not found in project"
         )
-    await repository.delete_story(story_id)
-    return None
