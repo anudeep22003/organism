@@ -1,4 +1,4 @@
-import type { PromptMessage as PromptMessageType } from "../../../api/story-phase.types";
+import type { PromptMessage as PromptMessageType } from "../types";
 
 type PromptMessageProps = {
   message: PromptMessageType;
