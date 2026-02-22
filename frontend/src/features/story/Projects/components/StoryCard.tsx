@@ -34,7 +34,7 @@ export const StoryCard = ({
         </CardDescription>
       </CardHeader>
       <CardContent className="flex gap-2">
-        <Link to={`/story/${story.id}/create`}>
+        <Link to={`/story/p/${projectId}/s/${story.id}`}>
           <Button variant="outline" size="sm">
             {hasContent ? "Continue" : "Start Writing"}
           </Button>

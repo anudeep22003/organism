@@ -17,6 +17,7 @@ const ProjectHome = () => {
     <div className="p-6">
       <Link
         to="/story"
+
         className="text-sm text-muted-foreground hover:text-foreground mb-4 inline-block"
       >
         &larr; All Projects

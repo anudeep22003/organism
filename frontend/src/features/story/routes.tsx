@@ -3,17 +3,19 @@ import ProjectHome from "./Projects/ProjectHome";
 import ProjectList from "./Projects/ProjectList";
 import StoryPhasePage from "./StoryPhase/ui/StoryPhasePage";
 
+const ROOT_PATH = "/story";
+
 export const storyRoutes: RouteObject[] = [
   {
-    path: "/story",
+    path: ROOT_PATH,
     element: <ProjectList />,
   },
   {
-    path: "/story/:projectId",
+    path: `${ROOT_PATH}/p/:projectId`,
     element: <ProjectHome />,
   },
   {
-    path: "/story/:storyId/create",
+    path: `${ROOT_PATH}/p/:projectId/s/:storyId`,
     element: <StoryPhasePage />,
   },
 ];
