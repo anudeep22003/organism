@@ -21,7 +21,7 @@ export const ProjectCard = ({
   project: ProjectListEntryType;
 }) => {
   return (
-    <Link to={`/story/${project.id}`}>
+    <Link to={`/story/p/${project.id}`}>
       <Card className="hover:border-primary/50 transition-colors cursor-pointer">
         <CardHeader>
           <CardTitle>{project.name ?? "Untitled Project"}</CardTitle>
