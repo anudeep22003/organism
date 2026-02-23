@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.auth import get_current_user_id
 from core.auth.dependencies import get_session_manager
 from core.auth.managers.session import SessionManager
-from core.comic_builder.generation.bulk_panel_generator import BulkPanelGenerator
 from core.common import AliasedBaseModel
 from core.services.database import get_async_db_session
 from core.sockets import sio
@@ -27,6 +26,7 @@ from ..generation import (
     PanelRenderer,
     StoryPhase,
 )
+from ..generation.bulk_panel_generator import BulkPanelGenerator
 from ..simple_envelope_schema import SimpleEnvelope
 from ..state import Character, ComicPanel, ConsolidatedComicState
 from ..state_manager import ProjectStateManager
