@@ -6,9 +6,9 @@ from typing import Any
 
 from pydantic import Field
 
-from core.comic_builder.state import ConsolidatedComicState
 from core.common import AliasedBaseModel
 
+from ..state.consolidated import ConsolidatedComicState
 from .character import CharacterResponseSchema
 from .panel import ComicPanelResponseSchema
 from .story import StoryResponseSchema

@@ -1,11 +1,11 @@
 from fastapi import APIRouter
 
 from core.auth import auth_router
-from core.comic_builder.api.routers import router as comic_builder_router
+from core.story_engine.api.routers import router as story_engine_router
 
 from .transcribe import router as transcribe_router
 
 router = APIRouter(prefix="/api")
 router.include_router(transcribe_router)
 router.include_router(auth_router)
-router.include_router(comic_builder_router)
+router.include_router(story_engine_router)
