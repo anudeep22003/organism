@@ -10,7 +10,7 @@ from core.common import AliasedBaseModel
 
 from ..state.consolidated import ConsolidatedComicState
 from .character import CharacterResponseSchema
-from .panel import ComicPanelResponseSchema
+from .scene import SceneResponseSchema
 from .story import StoryResponseSchema
 
 
@@ -46,4 +46,4 @@ class ProjectListResponseSchema(ProjectSchemaBase):
 class ProjectRelationalStateSchema(ProjectResponseSchema):
     stories: list[StoryResponseSchema] = Field(default_factory=list)
     characters: list[CharacterResponseSchema] = Field(default_factory=list)
-    panels: list[ComicPanelResponseSchema] = Field(default_factory=list)
+    scenes: list[SceneResponseSchema] = Field(default_factory=list)

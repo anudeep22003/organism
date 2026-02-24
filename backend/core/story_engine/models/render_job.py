@@ -13,7 +13,7 @@ from core.common import ORMBase
 
 if TYPE_CHECKING:
     from .character import Character
-    from .panel import ComicPanel
+    from .scene import Scene
 
 
 class RenderableType(str, Enum):
@@ -36,11 +36,11 @@ def _render_job_character_join() -> Any:
     )
 
 
-def _render_job_panel_join() -> Any:
-    from .panel import ComicPanel
+def _render_job_scene_join() -> Any:
+    from .scene import Scene
 
     return and_(
-        foreign(RenderJob.renderable_id) == ComicPanel.id,
+        foreign(RenderJob.renderable_id) == Scene.id,
         RenderJob.renderable_type == RenderableType.PANEL,
     )
 
@@ -71,11 +71,11 @@ class RenderJob(ORMBase):
         "Character",
         primaryjoin=_render_job_character_join,
         back_populates="render_jobs",
-        overlaps="panel,render_jobs",
+        overlaps="scene,render_jobs",
     )
-    panel: Mapped[ComicPanel | None] = relationship(
-        "ComicPanel",
-        primaryjoin=_render_job_panel_join,
+    scene: Mapped[Scene | None] = relationship(
+        "Scene",
+        primaryjoin=_render_job_scene_join,
         back_populates="render_jobs",
         overlaps="character,render_jobs",
     )
