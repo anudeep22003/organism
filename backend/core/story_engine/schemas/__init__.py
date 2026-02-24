@@ -3,12 +3,6 @@ from .character import (
     CharacterResponseSchema,
     CharacterUpdateSchema,
 )
-from .panel import (
-    ComicPanelCreateSchema,
-    ComicPanelResponseSchema,
-    ComicPanelUpdateSchema,
-    PanelCharacterResponseSchema,
-)
 from .project import (
     ProjectCreateSchema,
     ProjectListResponseSchema,
@@ -20,6 +14,12 @@ from .render_job import (
     RenderJobCreateSchema,
     RenderJobResponseSchema,
     RenderJobUpdateSchema,
+)
+from .scene import (
+    SceneCharacterResponseSchema,
+    SceneCreateSchema,
+    SceneResponseSchema,
+    SceneUpdateSchema,
 )
 from .story import (
     StoryCharacterResponseSchema,
@@ -40,12 +40,12 @@ __all__ = [
     "CharacterCreateSchema",
     "CharacterUpdateSchema",
     "CharacterResponseSchema",
-    "ComicPanelCreateSchema",
-    "ComicPanelUpdateSchema",
-    "ComicPanelResponseSchema",
+    "SceneCreateSchema",
+    "SceneUpdateSchema",
+    "SceneResponseSchema",
     "RenderJobCreateSchema",
     "RenderJobUpdateSchema",
     "RenderJobResponseSchema",
     "StoryCharacterResponseSchema",
-    "PanelCharacterResponseSchema",
+    "SceneCharacterResponseSchema",
 ]

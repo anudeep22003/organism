@@ -25,5 +25,5 @@ export type StoryResponseType = {
 export type ProjectHomeType = ProjectListEntryType & {
   stories?: Array<StoryListEntryType>;
   characters?: Array<Record<string, unknown>>;
-  panels?: Array<Record<string, unknown>>;
+  scenes?: Array<Record<string, unknown>>;
 };

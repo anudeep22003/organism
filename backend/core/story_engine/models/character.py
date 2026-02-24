@@ -11,8 +11,8 @@ from sqlalchemy.schema import UniqueConstraint
 from core.common import ORMBase
 
 if TYPE_CHECKING:
-    from .panel import ComicPanel, PanelCharacter
     from .render_job import RenderJob
+    from .scene import Scene, SceneCharacter
     from .story import Story, StoryCharacter
 
 
@@ -56,14 +56,14 @@ class Character(ORMBase):
         back_populates="characters",
         viewonly=True,
     )
-    panel_characters: Mapped[list[PanelCharacter]] = relationship(
-        "PanelCharacter",
+    scene_characters: Mapped[list[SceneCharacter]] = relationship(
+        "SceneCharacter",
         back_populates="character",
         cascade="all, delete-orphan",
     )
-    panels: Mapped[list[ComicPanel]] = relationship(
-        "ComicPanel",
-        secondary="panel_character",
+    scenes: Mapped[list[Scene]] = relationship(
+        "Scene",
+        secondary="scene_character",
         back_populates="characters",
         viewonly=True,
     )
@@ -71,5 +71,5 @@ class Character(ORMBase):
         "RenderJob",
         primaryjoin=_character_render_job_join,
         back_populates="character",
-        overlaps="panel,render_jobs",
+        overlaps="scene,render_jobs",
     )

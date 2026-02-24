@@ -11,8 +11,8 @@ from core.common import ORMBase
 
 if TYPE_CHECKING:
     from .character import Character
-    from .panel import ComicPanel
     from .project import Project
+    from .scene import Scene
 
 
 class Story(ORMBase):
@@ -40,11 +40,11 @@ class Story(ORMBase):
         back_populates="stories",
         viewonly=True,
     )
-    panels: Mapped[list[ComicPanel]] = relationship(
-        "ComicPanel",
+    scenes: Mapped[list[Scene]] = relationship(
+        "Scene",
         back_populates="story",
         cascade="all, delete-orphan",
-        order_by="ComicPanel.panel_order",
+        order_by="Scene.scene_order",
     )
 
 

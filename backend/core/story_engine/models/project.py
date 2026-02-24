@@ -17,7 +17,7 @@ from ..state.consolidated import (
 
 if TYPE_CHECKING:
     from .character import Character
-    from .panel import ComicPanel
+    from .scene import Scene
     from .story import Story
 
 
@@ -64,5 +64,5 @@ class Project(ORMBase):
         return unique_characters
 
     @property
-    def panels(self) -> list[ComicPanel]:
-        return [panel for story in self.stories for panel in story.panels]
+    def scenes(self) -> list[Scene]:
+        return [scene for story in self.stories for scene in story.scenes]
