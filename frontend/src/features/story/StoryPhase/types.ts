@@ -4,6 +4,7 @@ export type StoryDetailType = {
   storyText: string;
   userInputText: string[];
   meta: Record<string, unknown>;
+  error?: string;
 };
 
 export type StoryStreamChunk = {

@@ -1,9 +1,3 @@
-export type EventType =
-  | "stream.start"
-  | "stream.chunk"
-  | "stream.end"
-  | "stream.error";
-
 export type ErrorPayload = {
   code: string;
   message: string;
@@ -11,13 +5,37 @@ export type ErrorPayload = {
   details: Record<string, unknown> | null;
 };
 
-export type EventEnvelope<T = unknown> = {
+export type BaseEnvelope = {
   schemaVersion: number;
   id: string;
   tsMs: number;
   requestId: string | null;
   streamId: string | null;
   seq: number | null;
-  eventType: EventType;
-  payload: T;
 };
+
+export type StreamStartEvent = BaseEnvelope & {
+  eventType: "stream.start";
+  payload: { delta: string };
+};
+
+export type StreamChunkEvent = BaseEnvelope & {
+  eventType: "stream.chunk";
+  payload: { delta: string };
+};
+
+export type StreamEndEvent = BaseEnvelope & {
+  eventType: "stream.end";
+  payload: { finishReason: string };
+};
+
+export type StreamErrorEvent = BaseEnvelope & {
+  eventType: "stream.error";
+  error: ErrorPayload;
+};
+
+export type EventEnvelope =
+  | StreamStartEvent
+  | StreamChunkEvent
+  | StreamEndEvent
+  | StreamErrorEvent;
