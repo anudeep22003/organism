@@ -5,6 +5,7 @@ export type ArtifactCardProps = {
   content: ReactNode;
   isStale?: boolean;
   isLoading?: boolean;
+  collapsible?: boolean;
   onRefine?: (text: string) => void;
   className?: string;
 };
