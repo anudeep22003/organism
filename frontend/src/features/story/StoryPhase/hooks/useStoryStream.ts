@@ -3,7 +3,6 @@ import { httpClient } from "@/lib/httpClient";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRef } from "react";
 import EventRouter from "../../events/eventRouter";
-import type { StoryStreamChunk } from "../types";
 import { storyDetailKeys } from "./useStoryDetail";
 
 const STREAM_ENDPOINT = (storyId: string) =>
@@ -19,8 +18,11 @@ export const useStoryStream = (projectId: string, storyId: string) => {
       startGeneration(userInputText, storyId),
   });
 
-  async function startGeneration(userInputText: string, storyId: string) {
-    const stream = httpClient.streamPost<EventEnvelope<StoryStreamChunk>>(
+  async function startGeneration(
+    userInputText: string,
+    storyId: string,
+  ) {
+    const stream = httpClient.streamPost<EventEnvelope>(
       STREAM_ENDPOINT(storyId),
       { storyPrompt: userInputText },
     );

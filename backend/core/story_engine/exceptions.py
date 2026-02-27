@@ -38,6 +38,12 @@ class StoryGeneratorError(ComicBuilderError):
     pass
 
 
+class StreamGeneratorError(ComicBuilderError):
+    """Error streaming story."""
+
+    pass
+
+
 class CharacterNotFoundError(ComicBuilderError):
     """Character not found in asset manager."""
 

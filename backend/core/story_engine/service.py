@@ -6,8 +6,13 @@ from openai.types.chat import ChatCompletionChunk
 
 from core.services.intelligence.clients import async_openai_client
 
-from .events import EventEnvelope, EventType
-from .exceptions import InvalidUserIDError, NotFoundError, NotOwnedError
+from .events import ErrorPayload, EventEnvelope, EventType
+from .exceptions import (
+    InvalidUserIDError,
+    NotFoundError,
+    NotOwnedError,
+    StreamGeneratorError,
+)
 from .repository import Repository
 from .schemas.story import GenerateStoryRequest
 
@@ -82,8 +87,8 @@ class Service:
         """
         try:
             return uuid.UUID(user_id)
-        except ValueError:
-            raise InvalidUserIDError(f"Invalid user ID: {user_id}")
+        except ValueError as e:
+            raise InvalidUserIDError(f"Invalid user ID: {user_id}") from e
 
     async def _check_story_ownership(
         self, _user_id: uuid.UUID, story_id: uuid.UUID
@@ -123,5 +128,6 @@ class Service:
         except Exception as e:
             yield EventEnvelope(
                 event_type=EventType.STREAM_ERROR,
-                payload={"error": str(e)},
+                error=ErrorPayload(code="E_INTERNAL", message=str(e), retryable=True),
             )
+            raise StreamGeneratorError(f"Error streaming story: {e}") from e

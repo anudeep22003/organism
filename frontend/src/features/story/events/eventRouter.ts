@@ -1,7 +1,10 @@
 import type { QueryClient } from "@tanstack/react-query";
 import type { StoryDetailType } from "../StoryPhase/types";
-import type { StoryStreamChunk } from "../StoryPhase/types";
-import type { EventEnvelope } from "./baseEvents";
+import type {
+  EventEnvelope,
+  StreamChunkEvent,
+  StreamErrorEvent,
+} from "./baseEvents";
 
 class EventRouter {
   private queryClient: QueryClient;
@@ -12,13 +15,16 @@ class EventRouter {
     this.queryKey = queryKey;
   }
 
-  handle(event: EventEnvelope<StoryStreamChunk>) {
+  handle(event: EventEnvelope) {
     switch (event.eventType) {
       case "stream.start":
         this.handleStreamStart();
         break;
       case "stream.chunk":
         this.handleStreamChunk(event);
+        break;
+      case "stream.error":
+        this.handleStreamError(event);
         break;
       case "stream.end":
         break;
@@ -28,16 +34,32 @@ class EventRouter {
   private handleStreamStart() {
     this.queryClient.setQueryData<StoryDetailType>(
       this.queryKey,
-      (old) => (old ? { ...old, storyText: "" } : undefined),
+      (old) => (old ? { ...old, storyText: "", error: undefined } : undefined),
     );
   }
 
-  private handleStreamChunk(event: EventEnvelope<StoryStreamChunk>) {
+  private handleStreamChunk(event: StreamChunkEvent) {
     this.queryClient.setQueryData<StoryDetailType>(
       this.queryKey,
       (old) =>
         old
-          ? { ...old, storyText: old.storyText + (event.payload.delta ?? "") }
+          ? {
+              ...old,
+              storyText: old.storyText + (event.payload.delta ?? ""),
+            }
+          : undefined,
+    );
+  }
+
+  private handleStreamError(event: StreamErrorEvent) {
+    this.queryClient.setQueryData<StoryDetailType>(
+      this.queryKey,
+      (old) =>
+        old
+          ? {
+              ...old,
+              error: event.error.message,
+            }
           : undefined,
     );
   }

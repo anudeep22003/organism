@@ -38,6 +38,7 @@ export function useStoryPhase(projectId: string, storyId: string) {
   return {
     messages: [...pastMessages, ...sessionMessages],
     storyText: storyDetail?.storyText ?? "",
+    error: storyDetail?.error,
     isGenerating,
     submitPrompt,
   };

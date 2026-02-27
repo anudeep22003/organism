@@ -7,7 +7,7 @@ import { useStoryPhase } from "./hooks/useStoryPhase";
 
 function StoryWorkspace() {
   const { projectId, storyId } = useParams();
-  const { storyText, isGenerating, submitPrompt } = useStoryPhase(
+  const { storyText, error, isGenerating, submitPrompt } = useStoryPhase(
     projectId ?? "",
     storyId ?? "",
   );
@@ -30,7 +30,11 @@ function StoryWorkspace() {
         <ArtifactCard
           title="Story"
           content={
-            <StoryContent storyText={storyText} isStreaming={isGenerating} />
+            <StoryContent
+              storyText={storyText}
+              isStreaming={isGenerating}
+              error={error}
+            />
           }
           isLoading={false}
           collapsible

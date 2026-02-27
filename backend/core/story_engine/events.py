@@ -32,4 +32,5 @@ class EventEnvelope(AliasedBaseModel):
     seq: int | None = None
     event_type: EventType
 
-    payload: dict[str, Any]
+    payload: dict[str, Any] | None = None
+    error: ErrorPayload | None = None
