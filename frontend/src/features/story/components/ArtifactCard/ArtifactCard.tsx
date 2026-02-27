@@ -44,11 +44,25 @@ function ArtifactCard({
     setIsRefineOpen(false);
   };
 
-  const showExpandControl = collapsible && !isExpanded && hasOverflow;
-  const showCollapseControl = collapsible && isExpanded && hasOverflow;
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [isCardVisible, setIsCardVisible] = useState(false);
+
+  const isCollapsed = collapsible && !isExpanded && hasOverflow;
+  const showFloatingCollapse = collapsible && isExpanded && hasOverflow && isCardVisible;
+
+  useEffect(() => {
+    const card = cardRef.current;
+    if (!card || !collapsible) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsCardVisible(entry.isIntersecting),
+      { threshold: 0.1 },
+    );
+    observer.observe(card);
+    return () => observer.disconnect();
+  }, [collapsible]);
 
   return (
-    <Card className={cn("gap-0 py-0 overflow-hidden", className)}>
+    <Card ref={cardRef} className={cn("gap-0 py-0 overflow-hidden", className)}>
       <CardHeader className="py-4 border-b border-border/40">
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
         {isStale && (
@@ -67,36 +81,29 @@ function ArtifactCard({
           ref={contentRef}
           className={cn(
             "py-4 min-h-[80px] transition-[max-height] duration-500 ease-in-out overflow-hidden",
-            collapsible && !isExpanded && "max-h-[33vh]",
+            isCollapsed && "max-h-[33vh]",
           )}
         >
           {isLoading ? <ArtifactSkeleton /> : content}
         </CardContent>
 
-        {showExpandControl && (
-          <div className="absolute inset-x-0 bottom-0 h-24 pointer-events-none bg-gradient-to-t from-card via-card/80 to-transparent" />
-        )}
-        {showExpandControl && (
+        {isCollapsed && (
           <button
             onClick={() => setIsExpanded(true)}
-            className="absolute right-4 bottom-3 z-10 flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-card/90 border border-border/60 text-xs text-muted-foreground hover:text-foreground backdrop-blur-sm shadow-sm transition-colors cursor-pointer"
+            className="absolute inset-x-0 bottom-0 h-24 flex items-end justify-center pb-2 bg-gradient-to-t from-card via-card/80 to-transparent cursor-pointer group transition-all"
           >
-            <IconChevronDown className="size-3.5" />
-            Expand
+            <IconChevronDown className="size-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
           </button>
         )}
       </div>
 
-      {showCollapseControl && (
-        <CardFooter className="justify-end pb-3 pt-0">
-          <button
-            onClick={() => setIsExpanded(false)}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-full border border-border/60 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-          >
-            <IconChevronUp className="size-3.5" />
-            Collapse
-          </button>
-        </CardFooter>
+      {showFloatingCollapse && (
+        <button
+          onClick={() => setIsExpanded(false)}
+          className="fixed bottom-6 right-6 z-50 p-2.5 rounded-full bg-card border border-border/60 text-muted-foreground/60 hover:text-foreground hover:border-border shadow-lg backdrop-blur-sm transition-all cursor-pointer"
+        >
+          <IconChevronUp className="size-4" />
+        </button>
       )}
 
       {onRefine &&
