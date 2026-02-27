@@ -1,7 +1,7 @@
 import type { RouteObject } from "react-router";
 import ProjectHome from "./Projects/ProjectHome";
 import ProjectList from "./Projects/ProjectList";
-import StoryPhasePage from "./StoryPhase/StoryPhasePage";
+import StoryWorkspace from "./StoryPhase/StoryWorkspace";
 
 const ROOT_PATH = "/story";
 
@@ -16,6 +16,6 @@ export const storyRoutes: RouteObject[] = [
   },
   {
     path: `${ROOT_PATH}/p/:projectId/s/:storyId`,
-    element: <StoryPhasePage />,
+    element: <StoryWorkspace />,
   },
 ];
