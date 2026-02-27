@@ -1,5 +1,7 @@
+import { useCallback } from "react";
 import { Link, useParams } from "react-router";
 import { ArtifactCard } from "../components/ArtifactCard";
+import type { RefinePayload } from "../components/ArtifactCard";
 import StoryContent from "../components/StoryContent";
 import { useStoryPhase } from "./hooks/useStoryPhase";
 
@@ -8,6 +10,11 @@ function StoryWorkspace() {
   const { storyText, isGenerating, submitPrompt } = useStoryPhase(
     projectId ?? "",
     storyId ?? "",
+  );
+
+  const handleStoryRefine = useCallback(
+    (payload: RefinePayload) => submitPrompt(payload.text),
+    [submitPrompt],
   );
 
   return (
@@ -27,7 +34,8 @@ function StoryWorkspace() {
           }
           isLoading={false}
           collapsible
-          onRefine={submitPrompt}
+          onRefine={handleStoryRefine}
+          enableAttachments
         />
 
         <PlaceholderSection title="Characters" />
