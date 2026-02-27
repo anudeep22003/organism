@@ -1,2 +1,2 @@
 export { default as ArtifactCard } from "./ArtifactCard";
-export type { ArtifactCardProps } from "./types";
+export type { ArtifactCardProps, RefinePayload } from "./types";

@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import RefineInput from "./RefineInput";
-import type { ArtifactCardProps } from "./types";
+import type { ArtifactCardProps, RefinePayload } from "./types";
 
 function ArtifactCard({
   title,
@@ -24,6 +24,7 @@ function ArtifactCard({
   isStale = false,
   isLoading = false,
   collapsible = false,
+  enableAttachments = false,
   onRefine,
   className,
 }: ArtifactCardProps) {
@@ -39,8 +40,8 @@ function ArtifactCard({
     setHasOverflow(node.scrollHeight > collapsedMax);
   }, [content, collapsible]);
 
-  const handleRefineSubmit = (text: string) => {
-    onRefine?.(text);
+  const handleRefineSubmit = (payload: RefinePayload) => {
+    onRefine?.(payload);
     setIsRefineOpen(false);
   };
 
@@ -112,6 +113,7 @@ function ArtifactCard({
             <RefineInput
               onSubmit={handleRefineSubmit}
               onDismiss={() => setIsRefineOpen(false)}
+              enableAttachments={enableAttachments}
               disabled={isLoading}
             />
           </div>
