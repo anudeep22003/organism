@@ -76,53 +76,51 @@ function ArtifactCard({
         {showExpandControl && (
           <div className="absolute inset-x-0 bottom-0 h-24 pointer-events-none bg-gradient-to-t from-card via-card/80 to-transparent" />
         )}
+        {showExpandControl && (
+          <button
+            onClick={() => setIsExpanded(true)}
+            className="absolute right-4 bottom-3 z-10 flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-card/90 border border-border/60 text-xs text-muted-foreground hover:text-foreground backdrop-blur-sm shadow-sm transition-colors cursor-pointer"
+          >
+            <IconChevronDown className="size-3.5" />
+            Expand
+          </button>
+        )}
       </div>
 
-      {isRefineOpen ? (
-        <div className="w-full">
-          <RefineInput
-            onSubmit={handleRefineSubmit}
-            onDismiss={() => setIsRefineOpen(false)}
-            disabled={isLoading}
-          />
-        </div>
-      ) : (
-        (onRefine || hasOverflow) && (
-          <CardFooter className="pb-3 pt-0 justify-between">
-            {onRefine ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsRefineOpen(true)}
-                className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-              >
-                <IconPencil className="size-3.5" />
-                Refine
-              </Button>
-            ) : (
-              <div />
-            )}
-            {showExpandControl && (
-              <button
-                onClick={() => setIsExpanded(true)}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-full border border-border/60 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-              >
-                <IconChevronDown className="size-3.5" />
-                Expand
-              </button>
-            )}
-            {showCollapseControl && (
-              <button
-                onClick={() => setIsExpanded(false)}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-full border border-border/60 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-              >
-                <IconChevronUp className="size-3.5" />
-                Collapse
-              </button>
-            )}
-          </CardFooter>
-        )
+      {showCollapseControl && (
+        <CardFooter className="justify-end pb-3 pt-0">
+          <button
+            onClick={() => setIsExpanded(false)}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-full border border-border/60 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+          >
+            <IconChevronUp className="size-3.5" />
+            Collapse
+          </button>
+        </CardFooter>
       )}
+
+      {onRefine &&
+        (isRefineOpen ? (
+          <div className="w-full">
+            <RefineInput
+              onSubmit={handleRefineSubmit}
+              onDismiss={() => setIsRefineOpen(false)}
+              disabled={isLoading}
+            />
+          </div>
+        ) : (
+          <CardFooter className="pb-3 pt-0">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsRefineOpen(true)}
+              className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+            >
+              <IconPencil className="size-3.5" />
+              Refine
+            </Button>
+          </CardFooter>
+        ))}
     </Card>
   );
 }
