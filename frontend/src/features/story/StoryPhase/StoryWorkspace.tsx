@@ -26,6 +26,7 @@ function StoryWorkspace() {
             <StoryContent storyText={storyText} isStreaming={isGenerating} />
           }
           isLoading={false}
+          collapsible
           onRefine={submitPrompt}
         />
 

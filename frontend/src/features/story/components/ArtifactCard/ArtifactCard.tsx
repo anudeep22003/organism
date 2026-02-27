@@ -1,5 +1,10 @@
-import { useState } from "react";
-import { IconPencil, IconAlertTriangle } from "@tabler/icons-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  IconPencil,
+  IconAlertTriangle,
+  IconChevronDown,
+  IconChevronUp,
+} from "@tabler/icons-react";
 import {
   Card,
   CardContent,
@@ -18,34 +23,84 @@ function ArtifactCard({
   content,
   isStale = false,
   isLoading = false,
+  collapsible = false,
   onRefine,
   className,
 }: ArtifactCardProps) {
   const [isRefineOpen, setIsRefineOpen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(!collapsible);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [hasOverflow, setHasOverflow] = useState(false);
+
+  useEffect(() => {
+    const node = contentRef.current;
+    if (!node || !collapsible) return;
+    const collapsedMax = window.innerHeight / 3;
+    setHasOverflow(node.scrollHeight > collapsedMax);
+  }, [content, collapsible]);
 
   const handleRefineSubmit = (text: string) => {
     onRefine?.(text);
     setIsRefineOpen(false);
   };
 
+  const showExpandControl = collapsible && !isExpanded && hasOverflow;
+  const showCollapseControl = collapsible && isExpanded && hasOverflow;
+
   return (
     <Card className={cn("gap-0 py-0 overflow-hidden", className)}>
       <CardHeader className="py-4 border-b border-border/40">
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
         {isStale && (
-          <Badge variant="outline" className="text-amber-500 border-amber-500/30 gap-1">
+          <Badge
+            variant="outline"
+            className="text-amber-500 border-amber-500/30 gap-1"
+          >
             <IconAlertTriangle className="size-3" />
             Needs update
           </Badge>
         )}
       </CardHeader>
 
-      <CardContent className="py-4 min-h-[80px]">
-        {isLoading ? <ArtifactSkeleton /> : content}
-      </CardContent>
+      <div className="relative">
+        <CardContent
+          ref={contentRef}
+          className={cn(
+            "py-4 min-h-[80px] transition-[max-height] duration-500 ease-in-out overflow-hidden",
+            collapsible && !isExpanded && "max-h-[33vh]",
+          )}
+        >
+          {isLoading ? <ArtifactSkeleton /> : content}
+        </CardContent>
 
-      {onRefine && (
-        isRefineOpen ? (
+        {showExpandControl && (
+          <div className="absolute inset-x-0 bottom-0 h-24 pointer-events-none bg-gradient-to-t from-card via-card/80 to-transparent" />
+        )}
+        {showExpandControl && (
+          <button
+            onClick={() => setIsExpanded(true)}
+            className="absolute right-4 bottom-3 z-10 flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-card/90 border border-border/60 text-xs text-muted-foreground hover:text-foreground backdrop-blur-sm shadow-sm transition-colors cursor-pointer"
+          >
+            <IconChevronDown className="size-3.5" />
+            Expand
+          </button>
+        )}
+      </div>
+
+      {showCollapseControl && (
+        <CardFooter className="justify-end pb-3 pt-0">
+          <button
+            onClick={() => setIsExpanded(false)}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-full border border-border/60 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+          >
+            <IconChevronUp className="size-3.5" />
+            Collapse
+          </button>
+        </CardFooter>
+      )}
+
+      {onRefine &&
+        (isRefineOpen ? (
           <div className="w-full">
             <RefineInput
               onSubmit={handleRefineSubmit}
@@ -65,8 +120,7 @@ function ArtifactCard({
               Refine
             </Button>
           </CardFooter>
-        )
-      )}
+        ))}
     </Card>
   );
 }
