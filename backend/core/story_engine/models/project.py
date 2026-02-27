@@ -16,8 +16,6 @@ from ..state.consolidated import (
 )
 
 if TYPE_CHECKING:
-    from .character import Character
-    from .scene import Scene
     from .story import Story
 
 
@@ -50,19 +48,3 @@ class Project(ORMBase):
         back_populates="project",
         cascade="all, delete-orphan",
     )
-
-    @property
-    def characters(self) -> list[Character]:
-        seen_ids: set[uuid.UUID] = set()
-        unique_characters: list[Character] = []
-        for story in self.stories:
-            for character in story.characters:
-                if character.id in seen_ids:
-                    continue
-                seen_ids.add(character.id)
-                unique_characters.append(character)
-        return unique_characters
-
-    @property
-    def scenes(self) -> list[Scene]:
-        return [scene for story in self.stories for scene in story.scenes]
