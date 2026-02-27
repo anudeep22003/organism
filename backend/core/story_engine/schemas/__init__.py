@@ -1,8 +1,3 @@
-from .character import (
-    CharacterCreateSchema,
-    CharacterResponseSchema,
-    CharacterUpdateSchema,
-)
 from .project import (
     ProjectCreateSchema,
     ProjectListResponseSchema,
@@ -10,22 +5,10 @@ from .project import (
     ProjectResponseSchema,
     ProjectUpdateSchema,
 )
-from .render_job import (
-    RenderJobCreateSchema,
-    RenderJobResponseSchema,
-    RenderJobUpdateSchema,
-)
-from .scene import (
-    SceneCharacterResponseSchema,
-    SceneCreateSchema,
-    SceneResponseSchema,
-    SceneUpdateSchema,
-)
 from .story import (
-    StoryCharacterResponseSchema,
+    GenerateStoryRequest,
     StoryCreateSchema,
     StoryResponseSchema,
-    StoryUpdateSchema,
 )
 
 __all__ = [
@@ -35,17 +18,6 @@ __all__ = [
     "ProjectListResponseSchema",
     "ProjectRelationalStateSchema",
     "StoryCreateSchema",
-    "StoryUpdateSchema",
     "StoryResponseSchema",
-    "CharacterCreateSchema",
-    "CharacterUpdateSchema",
-    "CharacterResponseSchema",
-    "SceneCreateSchema",
-    "SceneUpdateSchema",
-    "SceneResponseSchema",
-    "RenderJobCreateSchema",
-    "RenderJobUpdateSchema",
-    "RenderJobResponseSchema",
-    "StoryCharacterResponseSchema",
-    "SceneCharacterResponseSchema",
+    "GenerateStoryRequest",
 ]

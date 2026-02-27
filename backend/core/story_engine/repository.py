@@ -44,8 +44,7 @@ class Repository:
             select(Project)
             .where(Project.id == project_id, Project.user_id == uuid.UUID(user_id))
             .options(
-                selectinload(Project.stories).selectinload(Story.characters),
-                selectinload(Project.stories).selectinload(Story.scenes),
+                selectinload(Project.stories),
             )
         )
         result = await self.db.execute(query)
