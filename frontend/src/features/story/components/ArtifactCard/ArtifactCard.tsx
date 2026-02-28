@@ -2,12 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import {
   IconPencil,
   IconAlertTriangle,
-  IconChevronDown,
   IconChevronUp,
 } from "@tabler/icons-react";
 import {
   Card,
-  CardContent,
   CardFooter,
   CardHeader,
   CardTitle,
@@ -15,11 +13,13 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import ContentCard from "../ContentCard";
 import RefineInput from "./RefineInput";
 import type { ArtifactCardProps, RefinePayload } from "./types";
 
 function ArtifactCard({
   title,
+  prompt,
   content,
   headerActions,
   isStale = false,
@@ -31,26 +31,8 @@ function ArtifactCard({
 }: ArtifactCardProps) {
   const [isRefineOpen, setIsRefineOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(!collapsible);
-  const contentRef = useRef<HTMLDivElement>(null);
-  const [hasOverflow, setHasOverflow] = useState(false);
-
-  useEffect(() => {
-    const node = contentRef.current;
-    if (!node || !collapsible) return;
-    const collapsedMax = window.innerHeight / 3;
-    setHasOverflow(node.scrollHeight > collapsedMax);
-  }, [content, collapsible]);
-
-  const handleRefineSubmit = (payload: RefinePayload) => {
-    onRefine?.(payload);
-    setIsRefineOpen(false);
-  };
-
   const cardRef = useRef<HTMLDivElement>(null);
   const [isCardVisible, setIsCardVisible] = useState(false);
-
-  const isCollapsed = collapsible && !isExpanded && hasOverflow;
-  const showFloatingCollapse = collapsible && isExpanded && hasOverflow && isCardVisible;
 
   useEffect(() => {
     const card = cardRef.current;
@@ -62,6 +44,13 @@ function ArtifactCard({
     observer.observe(card);
     return () => observer.disconnect();
   }, [collapsible]);
+
+  const handleRefineSubmit = (payload: RefinePayload) => {
+    onRefine?.(payload);
+    setIsRefineOpen(false);
+  };
+
+  const showFloatingCollapse = collapsible && isExpanded && isCardVisible;
 
   return (
     <Card ref={cardRef} className={cn("gap-0 py-0 overflow-hidden", className)}>
@@ -81,26 +70,20 @@ function ArtifactCard({
         {headerActions && <div className="flex items-center gap-1">{headerActions}</div>}
       </CardHeader>
 
-      <div className="relative">
-        <CardContent
-          ref={contentRef}
-          className={cn(
-            "py-4 min-h-[80px] transition-[max-height] duration-500 ease-in-out overflow-hidden",
-            isCollapsed && "max-h-[33vh]",
-          )}
+      {isLoading ? (
+        <div className="px-6 py-4 min-h-[80px]">
+          <ArtifactSkeleton />
+        </div>
+      ) : (
+        <ContentCard
+          prompt={prompt}
+          collapsible={collapsible}
+          expanded={isExpanded}
+          onToggleExpand={() => setIsExpanded((v) => !v)}
         >
-          {isLoading ? <ArtifactSkeleton /> : content}
-        </CardContent>
-
-        {isCollapsed && (
-          <button
-            onClick={() => setIsExpanded(true)}
-            className="absolute inset-x-0 bottom-0 h-24 flex items-end justify-center pb-2 bg-linear-to-t from-card via-card/80 to-transparent cursor-pointer group transition-all"
-          >
-            <IconChevronDown className="size-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
-          </button>
-        )}
-      </div>
+          {content}
+        </ContentCard>
+      )}
 
       {showFloatingCollapse && (
         <button

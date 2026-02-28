@@ -1,22 +1,23 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { Link, useParams } from "react-router";
+import { IconHistory } from "@tabler/icons-react";
+import { Button } from "@/components/ui/button";
 import { ArtifactCard } from "../components/ArtifactCard";
 import type { RefinePayload } from "../components/ArtifactCard";
+import HistoryOverlay from "../components/HistoryOverlay";
 import StoryContent from "../components/StoryContent";
 import { useStoryPhase } from "./hooks/useStoryPhase";
 import { useStoryHistory } from "./hooks/useStoryHistory";
-import StoryHistory from "./StoryHistory";
 
 function StoryWorkspace() {
   const { projectId, storyId } = useParams();
   const pid = projectId ?? "";
   const sid = storyId ?? "";
 
-  const { storyText, error, isGenerating, submitPrompt } = useStoryPhase(
-    pid,
-    sid,
-  );
+  const { storyText, userInputText, error, isGenerating, submitPrompt } =
+    useStoryPhase(pid, sid);
   const { data: historyEvents } = useStoryHistory(pid, sid);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   const handleStoryRefine = useCallback(
     (payload: RefinePayload) => submitPrompt(payload.text),
@@ -35,7 +36,19 @@ function StoryWorkspace() {
 
         <ArtifactCard
           title="Story"
-          headerActions={<StoryHistory events={historyEvents ?? []} />}
+          prompt={userInputText || undefined}
+          headerActions={
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7 text-muted-foreground hover:text-foreground"
+              aria-label="History"
+              disabled={isGenerating}
+              onClick={() => setIsHistoryOpen(true)}
+            >
+              <IconHistory className="size-3.5" />
+            </Button>
+          }
           content={
             <StoryContent
               storyText={storyText}
@@ -52,6 +65,12 @@ function StoryWorkspace() {
         <PlaceholderSection title="Characters" />
         <PlaceholderSection title="Scenes" />
       </div>
+
+      <HistoryOverlay
+        open={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
+        events={historyEvents ?? []}
+      />
     </div>
   );
 }
