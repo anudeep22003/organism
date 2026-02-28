@@ -50,15 +50,15 @@ function HistoryOverlay({ open, onClose, events }: HistoryOverlayProps) {
         </Button>
       </div>
 
-      <div className="relative z-10 flex-1 flex items-center">
+      <div className="relative z-10 flex-1 min-h-0 flex items-stretch py-4">
         {events.length === 0 ? (
           <div className="flex-1 flex items-center justify-center">
             <p className="text-sm text-white/40">No history yet</p>
           </div>
         ) : (
           <div
-            className="flex gap-4 overflow-x-auto snap-x snap-mandatory w-full px-[calc(50vw-12rem)] py-4"
-            style={{ scrollPaddingInline: "calc(50vw - 12rem)" }}
+            className="flex gap-4 overflow-x-auto snap-x snap-mandatory w-full px-[10vw] items-stretch"
+            style={{ scrollPaddingInline: "10vw" }}
           >
             {events.map((event) => (
               <HistoryCard key={event.id} event={event} />

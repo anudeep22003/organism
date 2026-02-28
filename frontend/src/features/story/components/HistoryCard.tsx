@@ -25,8 +25,8 @@ function HistoryCard({ event }: { event: EditEventType }) {
   const storyText = event.outputSnapshot?.storyText ?? "";
 
   return (
-    <Card className="gap-0 py-0 overflow-hidden bg-card/80 border-border/40 w-96 flex-shrink-0 snap-center">
-      <CardHeader className="py-3 px-4 border-b border-border/30 flex flex-row items-center justify-between">
+    <Card className="gap-0 py-0 overflow-hidden bg-card/80 border-border/40 w-[80vw] max-w-96 flex-shrink-0 snap-center flex flex-col">
+      <CardHeader className="py-3 px-4 border-b border-border/30 flex flex-row items-center justify-between flex-shrink-0">
         <span className="text-[11px] text-muted-foreground/60">
           {formatRelativeTime(event.createdAt)}
         </span>
@@ -37,23 +37,21 @@ function HistoryCard({ event }: { event: EditEventType }) {
           <StatusIcon status={event.status} />
         </div>
       </CardHeader>
-      <ContentCard
-        prompt={event.userInstruction}
-        collapsible
-        maxCollapsedHeight="300px"
-      >
-        {storyText ? (
-          <article className="prose prose-stone dark:prose-invert prose-sm leading-[1.8] text-foreground/70">
-            <div className="whitespace-pre-wrap font-serif text-[14px]">
-              {storyText}
-            </div>
-          </article>
-        ) : (
-          <p className="text-xs text-muted-foreground/40 italic">
-            No output recorded
-          </p>
-        )}
-      </ContentCard>
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        <ContentCard prompt={event.userInstruction}>
+          {storyText ? (
+            <article className="prose prose-stone dark:prose-invert prose-sm leading-[1.8] text-foreground/70">
+              <div className="whitespace-pre-wrap font-serif text-[14px]">
+                {storyText}
+              </div>
+            </article>
+          ) : (
+            <p className="text-xs text-muted-foreground/40 italic">
+              No output recorded
+            </p>
+          )}
+        </ContentCard>
+      </div>
     </Card>
   );
 }
