@@ -47,12 +47,13 @@ async def _as_ndjson(stream: AsyncIterator[EventEnvelope]) -> AsyncIterator[str]
         yield event.model_dump_json() + "\n"
 
 
-@router.post("/story/{story_id}/generate")
+@router.post("/project/{project_id}/story/{story_id}/generate")
 async def generate_story(
     user_id: Annotated[
         str,
         Depends(get_current_user_id),
     ],
+    project_id: uuid.UUID,
     story_id: uuid.UUID,
     db: Annotated[
         AsyncSession,

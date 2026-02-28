@@ -5,8 +5,8 @@ import { useRef } from "react";
 import EventRouter from "../../events/eventRouter";
 import { storyDetailKeys } from "./useStoryDetail";
 
-const STREAM_ENDPOINT = (storyId: string) =>
-  `/api/comic-builder/v2/story/${storyId}/generate` as const;
+const STREAM_ENDPOINT = (projectId: string, storyId: string) =>
+  `/api/comic-builder/v2/project/${projectId}/story/${storyId}/generate` as const;
 
 export const useStoryStream = (projectId: string, storyId: string) => {
   const queryClient = useQueryClient();
@@ -23,7 +23,7 @@ export const useStoryStream = (projectId: string, storyId: string) => {
     storyId: string,
   ) {
     const stream = httpClient.streamPost<EventEnvelope>(
-      STREAM_ENDPOINT(storyId),
+      STREAM_ENDPOINT(projectId, storyId),
       { storyPrompt: userInputText },
     );
 
