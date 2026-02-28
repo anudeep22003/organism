@@ -10,7 +10,7 @@ from core.common import AliasedBaseModel
 
 class StorySchemaBase(AliasedBaseModel):
     story_text: str = ""
-    user_input_text: list[str] = Field(default_factory=list)
+    user_input_text: str = ""
     meta: dict[str, Any] = Field(default_factory=dict)
 
 
