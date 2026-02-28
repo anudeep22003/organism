@@ -17,6 +17,7 @@ export function useStoryPhase(projectId: string, storyId: string) {
 
   return {
     storyText: storyDetail?.storyText ?? "",
+    userInputText: storyDetail?.userInputText ?? "",
     error: storyDetail?.error,
     isGenerating,
     submitPrompt,

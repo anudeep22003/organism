@@ -148,7 +148,7 @@ class Service:
                     await self.repository.complete_edit_event(
                         edit_event_id,
                         EditEventStatus.SUCCEEDED,
-                        output_snapshot={"story_text": full_story},
+                        output_snapshot={"storyText": full_story},
                     )
                     break
         except Exception as e:

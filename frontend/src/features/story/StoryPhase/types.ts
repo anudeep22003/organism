@@ -20,6 +20,7 @@ export type EditEventType = {
   targetId: string;
   operationType: string;
   userInstruction: string;
+  outputSnapshot: { storyText?: string } | null;
   status: string;
   createdAt: string;
 };
