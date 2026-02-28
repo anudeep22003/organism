@@ -10,7 +10,7 @@ export type StoryListEntryType = {
   id: string;
   projectId: string;
   storyText: string;
-  userInputText: string[];
+  userInputText: string;
   meta: Record<string, unknown>;
 };
 
@@ -18,7 +18,7 @@ export type StoryResponseType = {
   id: string;
   projectId: string;
   storyText: string;
-  userInputText: string[];
+  userInputText: string;
   meta: Record<string, unknown>;
 };
 

@@ -85,11 +85,8 @@ class Repository:
         if story is None:
             raise NotFoundError(f"Story {story_id} not found")
 
-        # Create new list for SQLAlchemy
-        # In place mutation not detected as a changed attribute by ORM
-        new_user_input_list = [*story.user_input_text, prompt]
         story.story_text = story_text
-        story.user_input_text = new_user_input_list
+        story.user_input_text = prompt
         await self.db.commit()
         await self.db.refresh(story)
         return story

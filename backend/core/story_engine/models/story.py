@@ -3,8 +3,8 @@ from __future__ import annotations
 import uuid
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import ForeignKey, String, Text
-from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
+from sqlalchemy import ForeignKey, Text
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from core.common import ORMBase
@@ -23,7 +23,7 @@ class Story(ORMBase):
         UUID(as_uuid=True), ForeignKey("project.id", ondelete="CASCADE"), nullable=False
     )
     story_text: Mapped[str] = mapped_column(Text, default="")
-    user_input_text: Mapped[list[str]] = mapped_column(ARRAY(String()), default=list)
+    user_input_text: Mapped[str] = mapped_column(Text, default="")
     meta: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
 
     project: Mapped[Project] = relationship("Project", back_populates="stories")
