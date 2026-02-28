@@ -1,11 +1,11 @@
 import uuid
-from typing import Sequence
+from typing import Any, Sequence
 
-from sqlalchemy import func, select
+from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
-from .models import Project, Story
+from .models import EditEvent, Project, Story
 
 
 class NotFoundError(Exception):
@@ -79,7 +79,11 @@ class Repository:
         return result.scalar_one_or_none()
 
     async def update_story_with_story_and_prompt(
-        self, story_id: uuid.UUID, story_text: str, prompt: str
+        self,
+        story_id: uuid.UUID,
+        story_text: str,
+        prompt: str,
+        source_event_id: uuid.UUID | None = None,
     ) -> Story:
         story = await self.db.get(Story, story_id)
         if story is None:
@@ -87,6 +91,64 @@ class Repository:
 
         story.story_text = story_text
         story.user_input_text = prompt
+        if source_event_id is not None:
+            story.source_event_id = source_event_id
         await self.db.commit()
         await self.db.refresh(story)
         return story
+
+    # ── Edit Event methods ──────────────────────────────────────
+
+    async def create_edit_event(
+        self,
+        project_id: uuid.UUID,
+        target_type: str,
+        target_id: uuid.UUID,
+        operation_type: str,
+        user_instruction: str,
+        input_snapshot: dict[str, Any] | None = None,
+    ) -> EditEvent:
+        event = EditEvent(
+            project_id=project_id,
+            target_type=target_type,
+            target_id=target_id,
+            operation_type=operation_type,
+            user_instruction=user_instruction,
+            input_snapshot=input_snapshot,
+        )
+        self.db.add(event)
+        await self.db.commit()
+        await self.db.refresh(event)
+        return event
+
+    async def complete_edit_event(
+        self,
+        event_id: uuid.UUID,
+        status: str,
+        output_snapshot: dict[str, Any] | None = None,
+    ) -> EditEvent:
+        event = await self.db.get(EditEvent, event_id)
+        if event is None:
+            raise NotFoundError(f"EditEvent {event_id} not found")
+
+        event.status = status
+        if output_snapshot is not None:
+            event.output_snapshot = output_snapshot
+        await self.db.commit()
+        await self.db.refresh(event)
+        return event
+
+    async def get_edit_events_for_target(
+        self, target_type: str, target_id: uuid.UUID, limit: int = 20
+    ) -> Sequence[EditEvent]:
+        stmt = (
+            select(EditEvent)
+            .where(
+                EditEvent.target_type == target_type,
+                EditEvent.target_id == target_id,
+            )
+            .order_by(desc(EditEvent.created_at))
+            .limit(limit)
+        )
+        result = await self.db.execute(stmt)
+        return result.scalars().all()

@@ -21,6 +21,7 @@ import type { ArtifactCardProps, RefinePayload } from "./types";
 function ArtifactCard({
   title,
   content,
+  headerActions,
   isStale = false,
   isLoading = false,
   collapsible = false,
@@ -64,17 +65,20 @@ function ArtifactCard({
 
   return (
     <Card ref={cardRef} className={cn("gap-0 py-0 overflow-hidden", className)}>
-      <CardHeader className="py-4 border-b border-border/40">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        {isStale && (
-          <Badge
-            variant="outline"
-            className="text-amber-500 border-amber-500/30 gap-1"
-          >
-            <IconAlertTriangle className="size-3" />
-            Needs update
-          </Badge>
-        )}
+      <CardHeader className="py-4 border-b border-border/40 flex flex-row items-center justify-between">
+        <div className="flex items-center gap-2">
+          <CardTitle className="text-sm font-medium">{title}</CardTitle>
+          {isStale && (
+            <Badge
+              variant="outline"
+              className="text-amber-500 border-amber-500/30 gap-1"
+            >
+              <IconAlertTriangle className="size-3" />
+              Needs update
+            </Badge>
+          )}
+        </div>
+        {headerActions && <div className="flex items-center gap-1">{headerActions}</div>}
       </CardHeader>
 
       <div className="relative">
@@ -91,7 +95,7 @@ function ArtifactCard({
         {isCollapsed && (
           <button
             onClick={() => setIsExpanded(true)}
-            className="absolute inset-x-0 bottom-0 h-24 flex items-end justify-center pb-2 bg-gradient-to-t from-card via-card/80 to-transparent cursor-pointer group transition-all"
+            className="absolute inset-x-0 bottom-0 h-24 flex items-end justify-center pb-2 bg-linear-to-t from-card via-card/80 to-transparent cursor-pointer group transition-all"
           >
             <IconChevronDown className="size-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
           </button>

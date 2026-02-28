@@ -16,7 +16,9 @@ from core.services.database import (
 
 from ...events import EventEnvelope
 from ...exceptions import InvalidUserIDError, NotFoundError, NotOwnedError
+from ...models.edit_event import TargetType
 from ...repository import Repository
+from ...schemas.edit_event import EditEventResponseSchema
 from ...schemas.story import (
     GenerateStoryRequest,
     StoryResponseSchema,
@@ -64,10 +66,25 @@ async def generate_story(
     repository = Repository(db)
     service = Service(repository)
     try:
-        stream = await service.generate_story(user_id, story_id, request)
+        stream = await service.generate_story(user_id, project_id, story_id, request)
         return StreamingResponse(
             content=_as_ndjson(stream),
             media_type="application/x-ndjson",
         )
     except (InvalidUserIDError, NotFoundError, NotOwnedError) as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.get("/project/{project_id}/story/{story_id}/history")
+async def get_story_history(
+    project_id: uuid.UUID,
+    story_id: uuid.UUID,
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    db: Annotated[AsyncSession, Depends(get_async_db_session)],
+    limit: int = 20,
+) -> list[EditEventResponseSchema]:
+    repository = Repository(db)
+    events = await repository.get_edit_events_for_target(
+        TargetType.STORY, story_id, limit=limit
+    )
+    return [EditEventResponseSchema.model_validate(e) for e in events]

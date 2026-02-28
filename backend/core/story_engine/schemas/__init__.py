@@ -1,3 +1,4 @@
+from .edit_event import EditEventResponseSchema
 from .project import (
     ProjectCreateSchema,
     ProjectListResponseSchema,
@@ -12,6 +13,7 @@ from .story import (
 )
 
 __all__ = [
+    "EditEventResponseSchema",
     "ProjectCreateSchema",
     "ProjectUpdateSchema",
     "ProjectResponseSchema",
