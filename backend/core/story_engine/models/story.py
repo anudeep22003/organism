@@ -10,6 +10,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from core.common import ORMBase
 
 if TYPE_CHECKING:
+    from .edit_event import EditEvent
     from .project import Project
 
 
@@ -22,8 +23,17 @@ class Story(ORMBase):
     project_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("project.id", ondelete="CASCADE"), nullable=False
     )
+    source_event_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("edit_event.id"),
+        nullable=True,
+        default=None,
+    )
     story_text: Mapped[str] = mapped_column(Text, default="")
     user_input_text: Mapped[str] = mapped_column(Text, default="")
     meta: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
 
     project: Mapped[Project] = relationship("Project", back_populates="stories")
+    source_event: Mapped[EditEvent | None] = relationship(
+        "EditEvent", foreign_keys=[source_event_id]
+    )

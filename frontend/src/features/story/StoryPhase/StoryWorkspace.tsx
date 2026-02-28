@@ -4,13 +4,19 @@ import { ArtifactCard } from "../components/ArtifactCard";
 import type { RefinePayload } from "../components/ArtifactCard";
 import StoryContent from "../components/StoryContent";
 import { useStoryPhase } from "./hooks/useStoryPhase";
+import { useStoryHistory } from "./hooks/useStoryHistory";
+import StoryHistory from "./StoryHistory";
 
 function StoryWorkspace() {
   const { projectId, storyId } = useParams();
+  const pid = projectId ?? "";
+  const sid = storyId ?? "";
+
   const { storyText, error, isGenerating, submitPrompt } = useStoryPhase(
-    projectId ?? "",
-    storyId ?? "",
+    pid,
+    sid,
   );
+  const { data: historyEvents } = useStoryHistory(pid, sid);
 
   const handleStoryRefine = useCallback(
     (payload: RefinePayload) => submitPrompt(payload.text),
@@ -29,6 +35,7 @@ function StoryWorkspace() {
 
         <ArtifactCard
           title="Story"
+          headerActions={<StoryHistory events={historyEvents ?? []} />}
           content={
             <StoryContent
               storyText={storyText}

@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRef } from "react";
 import EventRouter from "../../events/eventRouter";
 import { storyDetailKeys } from "./useStoryDetail";
+import { storyHistoryKeys } from "./useStoryHistory";
 
 const STREAM_ENDPOINT = (projectId: string, storyId: string) =>
   `/api/comic-builder/v2/project/${projectId}/story/${storyId}/generate` as const;
@@ -16,6 +17,11 @@ export const useStoryStream = (projectId: string, storyId: string) => {
   const mutation = useMutation({
     mutationFn: (userInputText: string) =>
       startGeneration(userInputText, storyId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: storyHistoryKeys.forStory(projectId, storyId),
+      });
+    },
   });
 
   async function startGeneration(

@@ -13,6 +13,7 @@ from .exceptions import (
     NotOwnedError,
     StreamGeneratorError,
 )
+from .models.edit_event import EditEventStatus, OperationType, TargetType
 from .repository import Repository
 from .schemas.story import GenerateStoryRequest
 
@@ -100,16 +101,36 @@ class Service:
             raise NotOwnedError(f"User {_user_id} does not own story {story_id}")
 
     async def generate_story(
-        self, user_id: str, story_id: uuid.UUID, request: GenerateStoryRequest
+        self,
+        user_id: str,
+        project_id: uuid.UUID,
+        story_id: uuid.UUID,
+        request: GenerateStoryRequest,
     ) -> AsyncIterator[EventEnvelope]:
         _user_id = self._get_user_id(user_id)
         await self._check_story_ownership(_user_id, story_id)
-        return self._execute_streaming(story_id, request.story_prompt)
+
+        story = await self.repository.get_story(project_id, story_id)
+        is_refine = story is not None and story.story_text.strip() != ""
+        operation = (
+            OperationType.REFINE_STORY if is_refine else OperationType.GENERATE_STORY
+        )
+
+        edit_event = await self.repository.create_edit_event(
+            project_id=project_id,
+            target_type=TargetType.STORY,
+            target_id=story_id,
+            operation_type=operation,
+            user_instruction=request.story_prompt,
+        )
+
+        return self._execute_streaming(story_id, request.story_prompt, edit_event.id)
 
     async def _execute_streaming(
         self,
         story_id: uuid.UUID,
         prompt: str,
+        edit_event_id: uuid.UUID,
         stream_generator: StoryStreamGenerator = StoryStreamGenerator(),
         processor: StreamProcessor = OpenAIStreamProcessor(),
     ) -> AsyncIterator[EventEnvelope]:
@@ -122,10 +143,18 @@ class Service:
                 if processed_chunk.event_type == EventType.STREAM_END:
                     full_story = "".join(accumulator)
                     await self.repository.update_story_with_story_and_prompt(
-                        story_id, full_story, prompt
+                        story_id, full_story, prompt, source_event_id=edit_event_id
+                    )
+                    await self.repository.complete_edit_event(
+                        edit_event_id,
+                        EditEventStatus.SUCCEEDED,
+                        output_snapshot={"story_text": full_story},
                     )
                     break
         except Exception as e:
+            await self.repository.complete_edit_event(
+                edit_event_id, EditEventStatus.FAILED
+            )
             yield EventEnvelope(
                 event_type=EventType.STREAM_ERROR,
                 error=ErrorPayload(code="E_INTERNAL", message=str(e), retryable=True),

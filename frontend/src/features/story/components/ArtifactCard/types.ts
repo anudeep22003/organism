@@ -8,6 +8,7 @@ export type RefinePayload = {
 export type ArtifactCardProps = {
   title: string;
   content: ReactNode;
+  headerActions?: ReactNode;
   isStale?: boolean;
   isLoading?: boolean;
   collapsible?: boolean;
