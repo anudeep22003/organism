@@ -1,4 +1,5 @@
 import { type ReactNode } from "react";
+import { ThemeProvider } from "./ThemeContext";
 import { SocketProvider } from "./SocketContext";
 import MediaContextProvider from "./MediaContext";
 import ChatProvider from "./ChatContext";
@@ -13,24 +14,26 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 
 export const RootProvider = ({ children }: { children: ReactNode }) => {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Provider store={store}>
-          <TooltipProvider>
-            <SocketProvider>
-              <MediaContextProvider>
-                <UIProvider>
-                  <ChatProvider>
-                    <MessageMaintenanceProvider>
-                      {children}
-                    </MessageMaintenanceProvider>
-                  </ChatProvider>
-                </UIProvider>
-              </MediaContextProvider>
-            </SocketProvider>
-          </TooltipProvider>
-        </Provider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <Provider store={store}>
+            <TooltipProvider>
+              <SocketProvider>
+                <MediaContextProvider>
+                  <UIProvider>
+                    <ChatProvider>
+                      <MessageMaintenanceProvider>
+                        {children}
+                      </MessageMaintenanceProvider>
+                    </ChatProvider>
+                  </UIProvider>
+                </MediaContextProvider>
+              </SocketProvider>
+            </TooltipProvider>
+          </Provider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 };

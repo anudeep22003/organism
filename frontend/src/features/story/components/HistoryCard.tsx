@@ -16,8 +16,8 @@ function formatOperationType(operationType: string): string {
 }
 
 function StatusIcon({ status }: { status: string }) {
-  if (status === "succeeded") return <IconCheck className="size-3 text-emerald-500" />;
-  if (status === "failed") return <IconX className="size-3 text-red-500" />;
+  if (status === "succeeded") return <IconCheck className="size-3 text-success" />;
+  if (status === "failed") return <IconX className="size-3 text-destructive" />;
   return <div className="size-3 rounded-full bg-muted-foreground/30 animate-pulse" />;
 }
 
