@@ -1,5 +1,6 @@
 import textwrap
 import uuid
+from dataclasses import dataclass
 from typing import AsyncIterator, Protocol
 
 from openai.types.chat import ChatCompletionChunk
@@ -14,6 +15,7 @@ from .exceptions import (
     StreamGeneratorError,
 )
 from .models.edit_event import EditEventStatus, OperationType, TargetType
+from .models.story import Story
 from .repository import Repository
 from .schemas.story import GenerateStoryRequest
 
@@ -75,9 +77,26 @@ class OpenAIStreamProcessor(StreamProcessor):
         raise ValueError(f"Unknown chunk: {chunk}")
 
 
+@dataclass(frozen=True)
+class StoryStreamContext:
+    """Parameters for executing a story stream."""
+
+    story_id: uuid.UUID
+    user_instruction: str  # original user instruction
+    constructed_prompt: str  # prompt that is actually sent to the LLM
+    edit_event_id: uuid.UUID
+
+
 class Service:
-    def __init__(self, repository: Repository):
+    def __init__(
+        self,
+        repository: Repository,
+        stream_generator: StoryStreamGenerator | None = None,
+        processor: StreamProcessor | None = None,
+    ):
         self.repository = repository
+        self.stream_generator = stream_generator or StoryStreamGenerator()
+        self.processor = processor or OpenAIStreamProcessor()
 
     def _get_user_id(self, user_id: str) -> uuid.UUID:
         """
@@ -92,13 +111,25 @@ class Service:
             raise InvalidUserIDError(f"Invalid user ID: {user_id}") from e
 
     async def _check_story_ownership(
-        self, _user_id: uuid.UUID, story_id: uuid.UUID
+        self, _user_id: uuid.UUID, story_with_project: Story
     ) -> None:
-        story = await self.repository.get_story_with_project(story_id)
-        if story is None:
-            raise NotFoundError(f"Story {story_id} not found")
-        if story.project.user_id != _user_id:
-            raise NotOwnedError(f"User {_user_id} does not own story {story_id}")
+        if story_with_project.project.user_id != _user_id:
+            raise NotOwnedError(
+                f"User {_user_id} does not own story {story_with_project.id}"
+            )
+
+    def _build_refinement_prompt(
+        self, prev_story_text: str, user_instruction: str
+    ) -> str:
+        return textwrap.dedent(f"""
+            You generated the previous story. The user is asking you to refine it according to the following instruction(s):
+            {user_instruction}
+
+            Here is the previous story:
+            {prev_story_text}
+
+            Please refine the previous story according to the user's instructions.
+        """).strip()
 
     async def generate_story(
         self,
@@ -108,14 +139,22 @@ class Service:
         request: GenerateStoryRequest,
     ) -> AsyncIterator[EventEnvelope]:
         _user_id = self._get_user_id(user_id)
-        await self._check_story_ownership(_user_id, story_id)
 
-        story = await self.repository.get_story(project_id, story_id)
-        is_refine = story is not None and story.story_text.strip() != ""
+        story_with_project = await self.repository.get_story_with_project(story_id)
+        if story_with_project is None:
+            raise NotFoundError(f"Story {story_id} not found")
+
+        await self._check_story_ownership(_user_id, story_with_project)
+
+        prev_story_text = story_with_project.story_text
+
+        # If story_text field is empty, then it is a refinement attempt
+        is_refine = prev_story_text.strip() != ""
         operation = (
             OperationType.REFINE_STORY if is_refine else OperationType.GENERATE_STORY
         )
 
+        # Build a different prompt if the user is refining
         edit_event = await self.repository.create_edit_event(
             project_id=project_id,
             target_type=TargetType.STORY,
@@ -124,36 +163,48 @@ class Service:
             user_instruction=request.story_prompt,
         )
 
-        return self._execute_streaming(story_id, request.story_prompt, edit_event.id)
+        if is_refine:
+            constructed_prompt = self._build_refinement_prompt(
+                prev_story_text, request.story_prompt
+            )
+        else:
+            constructed_prompt = request.story_prompt
+
+        params = StoryStreamContext(
+            story_id=story_id,
+            user_instruction=request.story_prompt,
+            constructed_prompt=constructed_prompt,
+            edit_event_id=edit_event.id,
+        )
+
+        return self._execute_streaming(params)
 
     async def _execute_streaming(
-        self,
-        story_id: uuid.UUID,
-        prompt: str,
-        edit_event_id: uuid.UUID,
-        stream_generator: StoryStreamGenerator = StoryStreamGenerator(),
-        processor: StreamProcessor = OpenAIStreamProcessor(),
+        self, params: StoryStreamContext
     ) -> AsyncIterator[EventEnvelope]:
         accumulator: list[str] = []
         try:
-            stream = await stream_generator.stream(prompt)
+            stream = await self.stream_generator.stream(params.constructed_prompt)
             async for chunk in stream:
-                processed_chunk = await processor.process(chunk, accumulator)
+                processed_chunk = await self.processor.process(chunk, accumulator)
                 yield processed_chunk
                 if processed_chunk.event_type == EventType.STREAM_END:
                     full_story = "".join(accumulator)
                     await self.repository.update_story_with_story_and_prompt(
-                        story_id, full_story, prompt, source_event_id=edit_event_id
+                        params.story_id,
+                        full_story,
+                        params.user_instruction,
+                        source_event_id=params.edit_event_id,
                     )
                     await self.repository.complete_edit_event(
-                        edit_event_id,
+                        params.edit_event_id,
                         EditEventStatus.SUCCEEDED,
                         output_snapshot={"storyText": full_story},
                     )
                     break
         except Exception as e:
             await self.repository.complete_edit_event(
-                edit_event_id, EditEventStatus.FAILED
+                params.edit_event_id, EditEventStatus.FAILED
             )
             yield EventEnvelope(
                 event_type=EventType.STREAM_ERROR,
