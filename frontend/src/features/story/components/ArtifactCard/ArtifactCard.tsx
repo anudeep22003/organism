@@ -60,7 +60,7 @@ function ArtifactCard({
           {isStale && (
             <Badge
               variant="outline"
-              className="text-amber-500 border-amber-500/30 gap-1"
+              className="text-warning border-warning/30 gap-1"
             >
               <IconAlertTriangle className="size-3" />
               Needs update
