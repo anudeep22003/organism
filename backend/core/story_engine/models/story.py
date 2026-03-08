@@ -10,6 +10,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from core.common import ORMBase
 
 if TYPE_CHECKING:
+    from .character import Character
     from .edit_event import EditEvent
     from .project import Project
 
@@ -36,4 +37,7 @@ class Story(ORMBase):
     project: Mapped[Project] = relationship("Project", back_populates="stories")
     source_event: Mapped[EditEvent | None] = relationship(
         "EditEvent", foreign_keys=[source_event_id]
+    )
+    characters: Mapped[list[Character]] = relationship(
+        "Character", back_populates="story"
     )
