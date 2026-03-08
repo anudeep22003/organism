@@ -82,7 +82,7 @@ class StoryStreamContext:
     """Parameters for executing a story stream."""
 
     story_id: uuid.UUID
-    user_instruction: str  # original user instruction
+    user_input_text: str  # original user instruction
     constructed_prompt: str  # prompt that is actually sent to the LLM
     edit_event_id: uuid.UUID
 
@@ -172,7 +172,7 @@ class Service:
 
         params = StoryStreamContext(
             story_id=story_id,
-            user_instruction=request.story_prompt,
+            user_input_text=request.story_prompt,
             constructed_prompt=constructed_prompt,
             edit_event_id=edit_event.id,
         )
@@ -190,10 +190,10 @@ class Service:
                 yield processed_chunk
                 if processed_chunk.event_type == EventType.STREAM_END:
                     full_story = "".join(accumulator)
-                    await self.repository.update_story_with_story_and_prompt(
+                    await self.repository.update_story_with_story_text_and_user_input_text(
                         params.story_id,
                         full_story,
-                        params.user_instruction,
+                        params.user_input_text,
                         source_event_id=params.edit_event_id,
                     )
                     await self.repository.complete_edit_event(

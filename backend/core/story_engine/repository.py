@@ -78,11 +78,11 @@ class Repository:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def update_story_with_story_and_prompt(
+    async def update_story_with_story_text_and_user_input_text(
         self,
         story_id: uuid.UUID,
         story_text: str,
-        prompt: str,
+        user_input_text: str,
         source_event_id: uuid.UUID | None = None,
     ) -> Story:
         story = await self.db.get(Story, story_id)
@@ -90,7 +90,7 @@ class Repository:
             raise NotFoundError(f"Story {story_id} not found")
 
         story.story_text = story_text
-        story.user_input_text = prompt
+        story.user_input_text = user_input_text
         if source_event_id is not None:
             story.source_event_id = source_event_id
         await self.db.commit()
