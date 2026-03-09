@@ -39,3 +39,24 @@ async def extract_characters_from_story(
             status_code=500,
             detail="An unexpected error occurred while extracting characters",
         )
+
+
+@router.get("/project/{project_id}/story/{story_id}/characters", status_code=200)
+async def get_characters_for_story(
+    project_id: uuid.UUID,
+    story_id: uuid.UUID,
+    db: Annotated[AsyncSession, Depends(get_async_db_session)],
+) -> list[CharacterResponseSchema]:
+    repository = Repository(db)
+    service = Service(repository)
+    try:
+        characters = await service.get_story_characters(project_id, story_id)
+        return [CharacterResponseSchema.model_validate(c) for c in characters]
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.exception(f"Unexpected error getting characters for story: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while getting characters for story",
+        )

@@ -248,7 +248,9 @@ class Service:
         ]
         await self.repository.bulk_create_characters(characters)
 
-        created_characters = await self.repository.get_characters_for_story(story_id)
+        created_characters = await self.repository.get_all_characters_for_a_story(
+            story_id
+        )
 
         return list(created_characters)
 
@@ -271,3 +273,12 @@ class Service:
             raise CharacterExtractorError(f"Error extracting characters: {e}") from e
 
         return response
+
+    async def get_story_characters(
+        self, project_id: uuid.UUID, story_id: uuid.UUID
+    ) -> list[Character]:
+        story = await self.repository.get_story(project_id, story_id)
+        if story is None:
+            raise NotFoundError(f"Story {story_id} not found")
+
+        return await self.repository.get_all_characters_for_a_story(story_id)

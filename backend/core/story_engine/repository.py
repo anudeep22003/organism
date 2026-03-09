@@ -140,7 +140,7 @@ class Repository:
 
     async def get_edit_events_for_target(
         self, target_type: str, target_id: uuid.UUID, limit: int = 20
-    ) -> Sequence[EditEvent]:
+    ) -> list[EditEvent]:
         stmt = (
             select(EditEvent)
             .where(
@@ -151,15 +151,17 @@ class Repository:
             .limit(limit)
         )
         result = await self.db.execute(stmt)
-        return result.scalars().all()
+        events = result.scalars().all()
+        return list(events)
 
     async def bulk_create_characters(self, characters: list[Character]) -> None:
         self.db.add_all(characters)
         await self.db.commit()
 
-    async def get_characters_for_story(
+    async def get_all_characters_for_a_story(
         self, story_id: uuid.UUID
-    ) -> Sequence[Character]:
+    ) -> list[Character]:
         stmt = select(Character).where(Character.story_id == story_id)
         result = await self.db.execute(stmt)
-        return result.scalars().all()
+        characters = result.scalars().all()
+        return list(characters)
