@@ -5,7 +5,7 @@ from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
-from .models import EditEvent, Project, Story
+from .models import Character, EditEvent, Project, Story
 
 
 class NotFoundError(Exception):
@@ -150,5 +150,16 @@ class Repository:
             .order_by(desc(EditEvent.created_at))
             .limit(limit)
         )
+        result = await self.db.execute(stmt)
+        return result.scalars().all()
+
+    async def bulk_create_characters(self, characters: list[Character]) -> None:
+        self.db.add_all(characters)
+        await self.db.commit()
+
+    async def get_characters_for_story(
+        self, story_id: uuid.UUID
+    ) -> Sequence[Character]:
+        stmt = select(Character).where(Character.story_id == story_id)
         result = await self.db.execute(stmt)
         return result.scalars().all()

@@ -4,20 +4,28 @@ from dataclasses import dataclass
 from typing import AsyncIterator, Protocol
 
 from openai.types.chat import ChatCompletionChunk
+from slugify import slugify
 
+from core.services.intelligence import instructor_client
 from core.services.intelligence.clients import async_openai_client
 
 from .events import ErrorPayload, EventEnvelope, EventType
 from .exceptions import (
+    CharacterExtractorError,
     InvalidUserIDError,
+    NoStoryTextError,
     NotFoundError,
     NotOwnedError,
     StreamGeneratorError,
 )
+from .models import (
+    Character,
+    Story,
+)
 from .models.edit_event import EditEventStatus, OperationType, TargetType
-from .models.story import Story
 from .repository import Repository
 from .schemas.story import GenerateStoryRequest
+from .state.character import CharacterBase as CharacterAttributes
 
 
 class StoryStreamGenerator:
@@ -211,3 +219,55 @@ class Service:
                 error=ErrorPayload(code="E_INTERNAL", message=str(e), retryable=True),
             )
             raise StreamGeneratorError(f"Error streaming story: {e}") from e
+
+    async def extract_characters_from_story(
+        self, project_id: uuid.UUID, story_id: uuid.UUID
+    ) -> list[Character]:
+        story = await self.repository.get_story(project_id, story_id)
+        if story is None:
+            raise NotFoundError(f"Story {story_id} not found")
+
+        if story.story_text.strip() == "":
+            raise NoStoryTextError(
+                f"Story {story_id} has no text, generate story first to extract characters"
+            )
+
+        extracted_characters = await self._extract_characters_from_story(
+            story.story_text
+        )
+
+        # store characters in db
+        characters = [
+            Character(
+                story_id=story_id,
+                name=c.name,
+                slug=slugify(c.name),
+                attributes=c.model_dump(),
+            )
+            for c in extracted_characters
+        ]
+        await self.repository.bulk_create_characters(characters)
+
+        created_characters = await self.repository.get_characters_for_story(story_id)
+
+        return list(created_characters)
+
+    async def _extract_characters_from_story(
+        self, story_text: str
+    ) -> list[CharacterAttributes]:
+        try:
+            response = await instructor_client.chat.completions.create(
+                model="gpt-4o",
+                response_model=list[CharacterAttributes],
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a comic book writer. You will be given a story and you will need to extract the characters who affect the flow of the story.",
+                    },
+                    {"role": "user", "content": story_text},
+                ],
+            )
+        except Exception as e:
+            raise CharacterExtractorError(f"Error extracting characters: {e}") from e
+
+        return response

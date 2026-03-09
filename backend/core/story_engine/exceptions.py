@@ -83,3 +83,15 @@ class InvalidUserIDError(BaseError):
     """Invalid user ID format."""
 
     pass
+
+
+class NoStoryTextError(BaseError):
+    """No story text available for story."""
+
+    pass
+
+
+class CharacterExtractionError(BaseError):
+    """Error extracting characters from story."""
+
+    pass
