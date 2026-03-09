@@ -9,7 +9,7 @@ from core.services.database import get_async_db_session
 
 from ...exceptions import CharacterExtractionError, NoStoryTextError, NotFoundError
 from ...repository import Repository
-from ...schemas.character import CharacterResponseSchema
+from ...schemas.character import CharacterResponseSchema, CharacterUpdateSchema
 from ...service import Service
 
 router = APIRouter(tags=["characters", "v2"])
@@ -59,4 +59,79 @@ async def get_characters_for_story(
         raise HTTPException(
             status_code=500,
             detail="An unexpected error occurred while getting characters for story",
+        )
+
+
+@router.get(
+    "/project/{project_id}/story/{story_id}/characters/{character_id}", status_code=200
+)
+async def get_character(
+    project_id: uuid.UUID,
+    story_id: uuid.UUID,
+    character_id: uuid.UUID,
+    db: Annotated[AsyncSession, Depends(get_async_db_session)],
+) -> CharacterResponseSchema:
+    repository = Repository(db)
+    service = Service(repository)
+    try:
+        character = await service.get_character(project_id, story_id, character_id)
+        return CharacterResponseSchema.model_validate(character)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.exception(f"Unexpected error getting character {character_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while getting the character",
+        )
+
+
+@router.patch(
+    "/project/{project_id}/story/{story_id}/characters/{character_id}", status_code=200
+)
+async def update_character(
+    project_id: uuid.UUID,
+    story_id: uuid.UUID,
+    character_id: uuid.UUID,
+    body: CharacterUpdateSchema,
+    db: Annotated[AsyncSession, Depends(get_async_db_session)],
+) -> CharacterResponseSchema:
+    repository = Repository(db)
+    service = Service(repository)
+    try:
+        updates = body.model_dump(exclude_none=True)
+        character = await service.update_character(
+            project_id, story_id, character_id, updates
+        )
+        return CharacterResponseSchema.model_validate(character)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.exception(f"Unexpected error updating character {character_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while updating the character",
+        )
+
+
+@router.delete(
+    "/project/{project_id}/story/{story_id}/characters/{character_id}", status_code=204
+)
+async def delete_character(
+    project_id: uuid.UUID,
+    story_id: uuid.UUID,
+    character_id: uuid.UUID,
+    db: Annotated[AsyncSession, Depends(get_async_db_session)],
+) -> None:
+    repository = Repository(db)
+    service = Service(repository)
+    try:
+        await service.delete_character(project_id, story_id, character_id)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.exception(f"Unexpected error deleting character {character_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while deleting the character",
         )

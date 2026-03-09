@@ -23,6 +23,7 @@ from .models import (
     Story,
 )
 from .models.edit_event import EditEventStatus, OperationType, TargetType
+from .repository import NotFoundError as RepositoryNotFoundError
 from .repository import Repository
 from .schemas.story import GenerateStoryRequest
 from .state.character import CharacterBase as CharacterAttributes
@@ -282,3 +283,48 @@ class Service:
             raise NotFoundError(f"Story {story_id} not found")
 
         return await self.repository.get_all_characters_for_a_story(story_id)
+
+    async def get_character(
+        self, project_id: uuid.UUID, story_id: uuid.UUID, character_id: uuid.UUID
+    ) -> Character:
+        story = await self.repository.get_story(project_id, story_id)
+        if story is None:
+            raise NotFoundError(f"Story {story_id} not found")
+
+        character = await self.repository.get_character(character_id, story_id)
+        if character is None:
+            raise NotFoundError(
+                f"Character {character_id} not found in story {story_id}"
+            )
+
+        return character
+
+    async def update_character(
+        self,
+        project_id: uuid.UUID,
+        story_id: uuid.UUID,
+        character_id: uuid.UUID,
+        updates: dict,
+    ) -> Character:
+        story = await self.repository.get_story(project_id, story_id)
+        if story is None:
+            raise NotFoundError(f"Story {story_id} not found")
+
+        try:
+            return await self.repository.update_character(
+                character_id, story_id, updates
+            )
+        except RepositoryNotFoundError as e:
+            raise NotFoundError(str(e)) from e
+
+    async def delete_character(
+        self, project_id: uuid.UUID, story_id: uuid.UUID, character_id: uuid.UUID
+    ) -> None:
+        story = await self.repository.get_story(project_id, story_id)
+        if story is None:
+            raise NotFoundError(f"Story {story_id} not found")
+
+        try:
+            await self.repository.delete_character(character_id, story_id)
+        except RepositoryNotFoundError as e:
+            raise NotFoundError(str(e)) from e
