@@ -1,5 +1,5 @@
 import uuid
-from typing import Any, Sequence
+from typing import Any
 
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,7 +20,7 @@ class Repository:
 
     async def get_all_projects_of_user_with_story_count(
         self, user_id: str
-    ) -> Sequence[tuple[Project, int]]:
+    ) -> list[tuple[Project, int]]:
         query = (
             select(Project, func.count(Story.id).label("story_count"))
             .outerjoin(Story, Story.project_id == Project.id)
@@ -28,7 +28,8 @@ class Repository:
             .group_by(Project.id)
         )
         result = await self.db.execute(query)
-        return result.tuples().all()
+        projects = result.tuples().all()
+        return list(projects)
 
     async def create_project(self, user_id: str, name: str | None = None) -> Project:
         project = Project(user_id=uuid.UUID(user_id), name=name)

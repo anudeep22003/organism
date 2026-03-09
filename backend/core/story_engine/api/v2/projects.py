@@ -26,7 +26,7 @@ async def get_all_projects_of_user(
     db: Annotated[AsyncSession, Depends(get_async_db_session)],
 ) -> list[ProjectListResponseSchema]:
     repository = Repository(db)
-    rows = await repository.get_all_projects_of_user_with_story_count(user_id)
+    projects = await repository.get_all_projects_of_user_with_story_count(user_id)
     return [
         ProjectListResponseSchema(
             id=project.id,
@@ -35,7 +35,7 @@ async def get_all_projects_of_user(
             updated_at=project.updated_at,
             story_count=story_count,
         )
-        for (project, story_count) in rows
+        for (project, story_count) in projects
     ]
 
 
