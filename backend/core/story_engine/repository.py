@@ -166,3 +166,50 @@ class Repository:
         result = await self.db.execute(stmt)
         characters = result.scalars().all()
         return list(characters)
+
+    async def get_character(
+        self, character_id: uuid.UUID, story_id: uuid.UUID
+    ) -> Character | None:
+        stmt = select(Character).where(
+            Character.id == character_id, Character.story_id == story_id
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def update_character(
+        self, character_id: uuid.UUID, story_id: uuid.UUID, updates: dict[str, Any]
+    ) -> Character:
+        character = await self.get_character(character_id, story_id)
+        if character is None:
+            raise NotFoundError(
+                f"Character {character_id} not found in story {story_id}"
+            )
+
+        # Separate meta from attribute-level fields
+        meta = updates.pop("meta", None)
+
+        # Merge non-None attribute fields into the attributes JSONB column
+        attribute_updates = {k: v for k, v in updates.items() if v is not None}
+        if attribute_updates:
+            character.attributes = {**character.attributes, **attribute_updates}
+            # Keep the top-level name column in sync if name is being updated
+            if "name" in attribute_updates:
+                character.name = attribute_updates["name"]
+
+        if meta is not None:
+            character.meta = {**character.meta, **meta}
+
+        await self.db.commit()
+        await self.db.refresh(character)
+        return character
+
+    async def delete_character(
+        self, character_id: uuid.UUID, story_id: uuid.UUID
+    ) -> None:
+        character = await self.get_character(character_id, story_id)
+        if character is None:
+            raise NotFoundError(
+                f"Character {character_id} not found in story {story_id}"
+            )
+        await self.db.delete(character)
+        await self.db.commit()
