@@ -141,6 +141,35 @@ alembic upgrade head
 uvicorn main:app --reload
 ```
 
+## Testing
+
+Tests run against the real local Postgres instance using the credentials in `.env.local`. No separate test database or mocking is required.
+
+```bash
+# Run all tests
+uv run pytest
+
+# Run with verbose output (shows each test name)
+uv run pytest -v
+
+# Run a specific test file
+uv run pytest tests/story_engine/test_character_api.py -v
+
+# Run a single test
+uv run pytest tests/story_engine/test_character_api.py::test_patch_character_200_name -v
+```
+
+Tests are located in `tests/` and follow the structure:
+
+```
+tests/
+├── conftest.py                        # Shared fixtures (db session, API client, data setup)
+└── story_engine/
+    └── test_character_api.py          # Character endpoint tests (GET, PATCH, DELETE)
+```
+
+Each test is fully self-contained — fixtures create the required rows (user → project → story → character) before the test runs and delete them after, regardless of whether the test passes or fails.
+
 ## Environment Variables
 
 Requires `OPENAI_API_KEY`, `FAL_KEY`, and database connection config. See `.env.example` for the full list.
