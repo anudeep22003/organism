@@ -74,7 +74,7 @@ async def get_characters_for_story(
 
 
 @router.get(
-    "/project/{project_id}/story/{story_id}/characters/{character_id}", status_code=200
+    "/project/{project_id}/story/{story_id}/character/{character_id}", status_code=200
 )
 async def get_character(
     project_id: uuid.UUID,
@@ -98,7 +98,7 @@ async def get_character(
 
 
 @router.patch(
-    "/project/{project_id}/story/{story_id}/characters/{character_id}", status_code=200
+    "/project/{project_id}/story/{story_id}/character/{character_id}", status_code=200
 )
 async def update_character(
     project_id: uuid.UUID,
@@ -126,7 +126,7 @@ async def update_character(
 
 
 @router.post(
-    "/project/{project_id}/story/{story_id}/characters/{character_id}/refine",
+    "/project/{project_id}/story/{story_id}/character/{character_id}/refine",
     status_code=200,
 )
 async def refine_character(
@@ -156,7 +156,7 @@ async def refine_character(
 
 
 @router.delete(
-    "/project/{project_id}/story/{story_id}/characters/{character_id}", status_code=204
+    "/project/{project_id}/story/{story_id}/character/{character_id}", status_code=204
 )
 async def delete_character(
     project_id: uuid.UUID,
@@ -179,7 +179,7 @@ async def delete_character(
 
 
 # add a history endpoint
-@router.get("/project/{project_id}/story/{story_id}/characters/{character_id}/history")
+@router.get("/project/{project_id}/story/{story_id}/character/{character_id}/history")
 async def get_character_history(
     project_id: uuid.UUID,
     story_id: uuid.UUID,
