@@ -42,7 +42,7 @@ async def test_refine_character_smoke_existing_row(
     response = await api_client.post(
         f"/api/comic-builder/v2/project/{PROJECT_ID}"
         f"/story/{STORY_ID}"
-        f"/characters/{CHARACTER_ID}/refine",
+        f"/character/{CHARACTER_ID}/refine",
         json={"instruction": test_instruction},
     )
 
@@ -82,7 +82,7 @@ async def test_get_existing_character_edit_history(
     response = await api_client.get(
         f"/api/comic-builder/v2/project/{PROJECT_ID}"
         f"/story/{STORY_ID}"
-        f"/characters/{CHARACTER_ID}/history",
+        f"/character/{CHARACTER_ID}/history",
     )
 
     assert response.status_code == 200
