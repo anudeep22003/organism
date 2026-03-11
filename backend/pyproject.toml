@@ -48,6 +48,9 @@ dev = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "manual: opt-in tests that hit existing rows or external services",
+]
 filterwarnings = [
     # instructor uses the deprecated class-based Config pattern internally — not our code
     "ignore::pydantic.warnings.PydanticDeprecatedSince20",

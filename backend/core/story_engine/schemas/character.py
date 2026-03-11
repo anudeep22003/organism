@@ -11,6 +11,7 @@ class CharacterSchemaBase(AliasedBaseModel):
     id: uuid.UUID
     created_at: datetime
     updated_at: datetime
+    source_event_id: uuid.UUID | None = None
 
 
 class CharacterResponseSchema(CharacterSchemaBase):
@@ -31,3 +32,7 @@ class CharacterUpdateSchema(BaseModel):
     demeanor: str | None = None
     role: str | None = None
     meta: dict[str, Any] | None = None
+
+
+class CharacterRefineRequest(AliasedBaseModel):
+    instruction: str

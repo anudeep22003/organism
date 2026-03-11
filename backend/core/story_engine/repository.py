@@ -1,6 +1,7 @@
 import uuid
 from typing import Any
 
+from slugify import slugify
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
@@ -198,6 +199,29 @@ class Repository:
 
         if meta is not None:
             character.meta = {**character.meta, **meta}
+
+        await self.db.commit()
+        await self.db.refresh(character)
+        return character
+
+    async def replace_character_attributes(
+        self,
+        character_id: uuid.UUID,
+        story_id: uuid.UUID,
+        attributes: dict[str, Any],
+        source_event_id: uuid.UUID | None = None,
+    ) -> Character:
+        character = await self.get_character(character_id, story_id)
+        if character is None:
+            raise NotFoundError(
+                f"Character {character_id} not found in story {story_id}"
+            )
+
+        character.attributes = attributes
+        character.name = attributes["name"]
+        character.slug = slugify(attributes["name"])
+        if source_event_id is not None:
+            character.source_event_id = source_event_id
 
         await self.db.commit()
         await self.db.refresh(character)

@@ -7,9 +7,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.services.database import get_async_db_session
 
-from ...exceptions import CharacterExtractionError, NoStoryTextError, NotFoundError
+from ...exceptions import (
+    CharacterExtractionError,
+    CharacterRefinementError,
+    NoStoryTextError,
+    NotFoundError,
+)
 from ...repository import Repository
-from ...schemas.character import CharacterResponseSchema, CharacterUpdateSchema
+from ...schemas.character import (
+    CharacterRefineRequest,
+    CharacterResponseSchema,
+    CharacterUpdateSchema,
+)
 from ...service import Service
 
 router = APIRouter(tags=["characters", "v2"])
@@ -111,6 +120,36 @@ async def update_character(
         raise HTTPException(
             status_code=500,
             detail="An unexpected error occurred while updating the character",
+        )
+
+
+@router.post(
+    "/project/{project_id}/story/{story_id}/characters/{character_id}/refine",
+    status_code=200,
+)
+async def refine_character(
+    project_id: uuid.UUID,
+    story_id: uuid.UUID,
+    character_id: uuid.UUID,
+    body: CharacterRefineRequest,
+    db: Annotated[AsyncSession, Depends(get_async_db_session)],
+) -> CharacterResponseSchema:
+    repository = Repository(db)
+    service = Service(repository)
+    try:
+        character = await service.refine_character(
+            project_id, story_id, character_id, body.instruction
+        )
+        return CharacterResponseSchema.model_validate(character)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except CharacterRefinementError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        logger.exception(f"Unexpected error refining character {character_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while refining the character",
         )
 
 

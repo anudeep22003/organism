@@ -94,4 +94,8 @@ class NoStoryTextError(BaseError):
 class CharacterExtractionError(BaseError):
     """Error extracting characters from story."""
 
+
+class CharacterRefinementError(BaseError):
+    """Error refining a character."""
+
     pass
