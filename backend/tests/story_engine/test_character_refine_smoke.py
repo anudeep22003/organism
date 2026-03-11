@@ -6,29 +6,21 @@ test for validating the end-to-end edit-event flow before a fully isolated
 automated test exists.
 """
 
-import os
-import uuid
-from pathlib import Path
-
 import pytest
-from dotenv import load_dotenv
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.story_engine.models import Character, EditEvent
-from core.story_engine.models.edit_event import OperationType, TargetType
-
-load_dotenv(
-    dotenv_path=Path(__file__).resolve().parents[2] / ".env.smoketest",
-    override=False,
+from core.story_engine.models.edit_event import (
+    EditEventStatus,
+    OperationType,
+    TargetType,
 )
 
-
-def _required_env(name: str) -> str:
-    value = os.getenv(name)
-    if value is None or value.strip() == "":
-        pytest.skip(f"{name} is required for the manual smoke test")
-    return value
+# Manual Test targets
+PROJECT_ID = "9c10291d-4b0a-4c2f-8deb-417d36a12d7b"
+STORY_ID = "0a358afa-670c-4729-b1d3-838a76320993"
+CHARACTER_ID = "61c317cf-06c9-4d95-bd06-6d9518a4eeba"
 
 
 @pytest.mark.manual
@@ -36,29 +28,27 @@ async def test_refine_character_smoke_existing_row(
     api_client: AsyncClient,
     db_session: AsyncSession,
 ) -> None:
-    project_id = uuid.UUID(_required_env("CHARACTER_REFINE_SMOKE_PROJECT_ID"))
-    story_id = uuid.UUID(_required_env("CHARACTER_REFINE_SMOKE_STORY_ID"))
-    character_id = uuid.UUID(_required_env("CHARACTER_REFINE_SMOKE_CHARACTER_ID"))
-    instruction = _required_env("CHARACTER_REFINE_SMOKE_INSTRUCTION")
-    expected_brief_contains = os.getenv("CHARACTER_REFINE_SMOKE_EXPECT_BRIEF_CONTAINS")
+    # Local Test parameters
+    test_instruction = "Make the character more interesting and engaging. Include the word interesting and engaging in the brief."
+    test_expect_brief_contains = "interesting"
 
-    character = await db_session.get(Character, character_id)
+    character = await db_session.get(Character, CHARACTER_ID)
     assert character is not None
-    assert character.story_id == story_id
+    assert str(character.story_id) == STORY_ID
 
     previous_source_event_id = character.source_event_id
     previous_attributes = dict(character.attributes)
 
     response = await api_client.post(
-        f"/api/comic-builder/v2/project/{project_id}"
-        f"/story/{story_id}"
-        f"/characters/{character_id}/refine",
-        json={"instruction": instruction},
+        f"/api/comic-builder/v2/project/{PROJECT_ID}"
+        f"/story/{STORY_ID}"
+        f"/characters/{CHARACTER_ID}/refine",
+        json={"instruction": test_instruction},
     )
 
     assert response.status_code == 200
     body = response.json()
-    assert body["id"] == str(character_id)
+    assert body["id"] == str(CHARACTER_ID)
     assert body["sourceEventId"] is not None
 
     await db_session.refresh(character)
@@ -68,14 +58,42 @@ async def test_refine_character_smoke_existing_row(
 
     event = await db_session.get(EditEvent, character.source_event_id)
     assert event is not None
-    assert event.project_id == project_id
-    assert event.target_type == TargetType.CHARACTER.value
-    assert event.target_id == character_id
+    assert str(event.project_id) == PROJECT_ID
+    assert str(event.target_type) == TargetType.CHARACTER.value
+    assert str(event.target_id) == CHARACTER_ID
     assert event.operation_type == OperationType.REFINE_CHARACTER.value
-    assert event.user_instruction == instruction
+    assert event.user_instruction == test_instruction
     assert event.status == "succeeded"
     assert event.input_snapshot == previous_attributes
     assert event.output_snapshot == character.attributes
 
-    if expected_brief_contains is not None:
-        assert expected_brief_contains in character.attributes["brief"]
+    if test_expect_brief_contains is not None:
+        assert test_expect_brief_contains in character.attributes["brief"]
+
+
+@pytest.mark.manual
+async def test_get_existing_character_edit_history(
+    api_client: AsyncClient,
+) -> None:
+    possible_operation_types = [
+        OperationType.REFINE_CHARACTER,
+    ]
+
+    response = await api_client.get(
+        f"/api/comic-builder/v2/project/{PROJECT_ID}"
+        f"/story/{STORY_ID}"
+        f"/characters/{CHARACTER_ID}/history",
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) >= 1
+    for event in body:
+        assert str(event["targetId"]) == CHARACTER_ID
+        assert event["operationType"] in possible_operation_types
+        assert event["userInstruction"] != ""
+        assert event["status"] in [
+            EditEventStatus.SUCCEEDED,
+            EditEventStatus.FAILED,
+            EditEventStatus.PENDING,
+        ]
