@@ -1,3 +1,4 @@
+import json
 import textwrap
 import uuid
 from dataclasses import dataclass
@@ -12,6 +13,7 @@ from core.services.intelligence.clients import async_openai_client
 from .events import ErrorPayload, EventEnvelope, EventType
 from .exceptions import (
     CharacterExtractorError,
+    CharacterRefinementError,
     InvalidUserIDError,
     NoStoryTextError,
     NotFoundError,
@@ -138,6 +140,30 @@ class Service:
             {prev_story_text}
 
             Please refine the previous story according to the user's instructions.
+        """).strip()
+
+    def _build_character_refinement_prompt(
+        self,
+        story_text: str,
+        character_attributes: dict[str, object],
+        user_instruction: str,
+    ) -> str:
+        serialized_character = json.dumps(
+            character_attributes, indent=2, sort_keys=True
+        )
+        return textwrap.dedent(f"""
+            You are refining a character profile for a comic rendering system.
+            Preserve the character's identity unless the instruction explicitly asks you to change it.
+            Return a complete character profile with all fields filled in.
+
+            User instruction:
+            {user_instruction}
+
+            Story context:
+            {story_text}
+
+            Current character profile:
+            {serialized_character}
         """).strip()
 
     async def generate_story(
@@ -275,6 +301,36 @@ class Service:
 
         return response
 
+    async def _refine_character_profile(
+        self,
+        story_text: str,
+        character_id: uuid.UUID,
+        character_attributes: dict[str, object],
+        instruction: str,
+    ) -> CharacterAttributes:
+        prompt = self._build_character_refinement_prompt(
+            story_text, character_attributes, instruction
+        )
+        try:
+            return await instructor_client.chat.completions.create(
+                model="gpt-4o",
+                response_model=CharacterAttributes,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You refine character profiles for a comic generation "
+                            "pipeline. Return the full updated profile."
+                        ),
+                    },
+                    {"role": "user", "content": prompt},
+                ],
+            )
+        except Exception as e:
+            raise CharacterRefinementError(
+                f"Error refining character {character_id}: {e}"
+            ) from e
+
     async def get_story_characters(
         self, project_id: uuid.UUID, story_id: uuid.UUID
     ) -> list[Character]:
@@ -316,6 +372,69 @@ class Service:
             )
         except RepositoryNotFoundError as e:
             raise NotFoundError(str(e)) from e
+
+    async def refine_character(
+        self,
+        project_id: uuid.UUID,
+        story_id: uuid.UUID,
+        character_id: uuid.UUID,
+        instruction: str,
+    ) -> Character:
+        story = await self.repository.get_story(project_id, story_id)
+        if story is None:
+            raise NotFoundError(f"Story {story_id} not found")
+
+        # extract fields before they expire (ORM cost)
+        story_text = story.story_text
+
+        character = await self.repository.get_character(character_id, story_id)
+        if character is None:
+            raise NotFoundError(
+                f"Character {character_id} not found in story {story_id}"
+            )
+
+        # extract fields before they expire (ORM cost)
+        character_current_attributes = dict(character.attributes)
+
+        edit_event = await self.repository.create_edit_event(
+            project_id=project_id,
+            target_type=TargetType.CHARACTER,
+            target_id=character_id,
+            operation_type=OperationType.REFINE_CHARACTER,
+            user_instruction=instruction,
+            input_snapshot=character_current_attributes,
+        )
+        edit_event_id = edit_event.id
+
+        try:
+            refined_profile = await self._refine_character_profile(
+                story_text, character_id, character_current_attributes, instruction
+            )
+            refined_attributes = refined_profile.model_dump()
+            refined_character = await self.repository.replace_character_attributes(
+                character_id,
+                story_id,
+                refined_attributes,
+                source_event_id=edit_event_id,
+            )
+            await self.repository.complete_edit_event(
+                edit_event_id,
+                EditEventStatus.SUCCEEDED,
+                output_snapshot=refined_character.attributes,
+            )
+            refreshed_character = await self.repository.get_character(
+                character_id, story_id
+            )
+            if refreshed_character is None:
+                raise NotFoundError(
+                    f"Character {character_id} not found in story {story_id}"
+                )
+            return refreshed_character
+        except Exception:
+            await self.repository.complete_edit_event(
+                edit_event_id, EditEventStatus.FAILED
+            )
+            raise
 
     async def delete_character(
         self, project_id: uuid.UUID, story_id: uuid.UUID, character_id: uuid.UUID

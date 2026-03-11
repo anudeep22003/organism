@@ -15,11 +15,13 @@ from core.common.utils import get_current_datetime_utc
 
 class TargetType(StrEnum):
     STORY = "story"
+    CHARACTER = "character"
 
 
 class OperationType(StrEnum):
     GENERATE_STORY = "generate_story"
     REFINE_STORY = "refine_story"
+    REFINE_CHARACTER = "refine_character"
 
 
 class EditEventStatus(StrEnum):

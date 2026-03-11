@@ -12,6 +12,7 @@ from core.common import ORMBase
 from core.common.utils import get_current_datetime_utc
 
 if TYPE_CHECKING:
+    from .edit_event import EditEvent
     from .story import Story
 
 
@@ -32,9 +33,18 @@ class Character(ORMBase):
     story_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("story.id"), nullable=False
     )
+    source_event_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("edit_event.id"),
+        nullable=True,
+        default=None,
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(255), nullable=False)
     attributes: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
     meta: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
 
     story: Mapped[Story] = relationship("Story", back_populates="characters")
+    source_event: Mapped[EditEvent | None] = relationship(
+        "EditEvent", foreign_keys=[source_event_id]
+    )

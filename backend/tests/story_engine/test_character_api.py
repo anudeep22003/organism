@@ -65,6 +65,7 @@ async def test_get_character_200(
     assert body["id"] == str(character.id)
     assert body["name"] == character.name
     assert body["slug"] == character.slug
+    assert body["sourceEventId"] is None
 
     # AliasedBaseModel serialises to camelCase
     assert "createdAt" in body
