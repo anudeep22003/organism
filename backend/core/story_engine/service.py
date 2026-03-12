@@ -1,19 +1,24 @@
 import json
 import textwrap
+import time
 import uuid
 from dataclasses import dataclass
-from typing import AsyncIterator, Protocol
+from typing import Any, AsyncIterator, Callable, Protocol, cast
 
+from fal_client.client import Status
+from loguru import logger
 from openai.types.chat import ChatCompletionChunk
 from slugify import slugify
 
 from core.services.intelligence import instructor_client
 from core.services.intelligence.clients import async_openai_client
+from core.services.intelligence.media_generator import fal_async_client
 
 from .events import ErrorPayload, EventEnvelope, EventType
 from .exceptions import (
     CharacterExtractorError,
     CharacterRefinementError,
+    FalResponseError,
     InvalidUserIDError,
     NoStoryTextError,
     NotFoundError,
@@ -447,3 +452,65 @@ class Service:
             await self.repository.delete_character(character_id, story_id)
         except RepositoryNotFoundError as e:
             raise NotFoundError(str(e)) from e
+
+    def _build_character_render_prompt(
+        self, character_attributes: dict[str, object]
+    ) -> str:
+        return textwrap.dedent(f"""
+        Comic book character render (clean reference design).
+        {json.dumps(character_attributes)}
+
+        Style: modern comic book illustration, sharp line art, subtle halftone texture, high detail, consistent lighting.
+        """).strip()
+
+    async def _generate_image_render_response_and_time(
+        self,
+        prompt: str,
+        on_queue_update: Callable[[Status], None] | None = None,
+    ) -> dict[str, Any]:
+        start = time.perf_counter()
+        try:
+            response = await fal_async_client.subscribe(
+                arguments={
+                    "prompt": prompt,
+                },
+                on_queue_update=on_queue_update
+                or (lambda status: print(f"Status: {status}")),
+            )
+        except Exception as e:
+            raise FalResponseError(
+                f"Error generating image render response: {e}"
+            ) from e
+        finally:
+            end = time.perf_counter()
+            logger.info(f"Time taken: {end - start} seconds")
+            return response
+
+    def _get_character_url_from_fal_client_response(self, response: dict) -> str:
+        try:
+            image_url = response.get("images", [])[0].get("url")
+            if not image_url:
+                raise FalResponseError("No image URL found in Fal client response")
+            return cast(str, image_url)
+        except json.JSONDecodeError as e:
+            raise FalResponseError(f"Error parsing Fal client response: {e}") from e
+        except KeyError as e:
+            raise FalResponseError(
+                f"No image URL found in Fal client response: {response}"
+            ) from e
+
+    async def render_character(
+        self, project_id: uuid.UUID, story_id: uuid.UUID, character_id: uuid.UUID
+    ) -> Character:
+        character = await self.repository.get_character(character_id, story_id)
+        if character is None:
+            raise NotFoundError(
+                f"Character {character_id} not found in story {story_id}"
+            )
+        prompt = self._build_character_render_prompt(character.attributes)
+        render_response = await self._generate_image_render_response_and_time(prompt)
+        image_url = self._get_character_url_from_fal_client_response(render_response)
+        character_with_render_url = await self.repository.update_character_render_url(
+            character_id, story_id, image_url
+        )
+        return character_with_render_url

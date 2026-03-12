@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import DateTime, ForeignKey, String
+from sqlalchemy import DateTime, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -48,3 +48,4 @@ class Character(ORMBase):
     source_event: Mapped[EditEvent | None] = relationship(
         "EditEvent", foreign_keys=[source_event_id]
     )
+    render_url: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)

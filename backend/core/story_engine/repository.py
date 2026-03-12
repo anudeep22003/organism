@@ -237,3 +237,16 @@ class Repository:
             )
         await self.db.delete(character)
         await self.db.commit()
+
+    async def update_character_render_url(
+        self, character_id: uuid.UUID, story_id: uuid.UUID, render_url: str
+    ) -> Character:
+        character = await self.get_character(character_id, story_id)
+        if character is None:
+            raise NotFoundError(
+                f"Character {character_id} not found in story {story_id}"
+            )
+        character.render_url = render_url
+        await self.db.commit()
+        await self.db.refresh(character)
+        return character

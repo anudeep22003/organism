@@ -178,7 +178,6 @@ async def delete_character(
         )
 
 
-# add a history endpoint
 @router.get("/project/{project_id}/story/{story_id}/character/{character_id}/history")
 async def get_character_history(
     project_id: uuid.UUID,
@@ -192,3 +191,17 @@ async def get_character_history(
         TargetType.CHARACTER, character_id, limit=limit
     )
     return [EditEventResponseSchema.model_validate(e) for e in events]
+
+
+@router.post("/project/{project_id}/story/{story_id}/character/{character_id}/render")
+async def render_character(
+    project_id: uuid.UUID,
+    story_id: uuid.UUID,
+    character_id: uuid.UUID,
+    db: Annotated[AsyncSession, Depends(get_async_db_session)],
+) -> CharacterResponseSchema:
+    repository = Repository(db)
+    service = Service(repository)
+
+    character = await service.render_character(project_id, story_id, character_id)
+    return CharacterResponseSchema.model_validate(character)
