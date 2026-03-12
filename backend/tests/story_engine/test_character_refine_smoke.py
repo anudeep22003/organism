@@ -8,6 +8,7 @@ automated test exists.
 
 import pytest
 from httpx import AsyncClient
+from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.story_engine.models import Character, EditEvent
@@ -16,6 +17,7 @@ from core.story_engine.models.edit_event import (
     OperationType,
     TargetType,
 )
+from core.story_engine.schemas.character import CharacterResponseSchema
 
 # Manual Test targets
 PROJECT_ID = "9c10291d-4b0a-4c2f-8deb-417d36a12d7b"
@@ -97,3 +99,30 @@ async def test_get_existing_character_edit_history(
             EditEventStatus.FAILED,
             EditEventStatus.PENDING,
         ]
+
+
+@pytest.mark.manual
+async def test_render_existing_character(
+    api_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    pre_render_character = await db_session.get(Character, CHARACTER_ID)
+    assert pre_render_character is not None
+
+    # to compare
+    pre_render_url = pre_render_character.render_url
+    logger.info(f"Pre render URL: {pre_render_url}")
+
+    response = await api_client.post(
+        f"/api/comic-builder/v2/project/{PROJECT_ID}"
+        f"/story/{STORY_ID}"
+        f"/character/{CHARACTER_ID}/render",
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    post_render_character_schema = CharacterResponseSchema.model_validate(body)
+    assert post_render_character_schema.render_url is not None
+    assert post_render_character_schema.render_url != pre_render_url
+    logger.info(f"Post render URL: {post_render_character_schema.render_url}")
+    logger.info(f"Post render URL: {body}")

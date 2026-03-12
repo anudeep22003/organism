@@ -99,3 +99,9 @@ class CharacterRefinementError(BaseError):
     """Error refining a character."""
 
     pass
+
+
+class FalResponseError(BaseError):
+    """Error from Fal response."""
+
+    pass

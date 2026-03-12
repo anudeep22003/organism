@@ -2,8 +2,6 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel
-
 from core.common import AliasedBaseModel
 
 
@@ -12,6 +10,7 @@ class CharacterSchemaBase(AliasedBaseModel):
     created_at: datetime
     updated_at: datetime
     source_event_id: uuid.UUID | None = None
+    render_url: str | None = None
 
 
 class CharacterResponseSchema(CharacterSchemaBase):
@@ -21,7 +20,7 @@ class CharacterResponseSchema(CharacterSchemaBase):
     meta: dict[str, Any]
 
 
-class CharacterUpdateSchema(BaseModel):
+class CharacterUpdateSchema(AliasedBaseModel):
     name: str | None = None
     brief: str | None = None
     character_type: str | None = None
