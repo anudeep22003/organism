@@ -9,8 +9,5 @@ async_session_maker = async_sessionmaker(bind=async_db_engine)
 
 
 async def get_async_db_session() -> AsyncGenerator[AsyncSession, None]:
-    try:
-        async with async_session_maker() as session:
-            yield session
-    finally:
-        await session.close()
+    async with async_session_maker() as session:
+        yield session
