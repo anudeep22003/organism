@@ -6,16 +6,18 @@ from dataclasses import dataclass
 from typing import Any, AsyncIterator, Callable, Protocol, cast
 
 from fal_client.client import Status
+from fastapi import UploadFile
 from loguru import logger
 from openai.types.chat import ChatCompletionChunk
 from slugify import slugify
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.services.intelligence import instructor_client
 from core.services.intelligence.clients import async_openai_client
 from core.services.intelligence.media_generator import fal_async_client
 
-from .events import ErrorPayload, EventEnvelope, EventType
-from .exceptions import (
+from ..events import ErrorPayload, EventEnvelope, EventType
+from ..exceptions import (
     CharacterExtractorError,
     CharacterRefinementError,
     FalResponseError,
@@ -25,15 +27,16 @@ from .exceptions import (
     NotOwnedError,
     StreamGeneratorError,
 )
-from .models import (
+from ..models import (
     Character,
     Story,
 )
-from .models.edit_event import EditEventStatus, OperationType, TargetType
-from .repository import NotFoundError as RepositoryNotFoundError
-from .repository import Repository
-from .schemas.story import GenerateStoryRequest
-from .state.character import CharacterBase as CharacterAttributes
+from ..models.edit_event import EditEventStatus, OperationType, TargetType
+from ..repository import NotFoundError as RepositoryNotFoundError
+from ..repository import Repository
+from ..schemas.story import GenerateStoryRequest
+from ..state.character import CharacterBase as CharacterAttributes
+from .image_upload import ImageUploadService
 
 
 class StoryStreamGenerator:
@@ -106,13 +109,18 @@ class StoryStreamContext:
 class Service:
     def __init__(
         self,
-        repository: Repository,
+        db_session: AsyncSession,
+        repository: Repository | None = None,
         stream_generator: StoryStreamGenerator | None = None,
         processor: StreamProcessor | None = None,
+        image_upload_service: ImageUploadService | None = None,
     ):
-        self.repository = repository
+        self.repository = repository or Repository(db_session)
         self.stream_generator = stream_generator or StoryStreamGenerator()
         self.processor = processor or OpenAIStreamProcessor()
+        self.image_upload_service = image_upload_service or ImageUploadService(
+            repository=self.repository
+        )
 
     def _get_user_id(self, user_id: str) -> uuid.UUID:
         """
@@ -514,3 +522,19 @@ class Service:
             character_id, story_id, image_url
         )
         return character_with_render_url
+
+    async def upload_reference_image(
+        self,
+        project_id: uuid.UUID,
+        story_id: uuid.UUID,
+        character_id: uuid.UUID,
+        image: UploadFile,
+    ) -> None:
+        character = await self.repository.get_character(character_id, story_id)
+        if character is None:
+            raise NotFoundError(
+                f"Character {character_id} not found in story {story_id}"
+            )
+        await self.image_upload_service.upload_image(image)
+
+        return None

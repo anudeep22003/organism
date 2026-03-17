@@ -9,6 +9,7 @@ from core.auth.dependencies import get_current_user_id
 from core.services.database import get_async_db_session
 
 from ..models import Project
+from ..service import Service
 
 
 async def verify_project_access(
@@ -30,3 +31,9 @@ async def verify_project_access(
         )
 
     return project.id
+
+
+async def get_service(
+    db: Annotated[AsyncSession, Depends(get_async_db_session)],
+) -> Service:
+    return Service(db_session=db)

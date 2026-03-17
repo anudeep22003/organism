@@ -1,7 +1,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,6 +22,7 @@ from ...schemas.character import (
 )
 from ...schemas.edit_event import EditEventResponseSchema
 from ...service import Service
+from ..dependencies import get_service
 
 router = APIRouter(tags=["characters", "v2"])
 
@@ -30,10 +31,8 @@ router = APIRouter(tags=["characters", "v2"])
 async def extract_characters_from_story(
     project_id: uuid.UUID,
     story_id: uuid.UUID,
-    db: Annotated[AsyncSession, Depends(get_async_db_session)],
+    service: Annotated[Service, Depends(get_service)],
 ) -> list[CharacterResponseSchema]:
-    repository = Repository(db)
-    service = Service(repository)
     try:
         characters = await service.extract_characters_from_story(project_id, story_id)
         logger.info(f"Extracted {len(characters)} characters from story {story_id}")
@@ -56,10 +55,8 @@ async def extract_characters_from_story(
 async def get_characters_for_story(
     project_id: uuid.UUID,
     story_id: uuid.UUID,
-    db: Annotated[AsyncSession, Depends(get_async_db_session)],
+    service: Annotated[Service, Depends(get_service)],
 ) -> list[CharacterResponseSchema]:
-    repository = Repository(db)
-    service = Service(repository)
     try:
         characters = await service.get_story_characters(project_id, story_id)
         return [CharacterResponseSchema.model_validate(c) for c in characters]
@@ -80,10 +77,8 @@ async def get_character(
     project_id: uuid.UUID,
     story_id: uuid.UUID,
     character_id: uuid.UUID,
-    db: Annotated[AsyncSession, Depends(get_async_db_session)],
+    service: Annotated[Service, Depends(get_service)],
 ) -> CharacterResponseSchema:
-    repository = Repository(db)
-    service = Service(repository)
     try:
         character = await service.get_character(project_id, story_id, character_id)
         return CharacterResponseSchema.model_validate(character)
@@ -105,10 +100,8 @@ async def update_character(
     story_id: uuid.UUID,
     character_id: uuid.UUID,
     body: CharacterUpdateSchema,
-    db: Annotated[AsyncSession, Depends(get_async_db_session)],
+    service: Annotated[Service, Depends(get_service)],
 ) -> CharacterResponseSchema:
-    repository = Repository(db)
-    service = Service(repository)
     try:
         updates = body.model_dump(exclude_none=True)
         character = await service.update_character(
@@ -134,10 +127,8 @@ async def refine_character(
     story_id: uuid.UUID,
     character_id: uuid.UUID,
     body: CharacterRefineRequest,
-    db: Annotated[AsyncSession, Depends(get_async_db_session)],
+    service: Annotated[Service, Depends(get_service)],
 ) -> CharacterResponseSchema:
-    repository = Repository(db)
-    service = Service(repository)
     try:
         character = await service.refine_character(
             project_id, story_id, character_id, body.instruction
@@ -162,10 +153,8 @@ async def delete_character(
     project_id: uuid.UUID,
     story_id: uuid.UUID,
     character_id: uuid.UUID,
-    db: Annotated[AsyncSession, Depends(get_async_db_session)],
+    service: Annotated[Service, Depends(get_service)],
 ) -> None:
-    repository = Repository(db)
-    service = Service(repository)
     try:
         await service.delete_character(project_id, story_id, character_id)
     except NotFoundError as e:
@@ -198,10 +187,35 @@ async def render_character(
     project_id: uuid.UUID,
     story_id: uuid.UUID,
     character_id: uuid.UUID,
-    db: Annotated[AsyncSession, Depends(get_async_db_session)],
+    service: Annotated[Service, Depends(get_service)],
 ) -> CharacterResponseSchema:
-    repository = Repository(db)
-    service = Service(repository)
-
     character = await service.render_character(project_id, story_id, character_id)
     return CharacterResponseSchema.model_validate(character)
+
+
+@router.post(
+    "/project/{project_id}/story/{story_id}/character/{character_id}/upload-reference-image"
+)
+async def upload_reference_image(
+    project_id: uuid.UUID,
+    story_id: uuid.UUID,
+    character_id: uuid.UUID,
+    service: Annotated[Service, Depends(get_service)],
+    image: UploadFile = File(...),
+) -> None:
+    """
+    Upload a reference image for a character.
+
+    Process:
+    1. Create an in processing edit event
+    2. Take the image and create thumb, preview and original options using Pillow
+    3. Identify the object_key for storage location in bucket
+    4. Upload all to google storage and get url
+    5. Single transaction
+        - create an artefact entry (id, source, source_type, url)
+        - add to character reference table (id, char_id foreign key, artefact_id)
+        - mark edit event completed
+
+    """
+    await service.upload_reference_image(project_id, story_id, character_id, image)
+    return None

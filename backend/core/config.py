@@ -16,24 +16,17 @@ if not is_running_in_cloudrun():
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
-BUCKET_NAME = os.getenv("BUCKET_NAME", "")
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
 DATABASE_URL = os.getenv("DATABASE_URL", "DB URL NOT SET")
 FAL_API_KEY = os.getenv("FAL_API_KEY", "")
 
-MAX_REPO_SIZE_MB = int(os.getenv("MAX_REPO_SIZE_MB", "100"))
+GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID", "")
+GCP_REGION = os.getenv("GCP_REGION", "")
+GCP_STORAGE_BUCKET = os.getenv("GCP_STORAGE_BUCKET", "")
+
 
 if not ANTHROPIC_API_KEY:
     logger.error("ANTHROPIC_API_KEY is not set")
     raise ValueError("ANTHROPIC_API_KEY is not set")
-
-if not BUCKET_NAME:
-    logger.error("BUCKET_NAME is not set")
-    raise ValueError("BUCKET_NAME is not set")
-
-if not GITHUB_TOKEN:
-    logger.error("GITHUB_TOKEN is not set")
-    raise ValueError("GITHUB_TOKEN is not set")
 
 if not DATABASE_URL:
     logger.error("DATABASE_URL is not set")
@@ -42,3 +35,15 @@ if not DATABASE_URL:
 if not FAL_API_KEY:
     logger.error("FAL_API_KEY is not set")
     raise ValueError("FAL_API_KEY is not set")
+
+if not GCP_PROJECT_ID:
+    logger.error("GCP_PROJECT_ID is not set")
+    raise ValueError("GCP_PROJECT_ID is not set")
+
+if not GCP_REGION:
+    logger.error("GCP_REGION is not set")
+    raise ValueError("GCP_REGION is not set")
+
+if not GCP_STORAGE_BUCKET:
+    logger.error("GCP_STORAGE_BUCKET is not set")
+    raise ValueError("GCP_STORAGE_BUCKET is not set")

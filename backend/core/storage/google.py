@@ -4,7 +4,7 @@ from typing import List, Optional, Union
 from google.cloud.exceptions import NotFound
 from google.cloud.storage import Client  # type: ignore[import-untyped]
 
-from core.config import BUCKET_NAME
+from core.config import GCP_STORAGE_BUCKET
 from core.logging import logger
 
 logger = logger.bind(name=__name__)
@@ -21,7 +21,7 @@ class StorageBucketClient:
     def __init__(self, bucket_name: Optional[str] = None):
         """Initialize the storage client with bucket configuration."""
         self.client = Client()
-        self.bucket_name = bucket_name or BUCKET_NAME
+        self.bucket_name = bucket_name or GCP_STORAGE_BUCKET
         self.bucket = self.client.bucket(self.bucket_name)
 
     def create_folder(self, blob_prefix: str) -> None:
