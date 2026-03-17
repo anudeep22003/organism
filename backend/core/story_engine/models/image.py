@@ -5,7 +5,7 @@ from datetime import datetime
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -20,6 +20,10 @@ class ImageFormat(StrEnum):
     JPEG = "image/jpeg"
     PNG = "image/png"
     WEBP = "image/webp"
+
+
+class ImageType(StrEnum):
+    REFERENCE = "reference"
 
 
 class Image(ORMBase):
@@ -42,7 +46,11 @@ class Image(ORMBase):
     )
     width: Mapped[int] = mapped_column(Integer, nullable=False)
     height: Mapped[int] = mapped_column(Integer, nullable=False)
-    format: Mapped[str] = mapped_column(String(255), nullable=False)
+    format: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     object_key: Mapped[str] = mapped_column(String(255), nullable=False)
     bucket: Mapped[str] = mapped_column(String(255), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    has_thumb: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    has_preview: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    image_type: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     meta: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
