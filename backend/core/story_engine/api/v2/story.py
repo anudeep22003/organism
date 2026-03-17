@@ -24,6 +24,7 @@ from ...schemas.story import (
     StoryResponseSchema,
 )
 from ...service import Service
+from ..dependencies import get_service
 
 router = APIRouter(tags=["story"])
 
@@ -57,14 +58,9 @@ async def generate_story(
     ],
     project_id: uuid.UUID,
     story_id: uuid.UUID,
-    db: Annotated[
-        AsyncSession,
-        Depends(get_async_db_session),
-    ],
     request: GenerateStoryRequest,
+    service: Annotated[Service, Depends(get_service)],
 ) -> StreamingResponse:
-    repository = Repository(db)
-    service = Service(repository)
     try:
         stream = await service.generate_story(user_id, project_id, story_id, request)
         return StreamingResponse(
