@@ -23,7 +23,7 @@ class ImageFormat(StrEnum):
 
 
 class ImageType(StrEnum):
-    REFERENCE = "reference"
+    CHARACTER_REFERENCE = "character_reference"
 
 
 class Image(ORMBase):

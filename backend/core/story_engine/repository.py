@@ -177,6 +177,27 @@ class Repository:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_character_for_user_in_project_and_story(
+        self,
+        user_id: str,
+        project_id: uuid.UUID,
+        story_id: uuid.UUID,
+        character_id: uuid.UUID,
+    ) -> Character | None:
+        stmt = (
+            select(Character)
+            .join(Story)
+            .join(Project)
+            .where(
+                Character.id == character_id,
+                Story.id == story_id,
+                Project.id == project_id,
+                Project.user_id == uuid.UUID(user_id),
+            )
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def update_character(
         self, character_id: uuid.UUID, story_id: uuid.UUID, updates: dict[str, Any]
     ) -> Character:
