@@ -1,4 +1,3 @@
-import os
 from typing import AsyncGenerator
 
 import socketio
@@ -7,40 +6,11 @@ from fastapi.concurrency import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
-# for env variable laoding
+# for env variable loading (this automatically loads config)
 from core import config  # noqa: F401
 from core.api.routers import router as v1_router
 from core.logging import setup_logging
 from core.sockets import register_sio_handlers, sio
-
-## SETTINGS
-REQUIRED_ENV_VARS = [
-    "ANTHROPIC_API_KEY",
-    "BUCKET_NAME",
-    "GITHUB_TOKEN",
-]
-
-## OPTIONAL ENV VARS (with defaults)
-OPTIONAL_ENV_VARS = {
-    "CLAUDE_MODEL": "claude-3-5-sonnet-20241022",
-    "TEMP_DIR": None,  # Uses system default
-    "OPERATION_TIMEOUT": "3600",  # 1 hour in seconds
-}
-
-
-# ## FUNCTIONS
-def check_env_vars() -> bool:
-    for var in REQUIRED_ENV_VARS:
-        if not os.getenv(var):
-            return False
-    return True
-
-
-def set_default_env_vars() -> None:
-    """Set default values for optional environment variables if not set."""
-    for var, default_value in OPTIONAL_ENV_VARS.items():
-        if default_value is not None and not os.getenv(var):
-            os.environ[var] = default_value
 
 
 @asynccontextmanager
@@ -50,13 +20,6 @@ async def lifecycle_manager(app: FastAPI) -> AsyncGenerator[None, None]:
 
     logger.debug("Starting FastAPI app")
     logger.debug("Checking environment variables loaded")
-
-    if not check_env_vars():
-        raise ValueError("Missing required environment variables")
-
-    # Set default values for optional environment variables
-    set_default_env_vars()
-    logger.debug("Environment variables configured")
 
     # register socketio handlers
     register_sio_handlers()
