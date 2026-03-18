@@ -22,6 +22,7 @@ class OperationType(StrEnum):
     GENERATE_STORY = "generate_story"
     REFINE_STORY = "refine_story"
     REFINE_CHARACTER = "refine_character"
+    UPLOAD_REFERENCE_IMAGE = "upload_reference_image"
 
 
 class EditEventStatus(StrEnum):

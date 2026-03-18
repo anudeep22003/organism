@@ -36,6 +36,7 @@ from ..repository import NotFoundError as RepositoryNotFoundError
 from ..repository import Repository
 from ..schemas.story import GenerateStoryRequest
 from ..state.character import CharacterBase as CharacterAttributes
+from .dto_types import UploadReferenceImageDTO
 from .image_upload import ImageUploadService
 
 
@@ -525,16 +526,18 @@ class Service:
 
     async def upload_reference_image(
         self,
+        user_id: str,
         project_id: uuid.UUID,
         story_id: uuid.UUID,
         character_id: uuid.UUID,
         image: UploadFile,
     ) -> None:
-        character = await self.repository.get_character(character_id, story_id)
-        if character is None:
-            raise NotFoundError(
-                f"Character {character_id} not found in story {story_id}"
-            )
-        await self.image_upload_service.upload_image(image)
-
+        dto = UploadReferenceImageDTO(
+            user_id=user_id,
+            project_id=project_id,
+            story_id=story_id,
+            character_id=character_id,
+            image=image,
+        )
+        await self.image_upload_service.upload_image(dto)
         return None

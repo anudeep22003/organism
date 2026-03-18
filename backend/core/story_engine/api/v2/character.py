@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.auth import get_current_user_id
 from core.services.database import get_async_db_session
 
 from ...exceptions import (
@@ -201,12 +202,14 @@ async def upload_reference_image(
     story_id: uuid.UUID,
     character_id: uuid.UUID,
     service: Annotated[Service, Depends(get_service)],
+    user_id: Annotated[str, Depends(get_current_user_id)],
     image: UploadFile = File(...),
 ) -> None:
     """
     Upload a reference image for a character.
 
     Process:
+    1. Verify request
     1. Create an in processing edit event
     2. Take the image and create thumb, preview and original options using Pillow
     3. Identify the object_key for storage location in bucket
@@ -217,5 +220,7 @@ async def upload_reference_image(
         - mark edit event completed
 
     """
-    await service.upload_reference_image(project_id, story_id, character_id, image)
+    await service.upload_reference_image(
+        user_id, project_id, story_id, character_id, image
+    )
     return None
