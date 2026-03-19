@@ -537,7 +537,7 @@ class Service:
             project_id=project_id,
             story_id=story_id,
             character_id=character_id,
-            image=image,
+            image=image.file,
         )
         await self.image_upload_service.upload_image(dto)
         return None
