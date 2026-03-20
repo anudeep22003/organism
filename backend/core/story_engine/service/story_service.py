@@ -173,7 +173,7 @@ class StoryService:
             operation_type=operation,
             user_instruction=request.story_prompt,
         )
-        # extract id before commit expires the ORM object
+        await self.db.flush()  # assigns DB-generated id
         edit_event_id = edit_event.id
         await self.db.commit()
 

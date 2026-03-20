@@ -22,7 +22,7 @@ def character_url(project: Project, story: Story, character: Character) -> str:
     return (
         f"/api/comic-builder/v2/project/{project.id}"
         f"/story/{story.id}"
-        f"/characters/{character.id}"
+        f"/character/{character.id}"
     )
 
 
@@ -31,7 +31,7 @@ def bad_character_url(project: Project, story: Story) -> str:
     return (
         f"/api/comic-builder/v2/project/{project.id}"
         f"/story/{story.id}"
-        f"/characters/{uuid.uuid4()}"
+        f"/character/{uuid.uuid4()}"
     )
 
 
@@ -40,7 +40,7 @@ def bad_story_url(project: Project, character: Character) -> str:
     return (
         f"/api/comic-builder/v2/project/{project.id}"
         f"/story/{uuid.uuid4()}"
-        f"/characters/{character.id}"
+        f"/character/{character.id}"
     )
 
 
