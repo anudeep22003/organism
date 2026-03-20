@@ -1,37 +1,58 @@
+import os
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
+from enum import StrEnum
 from io import BytesIO
 from typing import BinaryIO
 
 from google.cloud.storage import Client  # type: ignore[import-untyped]
+from loguru import logger
 from PIL import Image, ImageOps
 
+from core.common.utils import time_it
 from core.config import GCP_PROJECT_ID, GCP_STORAGE_BUCKET
 
 from ..exceptions import NotFoundError
 from ..models import Character
 from ..models.edit_event import OperationType, TargetType
+from ..models.image import ImageFormat
 from ..repository import Repository
 from .dto_types import UploadReferenceImageDTO
 
 client = Client(project=GCP_PROJECT_ID)
 
+
+IMAGE_FORMAT_FILE_SUFFIX = "jpeg"
+ORIGINAL_QUALITY = 90
+
 THUMB_SIZE = (100, 100)
+THUMB_QUALITY = 82
+
 PREVIEW_SIZE = (500, 500)
+PREVIEW_QUALITY = 85
+
+CPU_COUNT = os.cpu_count() or 1
+MAX_WORKERS = max(1, CPU_COUNT - 1)
+
+_executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
 
 
-@dataclass
+@dataclass(slots=True)
 class ReadyToUploadImageDTO:
     width: int
     height: int
     size_bytes: int
     image_bytes: BytesIO
+    content_type: ImageFormat
 
 
-@dataclass
-class ImageVariants:
-    original: ReadyToUploadImageDTO
-    thumb: ReadyToUploadImageDTO
-    preview: ReadyToUploadImageDTO
+class ImageVariantKey(StrEnum):
+    ORIGINAL = "original"
+    THUMB = "thumb"
+    PREVIEW = "preview"
+
+
+ImageVariants = dict[ImageVariantKey, ReadyToUploadImageDTO]
 
 
 class ImageUploadService:
@@ -42,18 +63,17 @@ class ImageUploadService:
     async def upload_image(
         self,
         dto: UploadReferenceImageDTO,
-    ) -> tuple[str, ImageVariants]:
+    ) -> None:
         character = await self._get_authorized_character(dto)
         await self._create_in_processing_edit_event(dto)
-        object_key_prefix = self._create_object_key_prefix(dto, character.slug)
+        object_key_prefix = self._build_object_key_prefix(dto, character.slug)
         image_variants = await self._create_image_variants(dto.image)
+        self._upload_image_variants_to_bucket(object_key_prefix, image_variants)
 
         # next steps:
-        # - create thumb, preview and original options using Pillow bufio
-        # - upload to google storage
         # - update tables
         # TODO continue with next steps
-        return object_key_prefix, image_variants
+        return None
 
     async def _create_in_processing_edit_event(
         self, dto: UploadReferenceImageDTO
@@ -79,11 +99,12 @@ class ImageUploadService:
             )
         return character
 
-    def _create_object_key_prefix(
+    def _build_object_key_prefix(
         self, dto: UploadReferenceImageDTO, character_slug: str
     ) -> str:
-        return f"{dto.user_id}/character/{character_slug}/references/"
+        return f"{dto.user_id}/character/{character_slug}/references/{dto.filename}"
 
+    @time_it
     async def _create_image_variants(self, file_byte_stream: BinaryIO) -> ImageVariants:
         # read stream, get byte stream, create image and pass that forward
         # following methods create a copy before running any operations
@@ -96,7 +117,16 @@ class ImageUploadService:
         original = self._process_original_image(base_image)
         thumb = self._create_thumb_image(base_image)
         preview = self._create_preview_image(base_image)
-        return ImageVariants(original, thumb, preview)
+
+        # build image variants
+        image_variants = ImageVariants(
+            {
+                ImageVariantKey.ORIGINAL: original,
+                ImageVariantKey.THUMB: thumb,
+                ImageVariantKey.PREVIEW: preview,
+            }
+        )
+        return image_variants
 
     def _pack_image_to_ready_to_upload_dto(
         self, image: Image.Image, quality: int
@@ -105,24 +135,54 @@ class ImageUploadService:
         buffer = BytesIO()
         image.save(buffer, format="JPEG", quality=quality, optimize=True)
         size_bytes = buffer.tell()
-        return ReadyToUploadImageDTO(width, height, size_bytes, buffer)
+        buffer.seek(
+            0
+        )  # Important: reset pointer to start of buffer, because save moves it to end
+        return ReadyToUploadImageDTO(
+            width, height, size_bytes, buffer, ImageFormat.JPEG
+        )
 
+    @time_it
     def _process_original_image(self, image: Image.Image) -> ReadyToUploadImageDTO:
         processed_img = ImageOps.exif_transpose(image=image.copy()).convert("RGB")
-        return self._pack_image_to_ready_to_upload_dto(processed_img, 90)
+        return self._pack_image_to_ready_to_upload_dto(processed_img, ORIGINAL_QUALITY)
 
+    @time_it
     def _create_thumb_image(self, image: Image.Image) -> ReadyToUploadImageDTO:
         thumb = image.copy()
         thumb.thumbnail(THUMB_SIZE)  # modifies in place
-        return self._pack_image_to_ready_to_upload_dto(thumb, 90)
+        return self._pack_image_to_ready_to_upload_dto(thumb, THUMB_QUALITY)
 
+    @time_it
     def _create_preview_image(self, image: Image.Image) -> ReadyToUploadImageDTO:
         preview = image.copy()
         preview.thumbnail(PREVIEW_SIZE)  # modifies in place
-        return self._pack_image_to_ready_to_upload_dto(preview, 90)
+        return self._pack_image_to_ready_to_upload_dto(preview, PREVIEW_QUALITY)
 
-    def _upload_image_to_bucket(self) -> str:
-        raise NotImplementedError("Not implemented")
+    @time_it
+    def _upload_image_variants_to_bucket(
+        self, object_key_prefix: str, image_variants: ImageVariants
+    ) -> None:
+        for key, value in image_variants.items():
+            object_key = f"{object_key_prefix}/{key}.{IMAGE_FORMAT_FILE_SUFFIX}"
+            self._upload_file_object_to_bucket(object_key, value)
+
+        return None
+
+    @time_it
+    def _upload_file_object_to_bucket(
+        self, object_key: str, upload_dto: ReadyToUploadImageDTO
+    ) -> None:
+        # we expect object_key_prefix to be the full prefix
+        # .../thumb.jpeg
+        blob = self.bucket.blob(object_key)
+        try:
+            blob.upload_from_file(
+                upload_dto.image_bytes, content_type=upload_dto.content_type
+            )
+        except Exception as e:
+            logger.error(f"Failed to upload image to bucket: {e}")
+            raise e
 
     async def _create_image_artefact(self) -> None:
         raise NotImplementedError("Not implemented")
