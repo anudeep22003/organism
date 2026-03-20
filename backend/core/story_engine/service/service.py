@@ -97,7 +97,7 @@ class OpenAIStreamProcessor(StreamProcessor):
         raise ValueError(f"Unknown chunk: {chunk}")
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class StoryStreamContext:
     """Parameters for executing a story stream."""
 
@@ -532,12 +532,16 @@ class Service:
         character_id: uuid.UUID,
         image: UploadFile,
     ) -> None:
+        # allow user to give descriptive filename
+        filename = slugify(image.filename) if image.filename else str(uuid.uuid4())
+
         dto = UploadReferenceImageDTO(
             user_id=user_id,
             project_id=project_id,
             story_id=story_id,
             character_id=character_id,
             image=image.file,
+            filename=filename,
         )
         await self.image_upload_service.upload_image(dto)
         return None
