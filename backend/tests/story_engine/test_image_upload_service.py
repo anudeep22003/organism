@@ -16,8 +16,9 @@ from typing import cast
 
 import pytest
 from PIL import Image
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.story_engine.repository import Repository, RepositoryV2
+from core.story_engine.repository import RepositoryV2
 from core.story_engine.service.dto_types import UploadReferenceImageDTO
 from core.story_engine.service.image_upload import ImageUploadService, ImageVariantKey
 
@@ -129,7 +130,7 @@ def _build_candidate_keys(
 @pytest.mark.asyncio
 async def test_upload_image_uploads_all_variants_to_bucket() -> None:
     service = ImageUploadService(
-        repository=cast(Repository, StubRepository()),
+        db=cast("AsyncSession", StubRepository._DB()),
         repository_v2=cast(RepositoryV2, StubRepositoryV2()),
     )
     filename = f"{FILENAME_PREFIX}-{int(time.time())}"
