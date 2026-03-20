@@ -15,9 +15,20 @@ from types import SimpleNamespace, TracebackType
 from typing import cast
 
 import pytest
+from httpx import AsyncClient
 from PIL import Image
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.auth.managers.jwt import JWTTokenManager
+from core.config import GCP_STORAGE_BUCKET
+from core.story_engine.models import EditEvent
+from core.story_engine.models import Image as ImageModel
+from core.story_engine.models.edit_event import (
+    EditEventStatus,
+    OperationType,
+    TargetType,
+)
 from core.story_engine.models.image import ImageVariant
 from core.story_engine.repository import RepositoryV2
 from core.story_engine.service.dto_types import (
@@ -25,7 +36,8 @@ from core.story_engine.service.dto_types import (
     ProjectUserCharacterDTO,
     UploadReferenceImageDTO,
 )
-from core.story_engine.service.image_upload import ImageUploadService
+from core.story_engine.service.image_upload import ImageUploadService, client
+from core.story_engine.service.upload_filename import build_upload_reference_filename
 
 # Manual config values - replace with real IDs before running.
 USER_ID = "2c2af68f-9315-4bab-8aa3-3b1a581dca8e"
@@ -39,7 +51,7 @@ FILENAME_PREFIX = "integration-upload"
 QUALITY = 95
 SIDE = 2600
 
-DELETE_TEST_UPLOADS_AFTER_TEST = True
+DELETE_TEST_UPLOADS_AFTER_TEST = False
 
 
 def _build_test_jpeg_stream() -> BytesIO:
@@ -178,3 +190,96 @@ async def test_upload_image_uploads_all_variants_to_bucket() -> None:
         if DELETE_TEST_UPLOADS_AFTER_TEST:
             for key in uploaded_keys:
                 service.bucket.blob(key).delete()
+
+
+@pytest.mark.manual
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_upload_reference_image_endpoint_side_effects(
+    api_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    filename = f"{FILENAME_PREFIX}-endpoint-{int(time.time())}"
+    request_filename = f"{filename}.jpg"
+    stored_filename = build_upload_reference_filename(request_filename)
+    access_token = JWTTokenManager().create_access_token(USER_ID)
+    url = (
+        f"/api/comic-builder/v2/project/{PROJECT_ID}"
+        f"/story/{STORY_ID}"
+        f"/character/{CHARACTER_ID}/upload-reference-image"
+    )
+    headers = {"Authorization": f"Bearer {access_token}"}
+    files = {"image": (request_filename, _build_test_jpeg_stream(), "image/jpeg")}
+
+    created_image_ids: list[uuid.UUID] = []
+    created_object_keys: list[str] = []
+
+    try:
+        response = await api_client.post(url, headers=headers, files=files)
+        assert response.status_code == 200
+        assert response.content in (b"", b"null")
+
+        image_query = await db_session.execute(
+            select(ImageModel).where(
+                ImageModel.project_id == PROJECT_ID,
+                ImageModel.character_id == CHARACTER_ID,
+                ImageModel.filename == stored_filename,
+            )
+        )
+        created_images = list(image_query.scalars().all())
+        assert len(created_images) == 3
+        assert {image.variant for image in created_images} == {
+            ImageVariant.ORIGINAL.value,
+            ImageVariant.THUMB.value,
+            ImageVariant.PREVIEW.value,
+        }
+
+        object_key_prefix = (
+            f"{USER_ID}/character/{CHARACTER_SLUG}/references/{stored_filename}"
+        )
+        for image in created_images:
+            created_image_ids.append(image.id)
+            created_object_keys.append(image.object_key)
+
+            assert image.image_type == "character_reference"
+            assert image.bucket == GCP_STORAGE_BUCKET
+            assert image.object_key.startswith(object_key_prefix)
+            assert image.width > 0
+            assert image.height > 0
+            assert image.size_bytes > 0
+
+        bucket = client.bucket(GCP_STORAGE_BUCKET)
+        for object_key in created_object_keys:
+            blob = bucket.blob(object_key)
+            assert blob.exists()
+            blob.reload()
+            assert blob.size is not None
+            assert blob.size > 0
+
+        event_query = await db_session.execute(
+            select(EditEvent)
+            .where(
+                EditEvent.project_id == PROJECT_ID,
+                EditEvent.target_id == CHARACTER_ID,
+                EditEvent.target_type == TargetType.CHARACTER.value,
+                EditEvent.operation_type == OperationType.UPLOAD_REFERENCE_IMAGE.value,
+            )
+            .order_by(EditEvent.created_at.desc())
+            .limit(1)
+        )
+        latest_event = event_query.scalar_one_or_none()
+        assert latest_event is not None
+        assert latest_event.status == EditEventStatus.SUCCEEDED.value
+    finally:
+        if DELETE_TEST_UPLOADS_AFTER_TEST:
+            bucket = client.bucket(GCP_STORAGE_BUCKET)
+            for object_key in created_object_keys:
+                blob = bucket.blob(object_key)
+                if blob.exists():
+                    blob.delete()
+
+            if created_image_ids:
+                await db_session.execute(
+                    delete(ImageModel).where(ImageModel.id.in_(created_image_ids))
+                )
+                await db_session.commit()

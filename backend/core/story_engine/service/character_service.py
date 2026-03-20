@@ -27,6 +27,7 @@ from ..repository import RepositoryV2
 from ..state.character import CharacterBase as CharacterAttributes
 from .dto_types import FileToUploadDTO, ProjectUserCharacterDTO, UploadReferenceImageDTO
 from .image_upload import ImageUploadService
+from .upload_filename import build_upload_reference_filename
 
 
 class CharacterService:
@@ -373,8 +374,7 @@ class CharacterService:
         character_id: uuid.UUID,
         image: UploadFile,
     ) -> None:
-        # allow user to give descriptive filename
-        filename = slugify(image.filename) if image.filename else str(uuid.uuid4())
+        filename = build_upload_reference_filename(image.filename)
 
         dto = UploadReferenceImageDTO(
             file_to_upload=FileToUploadDTO(file=image.file, filename=filename),
