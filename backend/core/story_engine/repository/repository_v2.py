@@ -6,16 +6,12 @@ from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
-from .models import Character, EditEvent, Project, Story
+from ..models import Character, EditEvent, Project, Story
+from ..models.edit_event import EditEventStatus, OperationType
+from .exception import NotFoundError
 
 
-class NotFoundError(Exception):
-    """Base class for not found errors."""
-
-    pass
-
-
-class Repository:
+class RepositoryV2:
     def __init__(self, db: AsyncSession):
         self.db = db
 
@@ -35,8 +31,6 @@ class Repository:
     async def create_project(self, user_id: str, name: str | None = None) -> Project:
         project = Project(user_id=uuid.UUID(user_id), name=name)
         self.db.add(project)
-        await self.db.commit()
-        await self.db.refresh(project)
         return project
 
     async def get_project_details(
@@ -55,8 +49,6 @@ class Repository:
     async def create_new_story(self, project_id: uuid.UUID) -> Story:
         story = Story(project_id=project_id)
         self.db.add(story)
-        await self.db.commit()
-        await self.db.refresh(story)
         return story
 
     async def get_story(
@@ -71,7 +63,6 @@ class Repository:
         if story is None:
             raise NotFoundError(f"Story {story_id} not found in project {project_id}")
         await self.db.delete(story)
-        await self.db.commit()
 
     async def get_story_with_project(self, story_id: uuid.UUID) -> Story | None:
         stmt = (
@@ -95,18 +86,14 @@ class Repository:
         story.user_input_text = user_input_text
         if source_event_id is not None:
             story.source_event_id = source_event_id
-        await self.db.commit()
-        await self.db.refresh(story)
         return story
-
-    # ── Edit Event methods ──────────────────────────────────────
 
     async def create_edit_event(
         self,
         project_id: uuid.UUID,
         target_type: str,
         target_id: uuid.UUID,
-        operation_type: str,
+        operation_type: OperationType,
         user_instruction: str,
         input_snapshot: dict[str, Any] | None = None,
     ) -> EditEvent:
@@ -114,30 +101,26 @@ class Repository:
             project_id=project_id,
             target_type=target_type,
             target_id=target_id,
-            operation_type=operation_type,
+            operation_type=operation_type.value,
             user_instruction=user_instruction,
             input_snapshot=input_snapshot,
         )
         self.db.add(event)
-        await self.db.commit()
-        await self.db.refresh(event)
         return event
 
-    async def complete_edit_event(
+    async def update_edit_event(
         self,
-        event_id: uuid.UUID,
-        status: str,
+        edit_event_id: uuid.UUID,
+        status: EditEventStatus,
         output_snapshot: dict[str, Any] | None = None,
     ) -> EditEvent:
-        event = await self.db.get(EditEvent, event_id)
+        event = await self.db.get(EditEvent, edit_event_id)
         if event is None:
-            raise NotFoundError(f"EditEvent {event_id} not found")
+            raise NotFoundError(f"EditEvent {edit_event_id} not found")
 
-        event.status = status
+        event.status = status.value
         if output_snapshot is not None:
             event.output_snapshot = output_snapshot
-        await self.db.commit()
-        await self.db.refresh(event)
         return event
 
     async def get_edit_events_for_target(
@@ -158,7 +141,6 @@ class Repository:
 
     async def bulk_create_characters(self, characters: list[Character]) -> None:
         self.db.add_all(characters)
-        await self.db.commit()
 
     async def get_all_characters_for_a_story(
         self, story_id: uuid.UUID
@@ -207,22 +189,15 @@ class Repository:
                 f"Character {character_id} not found in story {story_id}"
             )
 
-        # Separate meta from attribute-level fields
         meta = updates.pop("meta", None)
-
-        # Merge non-None attribute fields into the attributes JSONB column
         attribute_updates = {k: v for k, v in updates.items() if v is not None}
         if attribute_updates:
             character.attributes = {**character.attributes, **attribute_updates}
-            # Keep the top-level name column in sync if name is being updated
             if "name" in attribute_updates:
                 character.name = attribute_updates["name"]
 
         if meta is not None:
             character.meta = {**character.meta, **meta}
-
-        await self.db.commit()
-        await self.db.refresh(character)
         return character
 
     async def replace_character_attributes(
@@ -243,9 +218,6 @@ class Repository:
         character.slug = slugify(attributes["name"])
         if source_event_id is not None:
             character.source_event_id = source_event_id
-
-        await self.db.commit()
-        await self.db.refresh(character)
         return character
 
     async def delete_character(
@@ -257,7 +229,6 @@ class Repository:
                 f"Character {character_id} not found in story {story_id}"
             )
         await self.db.delete(character)
-        await self.db.commit()
 
     async def update_character_render_url(
         self, character_id: uuid.UUID, story_id: uuid.UUID, render_url: str
@@ -268,6 +239,4 @@ class Repository:
                 f"Character {character_id} not found in story {story_id}"
             )
         character.render_url = render_url
-        await self.db.commit()
-        await self.db.refresh(character)
         return character
