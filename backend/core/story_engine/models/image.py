@@ -26,7 +26,7 @@ class ImageType(StrEnum):
     CHARACTER_REFERENCE = "character_reference"
 
 
-class Variant(StrEnum):
+class ImageVariant(StrEnum):
     ORIGINAL = "original"
     THUMB = "thumb"
     PREVIEW = "preview"

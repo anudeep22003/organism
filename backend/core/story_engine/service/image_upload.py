@@ -1,7 +1,6 @@
 import os
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-from enum import StrEnum
 from io import BytesIO
 from typing import BinaryIO
 
@@ -16,9 +15,9 @@ from core.config import GCP_PROJECT_ID, GCP_STORAGE_BUCKET
 from ..exceptions import NotFoundError
 from ..models import Character, EditEvent
 from ..models.edit_event import EditEventStatus, OperationType, TargetType
-from ..models.image import ImageFormat
+from ..models.image import ImageFormat, ImageType, ImageVariant
 from ..repository import RepositoryV2
-from .dto_types import UploadReferenceImageDTO
+from .dto_types import ProjectUserCharacterDTO, UploadReferenceImageDTO
 
 client = Client(project=GCP_PROJECT_ID)
 
@@ -45,15 +44,18 @@ class ReadyToUploadImageDTO:
     size_bytes: int
     image_bytes: BytesIO
     content_type: ImageFormat
+    project_user_character: ProjectUserCharacterDTO
 
 
-class ImageVariantKey(StrEnum):
-    ORIGINAL = "original"
-    THUMB = "thumb"
-    PREVIEW = "preview"
+@dataclass(slots=True)
+class CompletedUploadImageDTO(ReadyToUploadImageDTO):
+    object_key: str
+    variant: ImageVariant
+    bucket: str
 
 
-ImageVariants = dict[ImageVariantKey, ReadyToUploadImageDTO]
+ImageVariantsReadyForUploadDTO = dict[ImageVariant, ReadyToUploadImageDTO]
+CompletedUploadImageReadyToAddToDBDTO = dict[ImageVariant, CompletedUploadImageDTO]
 
 
 class ImageUploadService:
@@ -66,28 +68,57 @@ class ImageUploadService:
         self,
         dto: UploadReferenceImageDTO,
     ) -> None:
-        character = await self._get_authorized_character(dto)
+        character = await self._get_authorized_character(dto.project_user_character)
 
-        edit_event = await self._create_in_processing_edit_event(dto)
+        edit_event = await self._create_in_processing_edit_event(
+            dto.project_user_character
+        )
         await self.db.commit()
 
-        object_key_prefix = self._build_object_key_prefix(dto, character.slug)
-        image_variants = await self._create_image_variants(dto.image)
-        self._upload_image_variants_to_bucket(object_key_prefix, image_variants)
+        object_key_prefix = self._build_object_key_prefix(
+            dto.project_user_character, character.slug, dto.file_to_upload.filename
+        )
+        image_variants = await self._create_image_variants(dto.file_to_upload.file)
+        image_variants_ready_for_upload = self._pack_variants_to_upload_ready_dto(
+            image_variants, dto.project_user_character
+        )
+        completed_uploads = self._upload_image_variants_to_bucket(
+            object_key_prefix, image_variants_ready_for_upload
+        )
+        async with self.db.begin():
+            await self._add_image_to_db(
+                completed_uploads,
+                dto.project_user_character,
+                dto.file_to_upload.filename,
+            )
+            await self._mark_edit_event_completed(edit_event)
 
-        await self._mark_edit_event_completed(edit_event)
-        await self.db.commit()
-
-        # next steps:
-        # - update tables
-        # TODO continue with next steps
         return None
 
-    async def _add_image_to_db(self) -> None:
-        raise NotImplementedError("Not implemented")
+    async def _add_image_to_db(
+        self,
+        completed_uploads: CompletedUploadImageReadyToAddToDBDTO,
+        project_user_character: ProjectUserCharacterDTO,
+        filename: str,
+    ) -> None:
+        for variant, completed_upload in completed_uploads.items():
+            await self.repository_v2.image.create_image_entry_in_db(
+                project_id=project_user_character.project_id,
+                user_id=project_user_character.user_id,
+                character_id=project_user_character.character_id,
+                width=completed_upload.width,
+                height=completed_upload.height,
+                format=completed_upload.content_type,
+                object_key=completed_upload.object_key,
+                bucket=completed_upload.bucket,
+                size_bytes=completed_upload.size_bytes,
+                variant=variant,
+                image_type=ImageType.CHARACTER_REFERENCE,
+                filename=filename,
+            )
 
     async def _create_in_processing_edit_event(
-        self, dto: UploadReferenceImageDTO
+        self, dto: ProjectUserCharacterDTO
     ) -> EditEvent:
         return await self.repository_v2.edit_event.create_edit_event(
             project_id=dto.project_id,
@@ -106,7 +137,7 @@ class ImageUploadService:
         )
 
     async def _get_authorized_character(
-        self, dto: UploadReferenceImageDTO
+        self, dto: ProjectUserCharacterDTO
     ) -> Character:
         character = await self.repository_v2.character.get_character_for_user_in_project_and_story(
             dto.user_id, dto.project_id, dto.story_id, dto.character_id
@@ -118,12 +149,14 @@ class ImageUploadService:
         return character
 
     def _build_object_key_prefix(
-        self, dto: UploadReferenceImageDTO, character_slug: str
+        self, dto: ProjectUserCharacterDTO, character_slug: str, filename: str
     ) -> str:
-        return f"{dto.user_id}/character/{character_slug}/references/{dto.filename}"
+        return f"{dto.user_id}/character/{character_slug}/references/{filename}"
 
     @time_it
-    async def _create_image_variants(self, file_byte_stream: BinaryIO) -> ImageVariants:
+    async def _create_image_variants(
+        self, file_byte_stream: BinaryIO
+    ) -> dict[ImageVariant, Image.Image]:
         # read stream, get byte stream, create image and pass that forward
         # following methods create a copy before running any operations
         # To get size, you can buf.seek(2) and do a buf.tell() [2 is the end]
@@ -137,17 +170,41 @@ class ImageUploadService:
         preview = self._create_preview_image(base_image)
 
         # build image variants
-        image_variants = ImageVariants(
-            {
-                ImageVariantKey.ORIGINAL: original,
-                ImageVariantKey.THUMB: thumb,
-                ImageVariantKey.PREVIEW: preview,
-            }
-        )
+        image_variants = {
+            ImageVariant.ORIGINAL: original,
+            ImageVariant.THUMB: thumb,
+            ImageVariant.PREVIEW: preview,
+        }
         return image_variants
 
+    def _pack_variants_to_upload_ready_dto(
+        self,
+        image_variants: dict[ImageVariant, Image.Image],
+        project_user_character: ProjectUserCharacterDTO,
+    ) -> ImageVariantsReadyForUploadDTO:
+        return {
+            ImageVariant.ORIGINAL: self._pack_image_to_ready_to_upload_dto(
+                image_variants[ImageVariant.ORIGINAL],
+                ORIGINAL_QUALITY,
+                project_user_character,
+            ),
+            ImageVariant.THUMB: self._pack_image_to_ready_to_upload_dto(
+                image_variants[ImageVariant.THUMB],
+                THUMB_QUALITY,
+                project_user_character,
+            ),
+            ImageVariant.PREVIEW: self._pack_image_to_ready_to_upload_dto(
+                image_variants[ImageVariant.PREVIEW],
+                PREVIEW_QUALITY,
+                project_user_character,
+            ),
+        }
+
     def _pack_image_to_ready_to_upload_dto(
-        self, image: Image.Image, quality: int
+        self,
+        image: Image.Image,
+        quality: int,
+        project_user_character: ProjectUserCharacterDTO,
     ) -> ReadyToUploadImageDTO:
         width, height = image.size
         buffer = BytesIO()
@@ -157,35 +214,49 @@ class ImageUploadService:
             0
         )  # Important: reset pointer to start of buffer, because save moves it to end
         return ReadyToUploadImageDTO(
-            width, height, size_bytes, buffer, ImageFormat.JPEG
+            width, height, size_bytes, buffer, ImageFormat.JPEG, project_user_character
         )
 
     @time_it
-    def _process_original_image(self, image: Image.Image) -> ReadyToUploadImageDTO:
-        processed_img = ImageOps.exif_transpose(image=image.copy()).convert("RGB")
-        return self._pack_image_to_ready_to_upload_dto(processed_img, ORIGINAL_QUALITY)
+    def _process_original_image(self, image: Image.Image) -> Image.Image:
+        return ImageOps.exif_transpose(image=image.copy()).convert("RGB")
 
     @time_it
-    def _create_thumb_image(self, image: Image.Image) -> ReadyToUploadImageDTO:
+    def _create_thumb_image(self, image: Image.Image) -> Image.Image:
         thumb = image.copy()
         thumb.thumbnail(THUMB_SIZE)  # modifies in place
-        return self._pack_image_to_ready_to_upload_dto(thumb, THUMB_QUALITY)
+        return thumb
 
     @time_it
-    def _create_preview_image(self, image: Image.Image) -> ReadyToUploadImageDTO:
+    def _create_preview_image(self, image: Image.Image) -> Image.Image:
         preview = image.copy()
         preview.thumbnail(PREVIEW_SIZE)  # modifies in place
-        return self._pack_image_to_ready_to_upload_dto(preview, PREVIEW_QUALITY)
+        return preview
 
     @time_it
     def _upload_image_variants_to_bucket(
-        self, object_key_prefix: str, image_variants: ImageVariants
-    ) -> None:
+        self, object_key_prefix: str, image_variants: ImageVariantsReadyForUploadDTO
+    ) -> CompletedUploadImageReadyToAddToDBDTO:
+        completed_uploads: CompletedUploadImageReadyToAddToDBDTO = {}
         for key, value in image_variants.items():
             object_key = f"{object_key_prefix}/{key}.{IMAGE_FORMAT_FILE_SUFFIX}"
-            self._upload_file_object_to_bucket(object_key, value)
-
-        return None
+            try:
+                self._upload_file_object_to_bucket(object_key, value)
+                completed_uploads[key] = CompletedUploadImageDTO(
+                    width=value.width,
+                    height=value.height,
+                    size_bytes=value.size_bytes,
+                    image_bytes=value.image_bytes,
+                    content_type=value.content_type,
+                    project_user_character=value.project_user_character,
+                    object_key=object_key,
+                    variant=key,
+                    bucket=GCP_STORAGE_BUCKET,
+                )
+            except Exception as e:
+                logger.error(f"Failed to upload image to bucket: {e}")
+                continue
+        return completed_uploads
 
     @time_it
     def _upload_file_object_to_bucket(
