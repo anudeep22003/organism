@@ -240,7 +240,7 @@ class CharacterService:
             user_instruction=instruction,
             input_snapshot=character_current_attributes,
         )
-        # extract id before commit expires the ORM object
+        await self.db.flush()  # assigns DB-generated id
         edit_event_id = edit_event.id
         await self.db.commit()
 
