@@ -1,4 +1,5 @@
 import os
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from io import BytesIO
@@ -69,14 +70,16 @@ class ImageUploadService:
         dto: UploadReferenceImageDTO,
     ) -> None:
         character = await self._get_authorized_character(dto.project_user_character)
+        character_slug = character.slug
 
         edit_event = await self._create_in_processing_edit_event(
             dto.project_user_character
         )
-        await self.db.commit()
+        await self.db.flush()
+        edit_event_id = edit_event.id
 
         object_key_prefix = self._build_object_key_prefix(
-            dto.project_user_character, character.slug, dto.file_to_upload.filename
+            dto.project_user_character, character_slug, dto.file_to_upload.filename
         )
         image_variants = await self._create_image_variants(dto.file_to_upload.file)
         image_variants_ready_for_upload = self._pack_variants_to_upload_ready_dto(
@@ -85,13 +88,13 @@ class ImageUploadService:
         completed_uploads = self._upload_image_variants_to_bucket(
             object_key_prefix, image_variants_ready_for_upload
         )
-        async with self.db.begin():
-            await self._add_image_to_db(
-                completed_uploads,
-                dto.project_user_character,
-                dto.file_to_upload.filename,
-            )
-            await self._mark_edit_event_completed(edit_event)
+        await self._add_image_to_db(
+            completed_uploads,
+            dto.project_user_character,
+            dto.file_to_upload.filename,
+        )
+        await self._mark_edit_event_completed(edit_event_id)
+        await self.db.commit()
 
         return None
 
@@ -129,9 +132,9 @@ class ImageUploadService:
             input_snapshot=None,
         )
 
-    async def _mark_edit_event_completed(self, edit_event: EditEvent) -> EditEvent:
+    async def _mark_edit_event_completed(self, edit_event_id: uuid.UUID) -> EditEvent:
         return await self.repository_v2.edit_event.update_edit_event(
-            edit_event_id=edit_event.id,
+            edit_event_id=edit_event_id,
             status=EditEventStatus.SUCCEEDED,
             output_snapshot=None,
         )
