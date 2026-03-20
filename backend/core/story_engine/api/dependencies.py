@@ -9,7 +9,7 @@ from core.auth.dependencies import get_current_user_id
 from core.services.database import get_async_db_session
 
 from ..models import Project
-from ..service import Service
+from ..service import CharacterService, ProjectService, StoryService
 
 
 async def verify_project_access(
@@ -33,7 +33,19 @@ async def verify_project_access(
     return project.id
 
 
-async def get_service(
+async def get_project_service(
     db: Annotated[AsyncSession, Depends(get_async_db_session)],
-) -> Service:
-    return Service(db_session=db)
+) -> ProjectService:
+    return ProjectService(db_session=db)
+
+
+async def get_story_service(
+    db: Annotated[AsyncSession, Depends(get_async_db_session)],
+) -> StoryService:
+    return StoryService(db_session=db)
+
+
+async def get_character_service(
+    db: Annotated[AsyncSession, Depends(get_async_db_session)],
+) -> CharacterService:
+    return CharacterService(db_session=db)

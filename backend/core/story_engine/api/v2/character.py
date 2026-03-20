@@ -18,8 +18,8 @@ from ...schemas.character import (
     CharacterUpdateSchema,
 )
 from ...schemas.edit_event import EditEventResponseSchema
-from ...service import Service
-from ..dependencies import get_service
+from ...service import CharacterService
+from ..dependencies import get_character_service
 
 router = APIRouter(tags=["characters", "v2"])
 
@@ -28,7 +28,7 @@ router = APIRouter(tags=["characters", "v2"])
 async def extract_characters_from_story(
     project_id: uuid.UUID,
     story_id: uuid.UUID,
-    service: Annotated[Service, Depends(get_service)],
+    service: Annotated[CharacterService, Depends(get_character_service)],
 ) -> list[CharacterResponseSchema]:
     try:
         characters = await service.extract_characters_from_story(project_id, story_id)
@@ -52,7 +52,7 @@ async def extract_characters_from_story(
 async def get_characters_for_story(
     project_id: uuid.UUID,
     story_id: uuid.UUID,
-    service: Annotated[Service, Depends(get_service)],
+    service: Annotated[CharacterService, Depends(get_character_service)],
 ) -> list[CharacterResponseSchema]:
     try:
         characters = await service.get_story_characters(project_id, story_id)
@@ -74,7 +74,7 @@ async def get_character(
     project_id: uuid.UUID,
     story_id: uuid.UUID,
     character_id: uuid.UUID,
-    service: Annotated[Service, Depends(get_service)],
+    service: Annotated[CharacterService, Depends(get_character_service)],
 ) -> CharacterResponseSchema:
     try:
         character = await service.get_character(project_id, story_id, character_id)
@@ -97,7 +97,7 @@ async def update_character(
     story_id: uuid.UUID,
     character_id: uuid.UUID,
     body: CharacterUpdateSchema,
-    service: Annotated[Service, Depends(get_service)],
+    service: Annotated[CharacterService, Depends(get_character_service)],
 ) -> CharacterResponseSchema:
     try:
         updates = body.model_dump(exclude_none=True)
@@ -124,7 +124,7 @@ async def refine_character(
     story_id: uuid.UUID,
     character_id: uuid.UUID,
     body: CharacterRefineRequest,
-    service: Annotated[Service, Depends(get_service)],
+    service: Annotated[CharacterService, Depends(get_character_service)],
 ) -> CharacterResponseSchema:
     try:
         character = await service.refine_character(
@@ -150,7 +150,7 @@ async def delete_character(
     project_id: uuid.UUID,
     story_id: uuid.UUID,
     character_id: uuid.UUID,
-    service: Annotated[Service, Depends(get_service)],
+    service: Annotated[CharacterService, Depends(get_character_service)],
 ) -> None:
     try:
         await service.delete_character(project_id, story_id, character_id)
@@ -169,7 +169,7 @@ async def get_character_history(
     project_id: uuid.UUID,
     story_id: uuid.UUID,
     character_id: uuid.UUID,
-    service: Annotated[Service, Depends(get_service)],
+    service: Annotated[CharacterService, Depends(get_character_service)],
     limit: int = 20,
 ) -> list[EditEventResponseSchema]:
     events = await service.get_character_history(character_id, limit=limit)
@@ -181,7 +181,7 @@ async def render_character(
     project_id: uuid.UUID,
     story_id: uuid.UUID,
     character_id: uuid.UUID,
-    service: Annotated[Service, Depends(get_service)],
+    service: Annotated[CharacterService, Depends(get_character_service)],
 ) -> CharacterResponseSchema:
     character = await service.render_character(project_id, story_id, character_id)
     return CharacterResponseSchema.model_validate(character)
@@ -194,25 +194,10 @@ async def upload_reference_image(
     project_id: uuid.UUID,
     story_id: uuid.UUID,
     character_id: uuid.UUID,
-    service: Annotated[Service, Depends(get_service)],
+    service: Annotated[CharacterService, Depends(get_character_service)],
     user_id: Annotated[str, Depends(get_current_user_id)],
     image: UploadFile = File(...),
 ) -> None:
-    """
-    Upload a reference image for a character.
-
-    Process:
-    1. Verify request
-    1. Create an in processing edit event
-    2. Take the image and create thumb, preview and original options using Pillow
-    3. Identify the object_key for storage location in bucket
-    4. Upload all to google storage and get url
-    5. Single transaction
-        - create an artefact entry (id, source, source_type, url)
-        - add to character reference table (id, char_id foreign key, artefact_id)
-        - mark edit event completed
-
-    """
     await service.upload_reference_image(
         user_id, project_id, story_id, character_id, image
     )
