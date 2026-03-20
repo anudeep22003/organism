@@ -107,7 +107,7 @@ class ImageUploadService:
     async def _get_authorized_character(
         self, dto: UploadReferenceImageDTO
     ) -> Character:
-        character = await self.repository.get_character_for_user_in_project_and_story(
+        character = await self.repository_v2.character.get_character_for_user_in_project_and_story(
             dto.user_id, dto.project_id, dto.story_id, dto.character_id
         )
         if character is None:

@@ -97,9 +97,21 @@ class StubRepositoryV2EditEvent:
         return SimpleNamespace(id=edit_event_id, status=status)
 
 
+class StubRepositoryV2Character:
+    async def get_character_for_user_in_project_and_story(
+        self,
+        user_id: str,
+        project_id: uuid.UUID,
+        story_id: uuid.UUID,
+        character_id: uuid.UUID,
+    ) -> SimpleNamespace:
+        return SimpleNamespace(slug=CHARACTER_SLUG)
+
+
 class StubRepositoryV2:
     def __init__(self) -> None:
         self.edit_event = StubRepositoryV2EditEvent()
+        self.character = StubRepositoryV2Character()
 
 
 def _build_candidate_keys(

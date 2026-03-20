@@ -29,6 +29,8 @@ from ..exceptions import (
 )
 from ..models import (
     Character,
+    EditEvent,
+    Project,
     Story,
 )
 from ..models.edit_event import EditEventStatus, OperationType, TargetType
@@ -181,6 +183,51 @@ class Service:
             {serialized_character}
         """).strip()
 
+    # ── Project methods ──────────────────────────────────────
+
+    async def get_all_projects_of_user(self, user_id: str) -> list[tuple[Project, int]]:
+        return (
+            await self.repository_v2.project.get_all_projects_of_user_with_story_count(
+                user_id
+            )
+        )
+
+    async def create_project(self, user_id: str, name: str | None = None) -> Project:
+        project = await self.repository.create_project(user_id, name)
+        return project
+
+    async def get_project_details(
+        self, user_id: str, project_id: uuid.UUID
+    ) -> Project | None:
+        return await self.repository_v2.project.get_project_details(user_id, project_id)
+
+    # ── Story methods ──────────────────────────────────────
+
+    async def get_story(
+        self, project_id: uuid.UUID, story_id: uuid.UUID
+    ) -> Story | None:
+        return await self.repository_v2.story.get_story(project_id, story_id)
+
+    async def create_story(self, project_id: uuid.UUID) -> Story:
+        return await self.repository.create_new_story(project_id)
+
+    async def delete_story(self, project_id: uuid.UUID, story_id: uuid.UUID) -> None:
+        await self.repository.delete_story(project_id, story_id)
+
+    async def get_story_history(
+        self, story_id: uuid.UUID, limit: int = 20
+    ) -> list[EditEvent]:
+        return await self.repository_v2.edit_event.get_edit_events_for_target(
+            target_type=TargetType.STORY, target_id=story_id, limit=limit
+        )
+
+    async def get_character_history(
+        self, character_id: uuid.UUID, limit: int = 20
+    ) -> list[EditEvent]:
+        return await self.repository_v2.edit_event.get_edit_events_for_target(
+            target_type=TargetType.CHARACTER, target_id=character_id, limit=limit
+        )
+
     async def generate_story(
         self,
         user_id: str,
@@ -190,7 +237,9 @@ class Service:
     ) -> AsyncIterator[EventEnvelope]:
         _user_id = self._get_user_id(user_id)
 
-        story_with_project = await self.repository.get_story_with_project(story_id)
+        story_with_project = await self.repository_v2.story.get_story_with_project(
+            story_id
+        )
         if story_with_project is None:
             raise NotFoundError(f"Story {story_id} not found")
 
@@ -265,7 +314,7 @@ class Service:
     async def extract_characters_from_story(
         self, project_id: uuid.UUID, story_id: uuid.UUID
     ) -> list[Character]:
-        story = await self.repository.get_story(project_id, story_id)
+        story = await self.repository_v2.story.get_story(project_id, story_id)
         if story is None:
             raise NotFoundError(f"Story {story_id} not found")
 
@@ -290,8 +339,8 @@ class Service:
         ]
         await self.repository.bulk_create_characters(characters)
 
-        created_characters = await self.repository.get_all_characters_for_a_story(
-            story_id
+        created_characters = (
+            await self.repository_v2.character.get_all_characters_for_a_story(story_id)
         )
 
         return list(created_characters)
@@ -349,20 +398,24 @@ class Service:
     async def get_story_characters(
         self, project_id: uuid.UUID, story_id: uuid.UUID
     ) -> list[Character]:
-        story = await self.repository.get_story(project_id, story_id)
+        story = await self.repository_v2.story.get_story(project_id, story_id)
         if story is None:
             raise NotFoundError(f"Story {story_id} not found")
 
-        return await self.repository.get_all_characters_for_a_story(story_id)
+        return await self.repository_v2.character.get_all_characters_for_a_story(
+            story_id
+        )
 
     async def get_character(
         self, project_id: uuid.UUID, story_id: uuid.UUID, character_id: uuid.UUID
     ) -> Character:
-        story = await self.repository.get_story(project_id, story_id)
+        story = await self.repository_v2.story.get_story(project_id, story_id)
         if story is None:
             raise NotFoundError(f"Story {story_id} not found")
 
-        character = await self.repository.get_character(character_id, story_id)
+        character = await self.repository_v2.character.get_character(
+            character_id, story_id
+        )
         if character is None:
             raise NotFoundError(
                 f"Character {character_id} not found in story {story_id}"
@@ -377,7 +430,7 @@ class Service:
         character_id: uuid.UUID,
         updates: dict,
     ) -> Character:
-        story = await self.repository.get_story(project_id, story_id)
+        story = await self.repository_v2.story.get_story(project_id, story_id)
         if story is None:
             raise NotFoundError(f"Story {story_id} not found")
 
@@ -395,14 +448,16 @@ class Service:
         character_id: uuid.UUID,
         instruction: str,
     ) -> Character:
-        story = await self.repository.get_story(project_id, story_id)
+        story = await self.repository_v2.story.get_story(project_id, story_id)
         if story is None:
             raise NotFoundError(f"Story {story_id} not found")
 
         # extract fields before they expire (ORM cost)
         story_text = story.story_text
 
-        character = await self.repository.get_character(character_id, story_id)
+        character = await self.repository_v2.character.get_character(
+            character_id, story_id
+        )
         if character is None:
             raise NotFoundError(
                 f"Character {character_id} not found in story {story_id}"
@@ -437,7 +492,7 @@ class Service:
                 EditEventStatus.SUCCEEDED,
                 output_snapshot=refined_character.attributes,
             )
-            refreshed_character = await self.repository.get_character(
+            refreshed_character = await self.repository_v2.character.get_character(
                 character_id, story_id
             )
             if refreshed_character is None:
@@ -454,7 +509,7 @@ class Service:
     async def delete_character(
         self, project_id: uuid.UUID, story_id: uuid.UUID, character_id: uuid.UUID
     ) -> None:
-        story = await self.repository.get_story(project_id, story_id)
+        story = await self.repository_v2.story.get_story(project_id, story_id)
         if story is None:
             raise NotFoundError(f"Story {story_id} not found")
 
@@ -512,7 +567,9 @@ class Service:
     async def render_character(
         self, project_id: uuid.UUID, story_id: uuid.UUID, character_id: uuid.UUID
     ) -> Character:
-        character = await self.repository.get_character(character_id, story_id)
+        character = await self.repository_v2.character.get_character(
+            character_id, story_id
+        )
         if character is None:
             raise NotFoundError(
                 f"Character {character_id} not found in story {story_id}"
