@@ -3,21 +3,13 @@ from typing import Annotated, AsyncIterator
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy.ext.asyncio import (
-    AsyncSession,
-)
 
 from core.auth import (
     get_current_user_id,
 )
-from core.services.database import (
-    get_async_db_session,
-)
 
 from ...events import EventEnvelope
 from ...exceptions import InvalidUserIDError, NotFoundError, NotOwnedError
-from ...models.edit_event import TargetType
-from ...repository import Repository
 from ...schemas.edit_event import EditEventResponseSchema
 from ...schemas.story import (
     GenerateStoryRequest,
@@ -34,10 +26,9 @@ async def get_story(
     project_id: uuid.UUID,
     story_id: uuid.UUID,
     user_id: Annotated[str, Depends(get_current_user_id)],
-    db: Annotated[AsyncSession, Depends(get_async_db_session)],
+    service: Annotated[Service, Depends(get_service)],
 ) -> StoryResponseSchema:
-    repository = Repository(db)
-    story = await repository.get_story(project_id, story_id)
+    story = await service.get_story(project_id, story_id)
     if story is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Story not found in project"
@@ -76,11 +67,8 @@ async def get_story_history(
     project_id: uuid.UUID,
     story_id: uuid.UUID,
     user_id: Annotated[str, Depends(get_current_user_id)],
-    db: Annotated[AsyncSession, Depends(get_async_db_session)],
+    service: Annotated[Service, Depends(get_service)],
     limit: int = 20,
 ) -> list[EditEventResponseSchema]:
-    repository = Repository(db)
-    events = await repository.get_edit_events_for_target(
-        TargetType.STORY, story_id, limit=limit
-    )
+    events = await service.get_story_history(story_id, limit=limit)
     return [EditEventResponseSchema.model_validate(e) for e in events]

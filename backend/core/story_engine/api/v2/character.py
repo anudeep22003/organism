@@ -3,10 +3,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from loguru import logger
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.auth import get_current_user_id
-from core.services.database import get_async_db_session
 
 from ...exceptions import (
     CharacterExtractionError,
@@ -14,8 +12,6 @@ from ...exceptions import (
     NoStoryTextError,
     NotFoundError,
 )
-from ...models.edit_event import TargetType
-from ...repository import Repository
 from ...schemas.character import (
     CharacterRefineRequest,
     CharacterResponseSchema,
@@ -173,13 +169,10 @@ async def get_character_history(
     project_id: uuid.UUID,
     story_id: uuid.UUID,
     character_id: uuid.UUID,
-    db: Annotated[AsyncSession, Depends(get_async_db_session)],
+    service: Annotated[Service, Depends(get_service)],
     limit: int = 20,
 ) -> list[EditEventResponseSchema]:
-    repository = Repository(db)
-    events = await repository.get_edit_events_for_target(
-        TargetType.CHARACTER, character_id, limit=limit
-    )
+    events = await service.get_character_history(character_id, limit=limit)
     return [EditEventResponseSchema.model_validate(e) for e in events]
 
 

@@ -2,12 +2,10 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.auth.dependencies import get_current_user_id
-from core.services.database import get_async_db_session
 
-from ...repository import NotFoundError, Repository
+from ...exceptions import NotFoundError
 from ...schemas import (
     ProjectCreateSchema,
     ProjectListResponseSchema,
@@ -16,6 +14,8 @@ from ...schemas import (
     StoryCreateSchema,
     StoryResponseSchema,
 )
+from ...service import Service
+from ..dependencies import get_service
 
 router = APIRouter(tags=["comic", "builder", "v2", "projects"])
 
@@ -23,10 +23,9 @@ router = APIRouter(tags=["comic", "builder", "v2", "projects"])
 @router.get("/projects")
 async def get_all_projects_of_user(
     user_id: Annotated[str, Depends(get_current_user_id)],
-    db: Annotated[AsyncSession, Depends(get_async_db_session)],
+    service: Annotated[Service, Depends(get_service)],
 ) -> list[ProjectListResponseSchema]:
-    repository = Repository(db)
-    projects = await repository.get_all_projects_of_user_with_story_count(user_id)
+    projects = await service.get_all_projects_of_user(user_id)
     return [
         ProjectListResponseSchema(
             id=project.id,
@@ -42,11 +41,10 @@ async def get_all_projects_of_user(
 @router.post("/projects")
 async def create_project(
     user_id: Annotated[str, Depends(get_current_user_id)],
-    db: Annotated[AsyncSession, Depends(get_async_db_session)],
     project_data: ProjectCreateSchema,
+    service: Annotated[Service, Depends(get_service)],
 ) -> ProjectResponseSchema:
-    repository = Repository(db)
-    project = await repository.create_project(user_id, project_data.name)
+    project = await service.create_project(user_id, project_data.name)
     return ProjectResponseSchema.model_validate(project)
 
 
@@ -54,10 +52,9 @@ async def create_project(
 async def get_project(
     project_id: uuid.UUID,
     user_id: Annotated[str, Depends(get_current_user_id)],
-    db: Annotated[AsyncSession, Depends(get_async_db_session)],
+    service: Annotated[Service, Depends(get_service)],
 ) -> ProjectRelationalStateSchema:
-    repository = Repository(db)
-    project = await repository.get_project_details(user_id, project_id)
+    project = await service.get_project_details(user_id, project_id)
     if project is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
@@ -69,12 +66,10 @@ async def get_project(
 async def create_story(
     project_id: uuid.UUID,
     user_id: Annotated[str, Depends(get_current_user_id)],
-    db: Annotated[AsyncSession, Depends(get_async_db_session)],
     story_data: StoryCreateSchema,
+    service: Annotated[Service, Depends(get_service)],
 ) -> StoryResponseSchema:
-    repository = Repository(db)
-    # TODO verify use_id project ownership
-    story = await repository.create_new_story(project_id)
+    story = await service.create_story(project_id)
     return StoryResponseSchema.model_validate(story)
 
 
@@ -83,11 +78,10 @@ async def delete_story(
     project_id: uuid.UUID,
     story_id: uuid.UUID,
     user_id: Annotated[str, Depends(get_current_user_id)],
-    db: Annotated[AsyncSession, Depends(get_async_db_session)],
+    service: Annotated[Service, Depends(get_service)],
 ) -> None:
-    repository = Repository(db)
     try:
-        await repository.delete_story(project_id, story_id)
+        await service.delete_story(project_id, story_id)
     except NotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Story not found in project"
