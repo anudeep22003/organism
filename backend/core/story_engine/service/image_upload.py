@@ -13,10 +13,10 @@ from core.common.utils import time_it
 from core.config import GCP_PROJECT_ID, GCP_STORAGE_BUCKET
 
 from ..exceptions import NotFoundError
-from ..models import Character
-from ..models.edit_event import OperationType, TargetType
+from ..models import Character, EditEvent
+from ..models.edit_event import EditEventStatus, OperationType, TargetType
 from ..models.image import ImageFormat
-from ..repository import Repository
+from ..repository import Repository, RepositoryV2
 from .dto_types import UploadReferenceImageDTO
 
 client = Client(project=GCP_PROJECT_ID)
@@ -56,8 +56,9 @@ ImageVariants = dict[ImageVariantKey, ReadyToUploadImageDTO]
 
 
 class ImageUploadService:
-    def __init__(self, repository: Repository):
+    def __init__(self, repository: Repository, repository_v2: RepositoryV2):
         self.repository = repository
+        self.repository_v2 = repository_v2
         self.bucket = client.bucket(GCP_STORAGE_BUCKET)
 
     async def upload_image(
@@ -65,26 +66,42 @@ class ImageUploadService:
         dto: UploadReferenceImageDTO,
     ) -> None:
         character = await self._get_authorized_character(dto)
-        await self._create_in_processing_edit_event(dto)
+
+        async with self.repository.db.begin():
+            edit_event = await self._create_in_processing_edit_event(dto)
+
         object_key_prefix = self._build_object_key_prefix(dto, character.slug)
         image_variants = await self._create_image_variants(dto.image)
         self._upload_image_variants_to_bucket(object_key_prefix, image_variants)
+
+        async with self.repository.db.begin():
+            await self._mark_edit_event_completed(edit_event)
 
         # next steps:
         # - update tables
         # TODO continue with next steps
         return None
 
+    async def _add_image_to_db(self) -> None:
+        raise NotImplementedError("Not implemented")
+
     async def _create_in_processing_edit_event(
         self, dto: UploadReferenceImageDTO
-    ) -> None:
-        await self.repository.create_edit_event(
+    ) -> EditEvent:
+        return await self.repository_v2.edit_event.create_edit_event(
             project_id=dto.project_id,
             target_type=TargetType.CHARACTER,
             target_id=dto.character_id,
             operation_type=OperationType.UPLOAD_REFERENCE_IMAGE,
             user_instruction="",
             input_snapshot=None,
+        )
+
+    async def _mark_edit_event_completed(self, edit_event: EditEvent) -> EditEvent:
+        return await self.repository_v2.edit_event.update_edit_event(
+            edit_event_id=edit_event.id,
+            status=EditEventStatus.SUCCEEDED,
+            output_snapshot=None,
         )
 
     async def _get_authorized_character(
@@ -185,7 +202,4 @@ class ImageUploadService:
             raise e
 
     async def _create_image_artefact(self) -> None:
-        raise NotImplementedError("Not implemented")
-
-    async def _mark_edit_event_completed(self) -> None:
         raise NotImplementedError("Not implemented")

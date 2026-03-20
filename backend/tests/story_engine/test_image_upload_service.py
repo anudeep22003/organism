@@ -11,11 +11,13 @@ import os
 import time
 import uuid
 from io import BytesIO
-from types import SimpleNamespace
+from types import SimpleNamespace, TracebackType
+from typing import cast
 
 import pytest
 from PIL import Image
 
+from core.story_engine.repository import Repository, RepositoryV2
 from core.story_engine.service.dto_types import UploadReferenceImageDTO
 from core.story_engine.service.image_upload import ImageUploadService, ImageVariantKey
 
@@ -43,6 +45,25 @@ def _build_test_jpeg_stream() -> BytesIO:
 
 
 class StubRepository:
+    class _TxContext:
+        async def __aenter__(self) -> None:
+            return None
+
+        async def __aexit__(
+            self,
+            exc_type: type[BaseException] | None,
+            exc: BaseException | None,
+            tb: TracebackType | None,
+        ) -> bool:
+            return False
+
+    class _DB:
+        def begin(self) -> "StubRepository._TxContext":
+            return StubRepository._TxContext()
+
+    def __init__(self) -> None:
+        self.db = StubRepository._DB()
+
     async def get_character_for_user_in_project_and_story(
         self,
         user_id: str,
@@ -52,6 +73,8 @@ class StubRepository:
     ) -> SimpleNamespace:
         return SimpleNamespace(slug=CHARACTER_SLUG)
 
+
+class StubRepositoryV2EditEvent:
     async def create_edit_event(
         self,
         *,
@@ -63,6 +86,20 @@ class StubRepository:
         input_snapshot: dict[str, object] | None = None,
     ) -> SimpleNamespace:
         return SimpleNamespace(id=uuid.uuid4())
+
+    async def update_edit_event(
+        self,
+        *,
+        edit_event_id: uuid.UUID,
+        status: str,
+        output_snapshot: dict[str, object] | None = None,
+    ) -> SimpleNamespace:
+        return SimpleNamespace(id=edit_event_id, status=status)
+
+
+class StubRepositoryV2:
+    def __init__(self) -> None:
+        self.edit_event = StubRepositoryV2EditEvent()
 
 
 def _build_candidate_keys(
@@ -79,7 +116,10 @@ def _build_candidate_keys(
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_upload_image_uploads_all_variants_to_bucket() -> None:
-    service = ImageUploadService(repository=StubRepository())  # type: ignore[arg-type]
+    service = ImageUploadService(
+        repository=cast(Repository, StubRepository()),
+        repository_v2=cast(RepositoryV2, StubRepositoryV2()),
+    )
     filename = f"{FILENAME_PREFIX}-{int(time.time())}"
     dto = UploadReferenceImageDTO(
         user_id=USER_ID,
