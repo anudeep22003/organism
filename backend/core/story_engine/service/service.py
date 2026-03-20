@@ -33,7 +33,7 @@ from ..models import (
 )
 from ..models.edit_event import EditEventStatus, OperationType, TargetType
 from ..repository import NotFoundError as RepositoryNotFoundError
-from ..repository import Repository
+from ..repository import Repository, RepositoryV2
 from ..schemas.story import GenerateStoryRequest
 from ..state.character import CharacterBase as CharacterAttributes
 from .dto_types import UploadReferenceImageDTO
@@ -117,10 +117,11 @@ class Service:
         image_upload_service: ImageUploadService | None = None,
     ):
         self.repository = repository or Repository(db_session)
+        self.repository_v2 = RepositoryV2(db_session)
         self.stream_generator = stream_generator or StoryStreamGenerator()
         self.processor = processor or OpenAIStreamProcessor()
         self.image_upload_service = image_upload_service or ImageUploadService(
-            repository=self.repository
+            repository=self.repository, repository_v2=self.repository_v2
         )
 
     def _get_user_id(self, user_id: str) -> uuid.UUID:
