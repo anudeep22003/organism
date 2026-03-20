@@ -14,8 +14,8 @@ from ...schemas import (
     StoryCreateSchema,
     StoryResponseSchema,
 )
-from ...service import Service
-from ..dependencies import get_service
+from ...service import ProjectService
+from ..dependencies import get_project_service
 
 router = APIRouter(tags=["comic", "builder", "v2", "projects"])
 
@@ -23,7 +23,7 @@ router = APIRouter(tags=["comic", "builder", "v2", "projects"])
 @router.get("/projects")
 async def get_all_projects_of_user(
     user_id: Annotated[str, Depends(get_current_user_id)],
-    service: Annotated[Service, Depends(get_service)],
+    service: Annotated[ProjectService, Depends(get_project_service)],
 ) -> list[ProjectListResponseSchema]:
     projects = await service.get_all_projects_of_user(user_id)
     return [
@@ -42,7 +42,7 @@ async def get_all_projects_of_user(
 async def create_project(
     user_id: Annotated[str, Depends(get_current_user_id)],
     project_data: ProjectCreateSchema,
-    service: Annotated[Service, Depends(get_service)],
+    service: Annotated[ProjectService, Depends(get_project_service)],
 ) -> ProjectResponseSchema:
     project = await service.create_project(user_id, project_data.name)
     return ProjectResponseSchema.model_validate(project)
@@ -52,7 +52,7 @@ async def create_project(
 async def get_project(
     project_id: uuid.UUID,
     user_id: Annotated[str, Depends(get_current_user_id)],
-    service: Annotated[Service, Depends(get_service)],
+    service: Annotated[ProjectService, Depends(get_project_service)],
 ) -> ProjectRelationalStateSchema:
     project = await service.get_project_details(user_id, project_id)
     if project is None:
@@ -67,7 +67,7 @@ async def create_story(
     project_id: uuid.UUID,
     user_id: Annotated[str, Depends(get_current_user_id)],
     story_data: StoryCreateSchema,
-    service: Annotated[Service, Depends(get_service)],
+    service: Annotated[ProjectService, Depends(get_project_service)],
 ) -> StoryResponseSchema:
     story = await service.create_story(project_id)
     return StoryResponseSchema.model_validate(story)
@@ -78,7 +78,7 @@ async def delete_story(
     project_id: uuid.UUID,
     story_id: uuid.UUID,
     user_id: Annotated[str, Depends(get_current_user_id)],
-    service: Annotated[Service, Depends(get_service)],
+    service: Annotated[ProjectService, Depends(get_project_service)],
 ) -> None:
     try:
         await service.delete_story(project_id, story_id)

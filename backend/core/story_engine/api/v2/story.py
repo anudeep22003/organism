@@ -15,8 +15,8 @@ from ...schemas.story import (
     GenerateStoryRequest,
     StoryResponseSchema,
 )
-from ...service import Service
-from ..dependencies import get_service
+from ...service import StoryService
+from ..dependencies import get_story_service
 
 router = APIRouter(tags=["story"])
 
@@ -26,7 +26,7 @@ async def get_story(
     project_id: uuid.UUID,
     story_id: uuid.UUID,
     user_id: Annotated[str, Depends(get_current_user_id)],
-    service: Annotated[Service, Depends(get_service)],
+    service: Annotated[StoryService, Depends(get_story_service)],
 ) -> StoryResponseSchema:
     story = await service.get_story(project_id, story_id)
     if story is None:
@@ -50,7 +50,7 @@ async def generate_story(
     project_id: uuid.UUID,
     story_id: uuid.UUID,
     request: GenerateStoryRequest,
-    service: Annotated[Service, Depends(get_service)],
+    service: Annotated[StoryService, Depends(get_story_service)],
 ) -> StreamingResponse:
     try:
         stream = await service.generate_story(user_id, project_id, story_id, request)
@@ -67,7 +67,7 @@ async def get_story_history(
     project_id: uuid.UUID,
     story_id: uuid.UUID,
     user_id: Annotated[str, Depends(get_current_user_id)],
-    service: Annotated[Service, Depends(get_service)],
+    service: Annotated[StoryService, Depends(get_story_service)],
     limit: int = 20,
 ) -> list[EditEventResponseSchema]:
     events = await service.get_story_history(story_id, limit=limit)
