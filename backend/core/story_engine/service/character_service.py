@@ -25,7 +25,7 @@ from ..models.edit_event import EditEventStatus, OperationType, TargetType
 from ..repository import NotFoundError as RepositoryNotFoundError
 from ..repository import RepositoryV2
 from ..state.character import CharacterBase as CharacterAttributes
-from .dto_types import UploadReferenceImageDTO
+from .dto_types import FileToUploadDTO, ProjectUserCharacterDTO, UploadReferenceImageDTO
 from .image_upload import ImageUploadService
 
 
@@ -377,12 +377,13 @@ class CharacterService:
         filename = slugify(image.filename) if image.filename else str(uuid.uuid4())
 
         dto = UploadReferenceImageDTO(
-            user_id=user_id,
-            project_id=project_id,
-            story_id=story_id,
-            character_id=character_id,
-            image=image.file,
-            filename=filename,
+            file_to_upload=FileToUploadDTO(file=image.file, filename=filename),
+            project_user_character=ProjectUserCharacterDTO(
+                user_id=user_id,
+                project_id=project_id,
+                story_id=story_id,
+                character_id=character_id,
+            ),
         )
         await self.image_upload_service.upload_image(dto)
         return None

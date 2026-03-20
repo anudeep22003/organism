@@ -18,9 +18,14 @@ import pytest
 from PIL import Image
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.story_engine.models.image import ImageVariant
 from core.story_engine.repository import RepositoryV2
-from core.story_engine.service.dto_types import UploadReferenceImageDTO
-from core.story_engine.service.image_upload import ImageUploadService, ImageVariantKey
+from core.story_engine.service.dto_types import (
+    FileToUploadDTO,
+    ProjectUserCharacterDTO,
+    UploadReferenceImageDTO,
+)
+from core.story_engine.service.image_upload import ImageUploadService
 
 # Manual config values - replace with real IDs before running.
 USER_ID = "2c2af68f-9315-4bab-8aa3-3b1a581dca8e"
@@ -116,7 +121,7 @@ class StubRepositoryV2:
 
 
 def _build_candidate_keys(
-    object_key_prefix: str, variant_key: ImageVariantKey
+    object_key_prefix: str, variant_key: ImageVariant
 ) -> list[str]:
     # Current implementation appends only "." after the key.
     # Keep .jpeg candidate too so this test survives the expected key-format fix.
@@ -135,25 +140,26 @@ async def test_upload_image_uploads_all_variants_to_bucket() -> None:
     )
     filename = f"{FILENAME_PREFIX}-{int(time.time())}"
     dto = UploadReferenceImageDTO(
-        user_id=USER_ID,
-        project_id=PROJECT_ID,
-        story_id=STORY_ID,
-        character_id=CHARACTER_ID,
-        image=_build_test_jpeg_stream(),
-        filename=filename,
+        file_to_upload=FileToUploadDTO(
+            file=_build_test_jpeg_stream(), filename=filename
+        ),
+        project_user_character=ProjectUserCharacterDTO(
+            user_id=USER_ID,
+            project_id=PROJECT_ID,
+            story_id=STORY_ID,
+            character_id=CHARACTER_ID,
+        ),
     )
-    object_key_prefix = (
-        f"{dto.user_id}/character/{CHARACTER_SLUG}/references/{dto.filename}"
-    )
+    object_key_prefix = f"{dto.project_user_character.user_id}/character/{CHARACTER_SLUG}/references/{dto.file_to_upload.filename}"
 
     uploaded_keys: list[str] = []
     try:
         await service.upload_image(dto)
 
         for variant_key in (
-            ImageVariantKey.ORIGINAL,
-            ImageVariantKey.THUMB,
-            ImageVariantKey.PREVIEW,
+            ImageVariant.ORIGINAL,
+            ImageVariant.THUMB,
+            ImageVariant.PREVIEW,
         ):
             matching_key: str | None = None
             for candidate_key in _build_candidate_keys(object_key_prefix, variant_key):
