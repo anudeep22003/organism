@@ -23,7 +23,7 @@ from ..exceptions import (
 from ..models import Character, EditEvent
 from ..models.edit_event import EditEventStatus, OperationType, TargetType
 from ..repository import NotFoundError as RepositoryNotFoundError
-from ..repository import Repository, RepositoryV2
+from ..repository import RepositoryV2
 from ..state.character import CharacterBase as CharacterAttributes
 from .dto_types import UploadReferenceImageDTO
 from .image_upload import ImageUploadService
@@ -33,13 +33,12 @@ class CharacterService:
     def __init__(
         self,
         db_session: AsyncSession,
-        repository: Repository | None = None,
         image_upload_service: ImageUploadService | None = None,
     ):
-        self.repository = repository or Repository(db_session)
+        self.db = db_session
         self.repository_v2 = RepositoryV2(db_session)
         self.image_upload_service = image_upload_service or ImageUploadService(
-            repository=self.repository, repository_v2=self.repository_v2
+            db=self.db, repository_v2=self.repository_v2
         )
 
     def _build_character_refinement_prompt(
@@ -99,7 +98,8 @@ class CharacterService:
             )
             for c in extracted_characters
         ]
-        await self.repository.bulk_create_characters(characters)
+        await self.repository_v2.character.bulk_create_characters(characters)
+        await self.db.commit()
 
         created_characters = (
             await self.repository_v2.character.get_all_characters_for_a_story(story_id)
@@ -197,9 +197,12 @@ class CharacterService:
             raise NotFoundError(f"Story {story_id} not found")
 
         try:
-            return await self.repository.update_character(
+            character = await self.repository_v2.character.update_character(
                 character_id, story_id, updates
             )
+            await self.db.commit()
+            await self.db.refresh(character)
+            return character
         except RepositoryNotFoundError as e:
             raise NotFoundError(str(e)) from e
 
@@ -228,7 +231,8 @@ class CharacterService:
         # extract fields before they expire (ORM cost)
         character_current_attributes = dict(character.attributes)
 
-        edit_event = await self.repository.create_edit_event(
+        # TX1: create edit event
+        edit_event = await self.repository_v2.edit_event.create_edit_event(
             project_id=project_id,
             target_type=TargetType.CHARACTER,
             target_id=character_id,
@@ -236,24 +240,34 @@ class CharacterService:
             user_instruction=instruction,
             input_snapshot=character_current_attributes,
         )
+        # extract id before commit expires the ORM object
         edit_event_id = edit_event.id
+        await self.db.commit()
 
         try:
+            # External work: LLM refinement
             refined_profile = await self._refine_character_profile(
                 story_text, character_id, character_current_attributes, instruction
             )
             refined_attributes = refined_profile.model_dump()
-            refined_character = await self.repository.replace_character_attributes(
-                character_id,
-                story_id,
-                refined_attributes,
-                source_event_id=edit_event_id,
-            )
-            await self.repository.complete_edit_event(
-                edit_event_id,
-                EditEventStatus.SUCCEEDED,
-                output_snapshot=refined_character.attributes,
-            )
+
+            # TX2: persist refined attributes + complete edit event atomically
+            async with self.db.begin_nested():
+                refined_character = (
+                    await self.repository_v2.character.replace_character_attributes(
+                        character_id,
+                        story_id,
+                        refined_attributes,
+                        source_event_id=edit_event_id,
+                    )
+                )
+                await self.repository_v2.edit_event.update_edit_event(
+                    edit_event_id,
+                    EditEventStatus.SUCCEEDED,
+                    output_snapshot=refined_character.attributes,
+                )
+            await self.db.commit()
+
             refreshed_character = await self.repository_v2.character.get_character(
                 character_id, story_id
             )
@@ -263,9 +277,10 @@ class CharacterService:
                 )
             return refreshed_character
         except Exception:
-            await self.repository.complete_edit_event(
+            await self.repository_v2.edit_event.update_edit_event(
                 edit_event_id, EditEventStatus.FAILED
             )
+            await self.db.commit()
             raise
 
     async def delete_character(
@@ -276,7 +291,8 @@ class CharacterService:
             raise NotFoundError(f"Story {story_id} not found")
 
         try:
-            await self.repository.delete_character(character_id, story_id)
+            await self.repository_v2.character.delete_character(character_id, story_id)
+            await self.db.commit()
         except RepositoryNotFoundError as e:
             raise NotFoundError(str(e)) from e
 
@@ -339,9 +355,14 @@ class CharacterService:
         prompt = self._build_character_render_prompt(character.attributes)
         render_response = await self._generate_image_render_response_and_time(prompt)
         image_url = self._get_character_url_from_fal_client_response(render_response)
-        character_with_render_url = await self.repository.update_character_render_url(
-            character_id, story_id, image_url
+
+        character_with_render_url = (
+            await self.repository_v2.character.update_character_render_url(
+                character_id, story_id, image_url
+            )
         )
+        await self.db.commit()
+        await self.db.refresh(character_with_render_url)
         return character_with_render_url
 
     async def upload_reference_image(

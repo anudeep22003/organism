@@ -8,6 +8,7 @@ from typing import BinaryIO
 from google.cloud.storage import Client  # type: ignore[import-untyped]
 from loguru import logger
 from PIL import Image, ImageOps
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.common.utils import time_it
 from core.config import GCP_PROJECT_ID, GCP_STORAGE_BUCKET
@@ -16,7 +17,7 @@ from ..exceptions import NotFoundError
 from ..models import Character, EditEvent
 from ..models.edit_event import EditEventStatus, OperationType, TargetType
 from ..models.image import ImageFormat
-from ..repository import Repository, RepositoryV2
+from ..repository import RepositoryV2
 from .dto_types import UploadReferenceImageDTO
 
 client = Client(project=GCP_PROJECT_ID)
@@ -56,8 +57,8 @@ ImageVariants = dict[ImageVariantKey, ReadyToUploadImageDTO]
 
 
 class ImageUploadService:
-    def __init__(self, repository: Repository, repository_v2: RepositoryV2):
-        self.repository = repository
+    def __init__(self, db: AsyncSession, repository_v2: RepositoryV2):
+        self.db = db
         self.repository_v2 = repository_v2
         self.bucket = client.bucket(GCP_STORAGE_BUCKET)
 
@@ -67,15 +68,15 @@ class ImageUploadService:
     ) -> None:
         character = await self._get_authorized_character(dto)
 
-        async with self.repository.db.begin():
-            edit_event = await self._create_in_processing_edit_event(dto)
+        edit_event = await self._create_in_processing_edit_event(dto)
+        await self.db.commit()
 
         object_key_prefix = self._build_object_key_prefix(dto, character.slug)
         image_variants = await self._create_image_variants(dto.image)
         self._upload_image_variants_to_bucket(object_key_prefix, image_variants)
 
-        async with self.repository.db.begin():
-            await self._mark_edit_event_completed(edit_event)
+        await self._mark_edit_event_completed(edit_event)
+        await self.db.commit()
 
         # next steps:
         # - update tables

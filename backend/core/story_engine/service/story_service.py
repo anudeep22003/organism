@@ -17,7 +17,7 @@ from ..exceptions import (
 )
 from ..models import EditEvent, Story
 from ..models.edit_event import EditEventStatus, OperationType, TargetType
-from ..repository import Repository, RepositoryV2
+from ..repository import RepositoryV2
 from ..schemas.story import GenerateStoryRequest
 
 
@@ -92,11 +92,10 @@ class StoryService:
     def __init__(
         self,
         db_session: AsyncSession,
-        repository: Repository | None = None,
         stream_generator: StoryStreamGenerator | None = None,
         processor: StreamProcessor | None = None,
     ):
-        self.repository = repository or Repository(db_session)
+        self.db = db_session
         self.repository_v2 = RepositoryV2(db_session)
         self.stream_generator = stream_generator or StoryStreamGenerator()
         self.processor = processor or OpenAIStreamProcessor()
@@ -166,14 +165,17 @@ class StoryService:
             OperationType.REFINE_STORY if is_refine else OperationType.GENERATE_STORY
         )
 
-        # Build a different prompt if the user is refining
-        edit_event = await self.repository.create_edit_event(
+        # TX1: create edit event
+        edit_event = await self.repository_v2.edit_event.create_edit_event(
             project_id=project_id,
             target_type=TargetType.STORY,
             target_id=story_id,
             operation_type=operation,
             user_instruction=request.story_prompt,
         )
+        # extract id before commit expires the ORM object
+        edit_event_id = edit_event.id
+        await self.db.commit()
 
         if is_refine:
             constructed_prompt = self._build_refinement_prompt(
@@ -186,7 +188,7 @@ class StoryService:
             story_id=story_id,
             user_input_text=request.story_prompt,
             constructed_prompt=constructed_prompt,
-            edit_event_id=edit_event.id,
+            edit_event_id=edit_event_id,
         )
 
         return self._execute_streaming(params)
@@ -202,22 +204,26 @@ class StoryService:
                 yield processed_chunk
                 if processed_chunk.event_type == EventType.STREAM_END:
                     full_story = "".join(accumulator)
-                    await self.repository.update_story_with_story_text_and_user_input_text(
-                        params.story_id,
-                        full_story,
-                        params.user_input_text,
-                        source_event_id=params.edit_event_id,
-                    )
-                    await self.repository.complete_edit_event(
-                        params.edit_event_id,
-                        EditEventStatus.SUCCEEDED,
-                        output_snapshot={"storyText": full_story},
-                    )
+                    # TX2: persist story + complete edit event atomically
+                    async with self.db.begin_nested():
+                        await self.repository_v2.story.update_story_with_story_text_and_user_input_text(
+                            params.story_id,
+                            full_story,
+                            params.user_input_text,
+                            source_event_id=params.edit_event_id,
+                        )
+                        await self.repository_v2.edit_event.update_edit_event(
+                            params.edit_event_id,
+                            EditEventStatus.SUCCEEDED,
+                            output_snapshot={"storyText": full_story},
+                        )
+                    await self.db.commit()
                     break
         except Exception as e:
-            await self.repository.complete_edit_event(
+            await self.repository_v2.edit_event.update_edit_event(
                 params.edit_event_id, EditEventStatus.FAILED
             )
+            await self.db.commit()
             yield EventEnvelope(
                 event_type=EventType.STREAM_ERROR,
                 error=ErrorPayload(code="E_INTERNAL", message=str(e), retryable=True),
