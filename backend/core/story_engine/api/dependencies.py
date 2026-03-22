@@ -10,6 +10,9 @@ from core.services.database import get_async_db_session
 
 from ..models import Project
 from ..service import CharacterService, ProjectService, StoryService
+from ..service.image import (
+    ImageService,  # noqa: F401 — re-exported for use in API layer
+)
 
 
 async def verify_project_access(
@@ -49,3 +52,11 @@ async def get_character_service(
     db: Annotated[AsyncSession, Depends(get_async_db_session)],
 ) -> CharacterService:
     return CharacterService(db_session=db)
+
+
+async def get_image_service(
+    db: Annotated[AsyncSession, Depends(get_async_db_session)],
+) -> ImageService:
+    from ..repository import RepositoryV2
+
+    return ImageService(db=db, repository_v2=RepositoryV2(db))

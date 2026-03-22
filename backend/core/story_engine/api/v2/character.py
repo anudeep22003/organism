@@ -1,7 +1,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from loguru import logger
 
 from core.auth import get_current_user_id
@@ -11,6 +11,7 @@ from ...exceptions import (
     CharacterRefinementError,
     NoStoryTextError,
     NotFoundError,
+    UploadImageError,
 )
 from ...schemas.character import (
     CharacterRefineRequest,
@@ -18,6 +19,7 @@ from ...schemas.character import (
     CharacterUpdateSchema,
 )
 from ...schemas.edit_event import EditEventResponseSchema
+from ...schemas.image import ImageResponseSchema
 from ...service import CharacterService
 from ..dependencies import get_character_service
 
@@ -188,7 +190,8 @@ async def render_character(
 
 
 @router.post(
-    "/project/{project_id}/story/{story_id}/character/{character_id}/upload-reference-image"
+    "/project/{project_id}/story/{story_id}/character/{character_id}/upload-reference-image",
+    status_code=status.HTTP_201_CREATED,
 )
 async def upload_reference_image(
     project_id: uuid.UUID,
@@ -197,8 +200,21 @@ async def upload_reference_image(
     service: Annotated[CharacterService, Depends(get_character_service)],
     user_id: Annotated[str, Depends(get_current_user_id)],
     image: UploadFile = File(...),
-) -> None:
-    await service.upload_reference_image(
-        user_id, project_id, story_id, character_id, image
-    )
-    return None
+) -> ImageResponseSchema:
+    try:
+        image_model = await service.upload_reference_image(
+            user_id, project_id, story_id, character_id, image
+        )
+        return ImageResponseSchema.model_validate(image_model)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except UploadImageError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+    except Exception as e:
+        logger.exception(
+            f"Unexpected error uploading reference image for character {character_id}: {e}"
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while uploading the reference image",
+        )

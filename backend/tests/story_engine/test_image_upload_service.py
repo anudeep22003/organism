@@ -15,8 +15,10 @@ The GCS cleanup deletes everything under the test user's prefix — no orphaned 
 """
 
 import os
+from datetime import datetime, timezone
 from io import BytesIO
 
+import httpx
 import pytest
 from google.cloud.storage import Client  # type: ignore[import-untyped]
 from google.cloud.storage.bucket import Bucket  # type: ignore[import-untyped]
@@ -39,7 +41,7 @@ from core.story_engine.models import Image as ImageModel
 from core.story_engine.models.edit_event import EditEventTargetType
 from core.story_engine.models.image import ImageDiscriminatorKey
 from core.story_engine.repository import RepositoryV2
-from core.story_engine.service.image.service import ImageUploadService
+from core.story_engine.service.image.service import ImageService
 
 # ---------------------------------------------------------------------------
 # Config
@@ -91,7 +93,7 @@ async def test_upload_reference_image_via_service(
 ) -> None:
     """Calling ImageUploadService directly writes one image row and one blob."""
     repo = RepositoryV2(db_session)
-    service = ImageUploadService(db=db_session, repository_v2=repo)
+    service = ImageService(db=db_session, repository_v2=repo)
 
     await service.upload_reference_image(
         user_id=str(user.id),
@@ -155,7 +157,7 @@ async def test_upload_reference_image_via_endpoint(
     files = {"image": ("test-upload.jpg", _build_test_jpeg_stream(), "image/jpeg")}
 
     response = await api_client.post(url, headers=headers, files=files)
-    assert response.status_code == 200
+    assert response.status_code == 201
 
     # --- DB: image row ---
     result = await db_session.execute(
@@ -198,6 +200,67 @@ async def test_upload_reference_image_via_endpoint(
     blob.reload()
     assert blob.size is not None
     assert blob.size > 0
+
+    if DELETE_TEST_UPLOADS_AFTER_TEST:
+        _delete_gcs_prefix(user)
+
+
+@pytest.mark.manual
+@pytest.mark.integration
+@pytest.mark.asyncio
+@pytest.mark.skip(
+    reason=(
+        "Requires service account credentials with iam.serviceAccounts.signBlob permission. "
+        "ADC user credentials cannot sign blobs. Set up a service account key first."
+    )
+)
+async def test_get_signed_url_via_endpoint(
+    api_client: AsyncClient,
+    db_session: AsyncSession,
+    user: User,
+    project: Project,
+    story: Story,
+    character: Character,
+) -> None:
+    """Uploading an image then requesting a signed URL returns a valid,
+    accessible URL that expires in the future."""
+    access_token = JWTTokenManager().create_access_token(str(user.id))
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    # Upload first to have an image to sign
+    upload_url = (
+        f"/api/comic-builder/v2/project/{project.id}"
+        f"/story/{story.id}"
+        f"/character/{character.id}/upload-reference-image"
+    )
+    upload_response = await api_client.post(
+        upload_url,
+        headers=headers,
+        files={"image": ("test-upload.jpg", _build_test_jpeg_stream(), "image/jpeg")},
+    )
+    assert upload_response.status_code == 201
+    image_id = upload_response.json()["id"]
+
+    # Request signed URL
+    signed_url_response = await api_client.get(
+        f"/api/comic-builder/v2/image/{image_id}/signed-url",
+        headers=headers,
+    )
+    assert signed_url_response.status_code == 200
+
+    body = signed_url_response.json()
+    assert "url" in body
+    assert "expires_at" in body
+
+    # expires_at is in the future
+    expires_at = datetime.fromisoformat(body["expires_at"])
+    assert expires_at > datetime.now(timezone.utc)
+
+    # URL is actually accessible — GCS returns 200 for the image
+    async with httpx.AsyncClient() as client:
+        image_response = await client.get(body["url"])
+    assert image_response.status_code == 200
+    assert "image" in image_response.headers.get("content-type", "")
 
     if DELETE_TEST_UPLOADS_AFTER_TEST:
         _delete_gcs_prefix(user)

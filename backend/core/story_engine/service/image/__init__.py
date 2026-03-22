@@ -1,3 +1,3 @@
-from .service import ImageUploadService
+from .service import ImageService
 
-__all__ = ["ImageUploadService"]
+__all__ = ["ImageService"]
