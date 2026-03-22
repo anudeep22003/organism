@@ -31,11 +31,11 @@ class Character(ORMBase):
         onupdate=get_current_datetime_utc,
     )
     story_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("story.id"), nullable=False
+        UUID(as_uuid=True), ForeignKey("story.id", ondelete="CASCADE"), nullable=False
     )
     source_event_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("edit_event.id"),
+        ForeignKey("edit_event.id", ondelete="SET NULL"),
         nullable=True,
         default=None,
     )

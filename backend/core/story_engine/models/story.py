@@ -26,7 +26,7 @@ class Story(ORMBase):
     )
     source_event_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("edit_event.id"),
+        ForeignKey("edit_event.id", ondelete="SET NULL"),
         nullable=True,
         default=None,
     )

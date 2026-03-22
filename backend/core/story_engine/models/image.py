@@ -36,13 +36,15 @@ class Image(ORMBase):
         DateTime(timezone=True), default=get_current_datetime_utc
     )
     project_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("project.id"), nullable=False
+        UUID(as_uuid=True), ForeignKey("project.id", ondelete="CASCADE"), nullable=False
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("user.id"), nullable=False
+        UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
     )
     character_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("character.id"), nullable=False
+        UUID(as_uuid=True),
+        ForeignKey("character.id", ondelete="CASCADE"),
+        nullable=False,
     )
     width: Mapped[int] = mapped_column(Integer, nullable=False)
     height: Mapped[int] = mapped_column(Integer, nullable=False)
