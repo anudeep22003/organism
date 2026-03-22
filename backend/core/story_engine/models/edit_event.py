@@ -13,12 +13,12 @@ from core.common import ORMBase
 from core.common.utils import get_current_datetime_utc
 
 
-class TargetType(StrEnum):
+class EditEventTargetType(StrEnum):
     STORY = "story"
     CHARACTER = "character"
 
 
-class OperationType(StrEnum):
+class EditEventOperationType(StrEnum):
     GENERATE_STORY = "generate_story"
     REFINE_STORY = "refine_story"
     REFINE_CHARACTER = "refine_character"
@@ -58,3 +58,26 @@ class EditEvent(ORMBase):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=get_current_datetime_utc
     )
+
+    @classmethod
+    def create_edit_event(
+        cls,
+        project_id: uuid.UUID,
+        target_type: str,
+        target_id: uuid.UUID,
+        operation_type: EditEventOperationType,
+        user_instruction: str,
+        status: EditEventStatus,
+        input_snapshot: dict[str, Any] | None = None,
+        output_snapshot: dict[str, Any] | None = None,
+    ) -> EditEvent:
+        return cls(
+            project_id=project_id,
+            target_type=target_type,
+            target_id=target_id,
+            operation_type=operation_type.value,
+            user_instruction=user_instruction,
+            input_snapshot=input_snapshot,
+            output_snapshot=output_snapshot,
+            status=status.value,
+        )
