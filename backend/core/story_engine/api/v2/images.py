@@ -8,7 +8,7 @@ from core.auth import get_current_user_id
 
 from ...exceptions import NotFoundError
 from ...schemas.image import ImageSignedUrlResponseSchema
-from ...service.image import ImageService
+from ...service import ImageService
 from ..dependencies import get_image_service
 
 router = APIRouter(tags=["images", "v2"])

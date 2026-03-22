@@ -1,0 +1,113 @@
+ConsolidatedComicState                          # Root — currently a JSONB column
+│
+├── story: Story                                 # 1:1 relationship
+│   ├── id: UUID                                 # PK (from BaseComicStateEntity)
+│   ├── user_input_text: list[str]               # (from BaseComicStateEntity)
+│   ├── status: StreamingStatus                  # "idle" | "streaming" | "completed" | "error" (from BaseComicStateEntity)
+│   └── story_text: str                          # default=""
+│
+├── characters: dict[UUID, Character]            # 1:N relationship, keyed by Character.id
+│   │
+│   └── [each Character]
+│       ├── id: UUID                             # PK (from BaseComicStateEntity)
+│       ├── user_input_text: list[str]           # (from BaseComicStateEntity)
+│       ├── status: StreamingStatus              # (from BaseComicStateEntity)
+│       │
+│       │── name: str                            # (from CharacterBase)
+│       │── brief: str                           # (from CharacterBase)
+│       │── character_type: Literal              # "humanoid" | "creature" | "concept" | "object" (from CharacterBase)
+│       │── era: str                             # (from CharacterBase)
+│       │── visual_form: str                     # (from CharacterBase)
+│       │── color_palette: str                   # (from CharacterBase)
+│       │── distinctive_markers: str             # (from CharacterBase)
+│       │── demeanor: str                        # (from CharacterBase)
+│       │── role: Literal                        # "protagonist" | "antagonist" | "supporting" | "minor" (from CharacterBase)
+│       │
+│       └── render: Artifact | None              # 1:1 optional relationship
+│           ├── id: UUID                         # PK (from BaseComicStateEntity)
+│           ├── user_input_text: list[str]       # (from BaseComicStateEntity)
+│           ├── status: StreamingStatus          # (from BaseComicStateEntity)
+│           └── url: str | None                  # the rendered image URL
+│
+└── panels: list[ComicPanel]                     # 1:N relationship, ordered list
+    │
+    └── [each ComicPanel]
+        ├── id: UUID                             # PK (from BaseComicStateEntity)
+        ├── user_input_text: list[str]           # (from BaseComicStateEntity)
+        ├── status: StreamingStatus              # (from BaseComicStateEntity)
+        │
+        ├── background: str                      # (from ComicPanelBase)
+        ├── characters: list[str]                # character names referenced in this panel (from ComicPanelBase)
+        ├── dialogue: str                        # (from ComicPanelBase)
+        │
+        └── render: Artifact | None              # 1:1 optional relationship
+            ├── id: UUID                         # PK (from BaseComicStateEntity)
+            ├── user_input_text: list[str]       # (from BaseComicStateEntity)
+            ├── status: StreamingStatus          # (from BaseComicStateEntity)
+            └── url: str | None                  # the rendered image URL
+
+
+Inheritance Chain
+─────────────────
+
+AliasedBaseModel (camelCase aliasing, from_attributes=True)
+└── BaseComicStateEntity
+    ├── id: UUID
+    ├── user_input_text: list[str]
+    └── status: StreamingStatus
+        │
+        ├── Story
+        │   └── story_text: str
+        │
+        ├── Artifact
+        │   └── url: str | None
+        │
+        ├── Character  (also inherits CharacterBase)
+        │   ├── name, brief, character_type, era
+        │   ├── visual_form, color_palette, distinctive_markers
+        │   ├── demeanor, role
+        │   └── render: Artifact | None
+        │
+        └── ComicPanelBase
+            ├── background, characters, dialogue
+            │
+            └── ComicPanel
+                └── render: Artifact | None
+
+
+Flattened Field Summary (for table planning)
+─────────────────────────────────────────────
+
+Entity             Field                Type                              Inherited From          Notes
+──────────────────────────────────────────────────────────────────────────────────────────────────────────
+Story              id                   UUID                              BaseComicStateEntity    PK
+                   user_input_text      list[str]                         BaseComicStateEntity    JSON array
+                   status               StreamingStatus                   BaseComicStateEntity    enum
+                   story_text           str                               Story                   default=""
+
+Character          id                   UUID                              BaseComicStateEntity    PK
+                   user_input_text      list[str]                         BaseComicStateEntity    JSON array
+                   status               StreamingStatus                   BaseComicStateEntity    enum
+                   name                 str                               CharacterBase           required
+                   brief                str                               CharacterBase           required
+                   character_type       Literal[4 values]                 CharacterBase           enum
+                   era                  str                               CharacterBase           required
+                   visual_form          str                               CharacterBase           required
+                   color_palette        str                               CharacterBase           required
+                   distinctive_markers  str                               CharacterBase           required
+                   demeanor             str                               CharacterBase           required
+                   role                 Literal[4 values]                 CharacterBase           enum
+                   render               Artifact | None                   Character               FK → Artifact
+
+ComicPanel         id                   UUID                              BaseComicStateEntity    PK
+                   user_input_text      list[str]                         BaseComicStateEntity    JSON array
+                   status               StreamingStatus                   BaseComicStateEntity    enum
+                   background           str                               ComicPanelBase          required
+                   characters           list[str]                         ComicPanelBase          JSON array (character names)
+                   dialogue             str                               ComicPanelBase          required
+                   render               Artifact | None                   ComicPanel              FK → Artifact
+
+Artifact           id                   UUID                              BaseComicStateEntity    PK
+                   user_input_text      list[str]                         BaseComicStateEntity    JSON array
+                   status               StreamingStatus                   BaseComicStateEntity    enum
+                   url                  str | None                        Artifact                nullable
