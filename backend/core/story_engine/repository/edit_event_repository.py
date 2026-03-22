@@ -5,7 +5,7 @@ from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import EditEvent
-from ..models.edit_event import EditEventStatus, OperationType
+from ..models.edit_event import EditEventOperationType, EditEventStatus
 from .exception import NotFoundError
 
 
@@ -13,12 +13,16 @@ class EditEventRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
 
+    async def add_edit_event_to_db(self, edit_event: EditEvent) -> EditEvent:
+        self.db.add(edit_event)
+        return edit_event
+
     async def create_edit_event(
         self,
         project_id: uuid.UUID,
         target_type: str,
         target_id: uuid.UUID,
-        operation_type: OperationType,
+        operation_type: EditEventOperationType,
         user_instruction: str,
         input_snapshot: dict[str, Any] | None = None,
     ) -> EditEvent:

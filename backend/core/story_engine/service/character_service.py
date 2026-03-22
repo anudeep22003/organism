@@ -21,13 +21,15 @@ from ..exceptions import (
     NotFoundError,
 )
 from ..models import Character, EditEvent
-from ..models.edit_event import EditEventStatus, OperationType, TargetType
+from ..models.edit_event import (
+    EditEventOperationType,
+    EditEventStatus,
+    EditEventTargetType,
+)
 from ..repository import NotFoundError as RepositoryNotFoundError
 from ..repository import RepositoryV2
 from ..state.character import CharacterBase as CharacterAttributes
-from .dto_types import FileToUploadDTO, ProjectUserCharacterDTO, UploadReferenceImageDTO
-from .image_upload import ImageUploadService
-from .upload_filename import build_upload_reference_filename
+from .image import ImageUploadService
 
 
 class CharacterService:
@@ -70,7 +72,9 @@ class CharacterService:
         self, character_id: uuid.UUID, limit: int = 20
     ) -> list[EditEvent]:
         return await self.repository_v2.edit_event.get_edit_events_for_target(
-            target_type=TargetType.CHARACTER, target_id=character_id, limit=limit
+            target_type=EditEventTargetType.CHARACTER,
+            target_id=character_id,
+            limit=limit,
         )
 
     async def extract_characters_from_story(
@@ -235,9 +239,9 @@ class CharacterService:
         # TX1: create edit event
         edit_event = await self.repository_v2.edit_event.create_edit_event(
             project_id=project_id,
-            target_type=TargetType.CHARACTER,
+            target_type=EditEventTargetType.CHARACTER,
             target_id=character_id,
-            operation_type=OperationType.REFINE_CHARACTER,
+            operation_type=EditEventOperationType.REFINE_CHARACTER,
             user_instruction=instruction,
             input_snapshot=character_current_attributes,
         )
@@ -374,16 +378,11 @@ class CharacterService:
         character_id: uuid.UUID,
         image: UploadFile,
     ) -> None:
-        filename = build_upload_reference_filename(image.filename)
-
-        dto = UploadReferenceImageDTO(
-            file_to_upload=FileToUploadDTO(file=image.file, filename=filename),
-            project_user_character=ProjectUserCharacterDTO(
-                user_id=user_id,
-                project_id=project_id,
-                story_id=story_id,
-                character_id=character_id,
-            ),
+        await self.image_upload_service.upload_reference_image(
+            user_id=user_id,
+            project_id=project_id,
+            story_id=story_id,
+            character_id=character_id,
+            image_byte_stream=image.file,
         )
-        await self.image_upload_service.upload_image(dto)
         return None
