@@ -82,7 +82,6 @@ class ImageUploadService:
         edit_event_id = edit_event.id
         processed_images = self.image_processor.process(image_byte_stream)
 
-        storage_receipts: list[StorageReceipt] = []
         image_models_to_create: list[ImageModel] = []
         for processed_image in processed_images:
             storage_receipt = self.gcs_upload_service.upload(
@@ -90,7 +89,6 @@ class ImageUploadService:
                 processed_image.image_bytes,
                 processed_image.content_type,
             )
-            storage_receipts.append(storage_receipt)
             image_model = ImageModel.create_image_model(
                 project_id=project_id,
                 user_id=uuid.UUID(user_id),
