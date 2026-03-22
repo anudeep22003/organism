@@ -20,8 +20,8 @@ from ...schemas.character import (
 )
 from ...schemas.edit_event import EditEventResponseSchema
 from ...schemas.image import ImageResponseSchema
-from ...service import CharacterService
-from ..dependencies import get_character_service
+from ...service import CharacterService, ImageService
+from ..dependencies import get_character_service, get_image_service
 
 router = APIRouter(tags=["characters", "v2"])
 
@@ -217,4 +217,32 @@ async def upload_reference_image(
         raise HTTPException(
             status_code=500,
             detail="An unexpected error occurred while uploading the reference image",
+        )
+
+
+@router.get(
+    "/project/{project_id}/story/{story_id}/character/{character_id}/reference-images",
+    status_code=200,
+)
+async def get_character_reference_images(
+    project_id: uuid.UUID,
+    story_id: uuid.UUID,
+    character_id: uuid.UUID,
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    service: Annotated[ImageService, Depends(get_image_service)],
+) -> list[ImageResponseSchema]:
+    try:
+        images = await service.get_character_reference_images(
+            user_id, project_id, story_id, character_id
+        )
+        return [ImageResponseSchema.model_validate(image) for image in images]
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.exception(
+            f"Unexpected error fetching reference images for character {character_id}: {e}"
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while fetching reference images",
         )
