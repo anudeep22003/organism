@@ -22,7 +22,7 @@ router = APIRouter(tags=["comic", "builder", "v2", "projects"])
 
 @router.get("/projects")
 async def get_all_projects_of_user(
-    user_id: Annotated[str, Depends(get_current_user_id)],
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     service: Annotated[ProjectService, Depends(get_project_service)],
 ) -> list[ProjectListResponseSchema]:
     projects = await service.get_all_projects_of_user(user_id)
@@ -40,7 +40,7 @@ async def get_all_projects_of_user(
 
 @router.post("/projects")
 async def create_project(
-    user_id: Annotated[str, Depends(get_current_user_id)],
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     project_data: ProjectCreateSchema,
     service: Annotated[ProjectService, Depends(get_project_service)],
 ) -> ProjectResponseSchema:
@@ -51,7 +51,7 @@ async def create_project(
 @router.get("/projects/{project_id}")
 async def get_project(
     project_id: uuid.UUID,
-    user_id: Annotated[str, Depends(get_current_user_id)],
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     service: Annotated[ProjectService, Depends(get_project_service)],
 ) -> ProjectRelationalStateSchema:
     project = await service.get_project_details(user_id, project_id)
@@ -65,7 +65,7 @@ async def get_project(
 @router.post("/projects/{project_id}/story")
 async def create_story(
     project_id: uuid.UUID,
-    user_id: Annotated[str, Depends(get_current_user_id)],
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     story_data: StoryCreateSchema,
     service: Annotated[ProjectService, Depends(get_project_service)],
 ) -> StoryResponseSchema:
@@ -77,7 +77,7 @@ async def create_story(
 async def delete_story(
     project_id: uuid.UUID,
     story_id: uuid.UUID,
-    user_id: Annotated[str, Depends(get_current_user_id)],
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     service: Annotated[ProjectService, Depends(get_project_service)],
 ) -> None:
     try:

@@ -1,5 +1,6 @@
 """FastAPI dependency injection for auth."""
 
+import uuid
 from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException, status
@@ -39,7 +40,7 @@ def get_session_manager(
 async def get_current_user_id(
     jwt_manager: Annotated[JWTTokenManager, Depends(get_jwt_token_manager)],
     authorization: Annotated[str | None, Header()] = None,
-) -> str:
+) -> uuid.UUID:
     """
     Extract and validate current user from authorization header.
 

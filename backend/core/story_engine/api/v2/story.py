@@ -25,7 +25,7 @@ router = APIRouter(tags=["story"])
 async def get_story(
     project_id: uuid.UUID,
     story_id: uuid.UUID,
-    user_id: Annotated[str, Depends(get_current_user_id)],
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     service: Annotated[StoryService, Depends(get_story_service)],
 ) -> StoryResponseSchema:
     story = await service.get_story(project_id, story_id)
@@ -44,7 +44,7 @@ async def _as_ndjson(stream: AsyncIterator[EventEnvelope]) -> AsyncIterator[str]
 @router.post("/project/{project_id}/story/{story_id}/generate")
 async def generate_story(
     user_id: Annotated[
-        str,
+        uuid.UUID,
         Depends(get_current_user_id),
     ],
     project_id: uuid.UUID,
@@ -66,7 +66,7 @@ async def generate_story(
 async def get_story_history(
     project_id: uuid.UUID,
     story_id: uuid.UUID,
-    user_id: Annotated[str, Depends(get_current_user_id)],
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     service: Annotated[StoryService, Depends(get_story_service)],
     limit: int = 20,
 ) -> list[EditEventResponseSchema]:

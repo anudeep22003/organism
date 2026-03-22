@@ -15,7 +15,7 @@ from ..service import CharacterService, ImageService, ProjectService, StoryServi
 
 async def verify_project_access(
     project_id: uuid.UUID,
-    user_id: Annotated[str, Depends(get_current_user_id)],
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     db: Annotated[AsyncSession, Depends(get_async_db_session)],
 ) -> uuid.UUID:
     # Verify that the user has access to the project.
@@ -26,7 +26,7 @@ async def verify_project_access(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    if project.user_id != uuid.UUID(user_id):
+    if project.user_id != user_id:
         raise HTTPException(
             status_code=403, detail="User does not have access to project"
         )

@@ -52,12 +52,7 @@ class SessionManager:
         logger.info(f"Created session for user: {user_id}")
         return AuthSessionSchema.model_validate(new_session)
 
-    async def find_session_by_user_id(
-        self, user_id: str | uuid.UUID
-    ) -> AuthSession | None:
-        if isinstance(user_id, str):
-            user_id = uuid.UUID(user_id)
-
+    async def find_session_by_user_id(self, user_id: uuid.UUID) -> AuthSession | None:
         query = (
             select(AuthSession)
             .where(AuthSession.user_id == user_id)
@@ -68,11 +63,8 @@ class SessionManager:
         return session
 
     async def find_best_matching_session(
-        self, user_id: str | uuid.UUID, ip: str | None, user_agent: str | None
+        self, user_id: uuid.UUID, ip: str | None, user_agent: str | None
     ) -> AuthSession | None:
-        if isinstance(user_id, str):
-            user_id = uuid.UUID(user_id)
-
         # Priority 1: Match user_id, ip AND user_agent
         query = select(AuthSession).where(
             AuthSession.user_id == user_id,

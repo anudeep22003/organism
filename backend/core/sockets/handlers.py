@@ -3,6 +3,7 @@ from loguru import logger
 from agents.manager import Manager
 from agents.types import DirectorRequest
 from core.auth import SessionManager
+from core.auth.exceptions import InvalidTokenError
 from core.auth.managers.jwt import JWTTokenManager
 from core.common import AliasedBaseModel
 from core.services.database import async_session_maker
@@ -30,7 +31,11 @@ async def connect(sid: str, environ: dict, auth: dict) -> bool:
         return False
 
     jwt_manager = JWTTokenManager()
-    user_id = jwt_manager.extract_user_id_from_access_token(auth["accessToken"])
+    try:
+        user_id = jwt_manager.extract_user_id_from_access_token(auth["accessToken"])
+    except InvalidTokenError:
+        logger.debug("Invalid access token, closing connection")
+        return False
     target_room = None
 
     async with async_session_maker() as async_db_session:

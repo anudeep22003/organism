@@ -11,14 +11,18 @@ class ProjectService:
         self.db = db_session
         self.repository_v2 = RepositoryV2(db_session)
 
-    async def get_all_projects_of_user(self, user_id: str) -> list[tuple[Project, int]]:
+    async def get_all_projects_of_user(
+        self, user_id: uuid.UUID
+    ) -> list[tuple[Project, int]]:
         return (
             await self.repository_v2.project.get_all_projects_of_user_with_story_count(
                 user_id
             )
         )
 
-    async def create_project(self, user_id: str, name: str | None = None) -> Project:
+    async def create_project(
+        self, user_id: uuid.UUID, name: str | None = None
+    ) -> Project:
         project = await self.repository_v2.project.create_project(
             user_id=user_id, name=name
         )
@@ -27,7 +31,7 @@ class ProjectService:
         return project
 
     async def get_project_details(
-        self, user_id: str, project_id: uuid.UUID
+        self, user_id: uuid.UUID, project_id: uuid.UUID
     ) -> Project | None:
         return await self.repository_v2.project.get_project_details(user_id, project_id)
 

@@ -10,7 +10,6 @@ from core.services.intelligence.clients import async_openai_client
 
 from ..events import ErrorPayload, EventEnvelope, EventType
 from ..exceptions import (
-    InvalidUserIDError,
     NotFoundError,
     NotOwnedError,
     StreamGeneratorError,
@@ -104,13 +103,6 @@ class StoryService:
         self.stream_generator = stream_generator or StoryStreamGenerator()
         self.processor = processor or OpenAIStreamProcessor()
 
-    def _get_user_id(self, user_id: str) -> uuid.UUID:
-        """Convert user ID string to UUID."""
-        try:
-            return uuid.UUID(user_id)
-        except ValueError as e:
-            raise InvalidUserIDError(f"Invalid user ID: {user_id}") from e
-
     async def _check_story_ownership(
         self, _user_id: uuid.UUID, story_with_project: Story
     ) -> None:
@@ -146,20 +138,18 @@ class StoryService:
 
     async def generate_story(
         self,
-        user_id: str,
+        user_id: uuid.UUID,
         project_id: uuid.UUID,
         story_id: uuid.UUID,
         request: GenerateStoryRequest,
     ) -> AsyncIterator[EventEnvelope]:
-        _user_id = self._get_user_id(user_id)
-
         story_with_project = await self.repository_v2.story.get_story_with_project(
             story_id
         )
         if story_with_project is None:
             raise NotFoundError(f"Story {story_id} not found")
 
-        await self._check_story_ownership(_user_id, story_with_project)
+        await self._check_story_ownership(user_id, story_with_project)
 
         prev_story_text = story_with_project.story_text
 

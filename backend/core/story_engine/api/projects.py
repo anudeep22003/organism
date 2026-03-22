@@ -24,10 +24,10 @@ logger = logger.bind(name=__name__)
 
 @router.get("/projects")
 async def list_projects(
-    user_id: Annotated[str, Depends(get_current_user_id)],
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     db: Annotated[AsyncSession, Depends(get_async_db_session)],
 ) -> list[ProjectListResponseSchema]:
-    query = select(Project).where(Project.user_id == uuid.UUID(user_id))
+    query = select(Project).where(Project.user_id == user_id)
     result = await db.execute(query)
     projects = result.scalars().all()
     return [ProjectListResponseSchema.model_validate(p) for p in projects]
@@ -35,11 +35,11 @@ async def list_projects(
 
 @router.post("/projects", status_code=status.HTTP_201_CREATED)
 async def create_project(
-    user_id: Annotated[str, Depends(get_current_user_id)],
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     db: Annotated[AsyncSession, Depends(get_async_db_session)],
     project_data: ProjectCreateSchema,
 ) -> ProjectResponseSchema:
-    project = Project(user_id=uuid.UUID(user_id), name=project_data.name)
+    project = Project(user_id=user_id, name=project_data.name)
     db.add(project)
     await db.commit()
     await db.refresh(project)
@@ -49,12 +49,10 @@ async def create_project(
 @router.get("/projects/{project_id}")
 async def get_project(
     project_id: uuid.UUID,
-    user_id: Annotated[str, Depends(get_current_user_id)],
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     db: Annotated[AsyncSession, Depends(get_async_db_session)],
 ) -> ProjectResponseSchema:
-    query = select(Project).where(
-        Project.id == project_id, Project.user_id == uuid.UUID(user_id)
-    )
+    query = select(Project).where(Project.id == project_id, Project.user_id == user_id)
     result = await db.execute(query)
     project = result.scalar_one_or_none()
     if not project:
@@ -67,13 +65,11 @@ async def get_project(
 @router.patch("/projects/{project_id}")
 async def update_project(
     project_id: uuid.UUID,
-    user_id: Annotated[str, Depends(get_current_user_id)],
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     db: Annotated[AsyncSession, Depends(get_async_db_session)],
     update_data: ProjectUpdateSchema,
 ) -> ProjectResponseSchema:
-    query = select(Project).where(
-        Project.id == project_id, Project.user_id == uuid.UUID(user_id)
-    )
+    query = select(Project).where(Project.id == project_id, Project.user_id == user_id)
     result = await db.execute(query)
     project = result.scalar_one_or_none()
     if not project:
@@ -93,12 +89,10 @@ async def update_project(
 @router.delete("/projects/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_project(
     project_id: uuid.UUID,
-    user_id: Annotated[str, Depends(get_current_user_id)],
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     db: Annotated[AsyncSession, Depends(get_async_db_session)],
 ) -> None:
-    query = select(Project).where(
-        Project.id == project_id, Project.user_id == uuid.UUID(user_id)
-    )
+    query = select(Project).where(Project.id == project_id, Project.user_id == user_id)
     result = await db.execute(query)
     project = result.scalar_one_or_none()
     if not project:

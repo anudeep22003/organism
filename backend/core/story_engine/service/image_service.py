@@ -58,7 +58,7 @@ class ImageService:
 
     async def upload_reference_image(
         self,
-        user_id: str,
+        user_id: uuid.UUID,
         project_id: uuid.UUID,
         story_id: uuid.UUID,
         character_id: uuid.UUID,
@@ -93,7 +93,7 @@ class ImageService:
             )
             image_model = ImageModel.create_image_model(
                 project_id=project_id,
-                user_id=uuid.UUID(user_id),
+                user_id=user_id,
                 character_id=character_id,
                 width=processed_image.width,
                 height=processed_image.height,
@@ -119,7 +119,7 @@ class ImageService:
 
     async def get_character_reference_images(
         self,
-        user_id: str,
+        user_id: uuid.UUID,
         project_id: uuid.UUID,
         story_id: uuid.UUID,
         character_id: uuid.UUID,
@@ -134,17 +134,17 @@ class ImageService:
     async def get_signed_url(
         self,
         image_id: uuid.UUID,
-        user_id: str,
+        user_id: uuid.UUID,
     ) -> tuple[str, datetime.datetime]:
         image = await self.repository_v2.image.get_image(image_id)
-        if image is None or str(image.user_id) != user_id:
+        if image is None or image.user_id != user_id:
             raise NotFoundError(f"Image {image_id} not found")
         url, expires_at = self.gcs_upload_service.generate_signed_url(image.object_key)
         return url, expires_at
 
     async def _get_authorized_character(
         self,
-        user_id: str,
+        user_id: uuid.UUID,
         project_id: uuid.UUID,
         story_id: uuid.UUID,
         character_id: uuid.UUID,
