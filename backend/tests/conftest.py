@@ -11,9 +11,9 @@ Fixture chain (mirrors FK chain in the DB):
 Any test that needs a character just declares `character` as a parameter —
 pytest builds the full chain automatically.
 
-Teardown uses raw SQL DELETE (not ORM delete) to avoid SQLAlchemy identity
-map issues when the session is shared across fixtures and a test may have
-already deleted a row (e.g. the DELETE endpoint test).
+Teardown: only the `user` fixture issues an explicit DELETE. All downstream
+rows (project, story, character, image, session, edit_event) are removed
+automatically via ON DELETE CASCADE defined on each FK constraint.
 """
 
 import os
@@ -85,9 +85,13 @@ async def api_client() -> AsyncGenerator[AsyncClient, None]:
 
 @pytest_asyncio.fixture
 async def user(db_session: AsyncSession) -> AsyncGenerator[User, None]:
-    """Creates a User row. Deleted via raw SQL after the test."""
+    """Creates a User row. Deleted via raw SQL after the test.
+
+    All downstream rows (project, story, character, image, session,
+    edit_event) are removed automatically via ON DELETE CASCADE.
+    """
     u = User(
-        email=f"test-{uuid.uuid4()}@example.com",  # unique per test run
+        email=f"test-{uuid.uuid4()}@example.com",
         password_hash="not-a-real-hash",
     )
     db_session.add(u)
@@ -96,9 +100,6 @@ async def user(db_session: AsyncSession) -> AsyncGenerator[User, None]:
 
     yield u
 
-    # Raw SQL: bypasses the ORM identity map and avoids FK teardown ordering
-    # issues. The project fixture deletes its row first (LIFO teardown order),
-    # so by the time we reach here the user row has no referencing project rows.
     await db_session.execute(text('DELETE FROM "user" WHERE id = :id'), {"id": u.id})
     await db_session.commit()
 
@@ -107,7 +108,7 @@ async def user(db_session: AsyncSession) -> AsyncGenerator[User, None]:
 async def project(
     db_session: AsyncSession, user: User
 ) -> AsyncGenerator[Project, None]:
-    """Creates a Project owned by the test user. Deleted after the test."""
+    """Creates a Project owned by the test user."""
     p = Project(user_id=user.id)
     db_session.add(p)
     await db_session.commit()
@@ -115,15 +116,14 @@ async def project(
 
     yield p
 
-    await db_session.execute(text("DELETE FROM project WHERE id = :id"), {"id": p.id})
-    await db_session.commit()
+    # No teardown needed — cascades from user delete.
 
 
 @pytest_asyncio.fixture
 async def story(
     db_session: AsyncSession, project: Project
 ) -> AsyncGenerator[Story, None]:
-    """Creates a Story under the test project. Deleted after the test."""
+    """Creates a Story under the test project."""
     s = Story(project_id=project.id, story_text="Once upon a time...")
     db_session.add(s)
     await db_session.commit()
@@ -131,19 +131,14 @@ async def story(
 
     yield s
 
-    await db_session.execute(text("DELETE FROM story WHERE id = :id"), {"id": s.id})
-    await db_session.commit()
+    # No teardown needed — cascades from user delete.
 
 
 @pytest_asyncio.fixture
 async def character(
     db_session: AsyncSession, story: Story
 ) -> AsyncGenerator[Character, None]:
-    """Creates a Character under the test story with realistic attributes.
-
-    Teardown is a no-op if the character was already deleted by the test
-    (e.g. the DELETE endpoint test).
-    """
+    """Creates a Character under the test story with realistic attributes."""
     c = Character(
         story_id=story.id,
         name="Aragorn",
@@ -166,7 +161,4 @@ async def character(
 
     yield c
 
-    # DELETE ... WHERE id = :id is idempotent — safe even if the test already
-    # deleted this row (the DELETE endpoint test does exactly that).
-    await db_session.execute(text("DELETE FROM character WHERE id = :id"), {"id": c.id})
-    await db_session.commit()
+    # No teardown needed — cascades from user delete.
