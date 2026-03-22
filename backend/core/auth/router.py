@@ -1,3 +1,4 @@
+import uuid
 from typing import Annotated, Literal, Optional
 
 from fastapi import (
@@ -279,7 +280,7 @@ async def refresh(
 
 @router.get("/me")
 async def me(
-    user_id: Annotated[str, Depends(get_current_user_id)],
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     user_manager: Annotated[UserManager, Depends(get_user_manager)],
 ) -> UserResponse:
     """

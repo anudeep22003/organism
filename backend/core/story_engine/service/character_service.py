@@ -373,7 +373,7 @@ class CharacterService:
 
     async def upload_reference_image(
         self,
-        user_id: str,
+        user_id: uuid.UUID,
         project_id: uuid.UUID,
         story_id: uuid.UUID,
         character_id: uuid.UUID,

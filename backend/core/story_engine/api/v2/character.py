@@ -198,7 +198,7 @@ async def upload_reference_image(
     story_id: uuid.UUID,
     character_id: uuid.UUID,
     service: Annotated[CharacterService, Depends(get_character_service)],
-    user_id: Annotated[str, Depends(get_current_user_id)],
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     image: UploadFile = File(...),
 ) -> ImageResponseSchema:
     try:
@@ -228,7 +228,7 @@ async def get_character_reference_images(
     project_id: uuid.UUID,
     story_id: uuid.UUID,
     character_id: uuid.UUID,
-    user_id: Annotated[str, Depends(get_current_user_id)],
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     service: Annotated[ImageService, Depends(get_image_service)],
 ) -> list[ImageResponseSchema]:
     try:

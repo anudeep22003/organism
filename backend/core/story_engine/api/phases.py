@@ -72,7 +72,7 @@ async def extract_characters(
 
 @router.get("/dummy")
 async def dummy(
-    user_id: Annotated[str, Depends(get_current_user_id)],
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     session_manager: Annotated[SessionManager, Depends(get_session_manager)],
 ) -> dict[str, str]:
     session = await session_manager.find_session_by_user_id(user_id)
@@ -87,7 +87,7 @@ async def dummy(
 @router.post("/render-character/{project_id}")
 async def render_character(
     project_id: Annotated[uuid.UUID, Depends(verify_project_access)],
-    user_id: Annotated[str, Depends(get_current_user_id)],
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     db: Annotated[AsyncSession, Depends(get_async_db_session)],
     character: Character,
     session_manager: Annotated[SessionManager, Depends(get_session_manager)],
@@ -124,7 +124,7 @@ async def render_character(
 @router.get("/generate-panels/{project_id}")
 async def generate_panels(
     project_id: Annotated[uuid.UUID, Depends(verify_project_access)],
-    user_id: Annotated[str, Depends(get_current_user_id)],
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     db: Annotated[AsyncSession, Depends(get_async_db_session)],
     session_manager: Annotated[SessionManager, Depends(get_session_manager)],
 ) -> dict:
@@ -181,7 +181,7 @@ async def generate_story(
 @router.post("/render-panel/{project_id}")
 async def render_panel(
     project_id: Annotated[uuid.UUID, Depends(verify_project_access)],
-    user_id: Annotated[str, Depends(get_current_user_id)],
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     db: Annotated[AsyncSession, Depends(get_async_db_session)],
     panel: ComicPanel,
     session_manager: Annotated[SessionManager, Depends(get_session_manager)],
@@ -218,7 +218,7 @@ async def render_panel(
 @router.post("/render-all-panels/{project_id}")
 async def render_all_panels(
     project_id: Annotated[uuid.UUID, Depends(verify_project_access)],
-    user_id: Annotated[str, Depends(get_current_user_id)],
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     db: Annotated[AsyncSession, Depends(get_async_db_session)],
     session_manager: Annotated[SessionManager, Depends(get_session_manager)],
 ) -> dict:

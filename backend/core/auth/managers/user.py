@@ -39,10 +39,7 @@ class UserManager:
         self._db = db_session
         self._password_hasher = password_hasher or get_password_hasher()
 
-    async def find_user_by_id(self, user_id: uuid.UUID | str) -> Optional[User]:
-        if isinstance(user_id, str):
-            user_id = uuid.UUID(user_id)
-
+    async def find_user_by_id(self, user_id: uuid.UUID) -> Optional[User]:
         query = select(User).where(User.id == user_id)
         user = await self._db.scalar(query)
         return user

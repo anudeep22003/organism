@@ -35,7 +35,7 @@ class CharacterRepository:
 
     async def get_character_for_user_in_project_and_story(
         self,
-        user_id: str,
+        user_id: uuid.UUID,
         project_id: uuid.UUID,
         story_id: uuid.UUID,
         character_id: uuid.UUID,
@@ -48,7 +48,7 @@ class CharacterRepository:
                 Character.id == character_id,
                 Story.id == story_id,
                 Project.id == project_id,
-                Project.user_id == uuid.UUID(user_id),
+                Project.user_id == user_id,
             )
         )
         result = await self.db.execute(stmt)

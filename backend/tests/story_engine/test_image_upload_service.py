@@ -96,7 +96,7 @@ async def test_upload_reference_image_via_service(
     service = ImageService(db=db_session, repository_v2=repo)
 
     await service.upload_reference_image(
-        user_id=str(user.id),
+        user_id=user.id,
         project_id=project.id,
         story_id=story.id,
         character_id=character.id,
@@ -283,7 +283,7 @@ async def test_get_character_reference_images_via_endpoint(
 
     # Upload one reference image directly via service
     uploaded = await service.upload_reference_image(
-        user_id=str(user.id),
+        user_id=user.id,
         project_id=project.id,
         story_id=story.id,
         character_id=character.id,

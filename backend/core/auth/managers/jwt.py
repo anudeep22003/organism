@@ -81,7 +81,7 @@ class JWTTokenManager:
         except Exception as e:
             raise InvalidTokenError(f"Invalid token: {e}")
 
-    def extract_user_id_from_access_token(self, access_token: str) -> str:
+    def extract_user_id_from_access_token(self, access_token: str) -> uuid.UUID:
         payload = self.decode_access_token(access_token)
         user_id = payload.get("sub")
 
@@ -89,6 +89,9 @@ class JWTTokenManager:
             raise InvalidTokenError("User ID not found in access token")
 
         if not isinstance(user_id, str):
-            raise Exception("User ID is not a string")
+            raise InvalidTokenError("User ID is not a string")
 
-        return user_id
+        try:
+            return uuid.UUID(user_id)
+        except ValueError as e:
+            raise InvalidTokenError(f"User ID is not a valid UUID: {user_id}") from e
