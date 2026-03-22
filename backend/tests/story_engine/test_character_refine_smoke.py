@@ -11,6 +11,7 @@ from httpx import AsyncClient
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.auth.managers.jwt import JWTTokenManager
 from core.story_engine.models import Character, EditEvent
 from core.story_engine.models.edit_event import (
     EditEventOperationType,
@@ -23,6 +24,11 @@ from core.story_engine.schemas.character import CharacterResponseSchema
 PROJECT_ID = "9c10291d-4b0a-4c2f-8deb-417d36a12d7b"
 STORY_ID = "0a358afa-670c-4729-b1d3-838a76320993"
 CHARACTER_ID = "61c317cf-06c9-4d95-bd06-6d9518a4eeba"
+USER_ID = "2c2af68f-9315-4bab-8aa3-3b1a581dca8e"  # owner of the project above
+
+_AUTH_HEADERS = {
+    "Authorization": f"Bearer {JWTTokenManager().create_access_token(USER_ID)}"
+}
 
 
 @pytest.mark.manual
@@ -46,6 +52,7 @@ async def test_refine_character_smoke_existing_row(
         f"/story/{STORY_ID}"
         f"/character/{CHARACTER_ID}/refine",
         json={"instruction": test_instruction},
+        headers=_AUTH_HEADERS,
     )
 
     assert response.status_code == 200
@@ -79,21 +86,25 @@ async def test_get_existing_character_edit_history(
 ) -> None:
     possible_operation_types = [
         EditEventOperationType.REFINE_CHARACTER,
+        EditEventOperationType.UPLOAD_REFERENCE_IMAGE,
     ]
 
     response = await api_client.get(
         f"/api/comic-builder/v2/project/{PROJECT_ID}"
         f"/story/{STORY_ID}"
         f"/character/{CHARACTER_ID}/history",
+        headers=_AUTH_HEADERS,
     )
 
     assert response.status_code == 200
     body = response.json()
     assert len(body) >= 1
+    instruction_required_operations = {EditEventOperationType.REFINE_CHARACTER}
     for event in body:
         assert str(event["targetId"]) == CHARACTER_ID
         assert event["operationType"] in possible_operation_types
-        assert event["userInstruction"] != ""
+        if event["operationType"] in instruction_required_operations:
+            assert event["userInstruction"] != ""
         assert event["status"] in [
             EditEventStatus.SUCCEEDED,
             EditEventStatus.FAILED,
@@ -117,6 +128,7 @@ async def test_render_existing_character(
         f"/api/comic-builder/v2/project/{PROJECT_ID}"
         f"/story/{STORY_ID}"
         f"/character/{CHARACTER_ID}/render",
+        headers=_AUTH_HEADERS,
     )
 
     assert response.status_code == 200
