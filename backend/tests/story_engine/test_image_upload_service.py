@@ -264,3 +264,54 @@ async def test_get_signed_url_via_endpoint(
 
     if DELETE_TEST_UPLOADS_AFTER_TEST:
         _delete_gcs_prefix(user)
+
+
+@pytest.mark.manual
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_get_character_reference_images_via_endpoint(
+    api_client: AsyncClient,
+    db_session: AsyncSession,
+    user: User,
+    project: Project,
+    story: Story,
+    character: Character,
+) -> None:
+    """After uploading a reference image, the list endpoint returns it."""
+    repo = RepositoryV2(db_session)
+    service = ImageService(db=db_session, repository_v2=repo)
+
+    # Upload one reference image directly via service
+    uploaded = await service.upload_reference_image(
+        user_id=str(user.id),
+        project_id=project.id,
+        story_id=story.id,
+        character_id=character.id,
+        image_byte_stream=_build_test_jpeg_stream(),
+    )
+
+    # Hit the list endpoint
+    access_token = JWTTokenManager().create_access_token(str(user.id))
+    headers = {"Authorization": f"Bearer {access_token}"}
+    url = (
+        f"/api/comic-builder/v2/project/{project.id}"
+        f"/story/{story.id}"
+        f"/character/{character.id}/reference-images"
+    )
+    response = await api_client.get(url, headers=headers)
+    assert response.status_code == 200
+
+    body = response.json()
+    assert isinstance(body, list)
+    assert len(body) == 1
+
+    item = body[0]
+    assert item["id"] == str(uploaded.id)
+    assert item["objectKey"] == uploaded.object_key
+    assert item["bucket"] == uploaded.bucket
+    assert item["width"] > 0
+    assert item["height"] > 0
+    assert item["sizeBytes"] > 0
+
+    if DELETE_TEST_UPLOADS_AFTER_TEST:
+        _delete_gcs_prefix(user)

@@ -117,6 +117,20 @@ class ImageService:
         await self.db.refresh(image_models_to_create[0])
         return image_models_to_create[0]
 
+    async def get_character_reference_images(
+        self,
+        user_id: str,
+        project_id: uuid.UUID,
+        story_id: uuid.UUID,
+        character_id: uuid.UUID,
+    ) -> list[ImageModel]:
+        await self._get_authorized_character(
+            user_id, project_id, story_id, character_id
+        )
+        return await self.repository_v2.image.get_character_reference_images(
+            character_id
+        )
+
     async def get_signed_url(
         self,
         image_id: uuid.UUID,
