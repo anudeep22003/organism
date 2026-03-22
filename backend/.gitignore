@@ -64,3 +64,5 @@ scratch.py
 .env*
 writepad/*
 prompts/
+.notes/
+playground/
