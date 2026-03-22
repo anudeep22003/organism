@@ -105,3 +105,9 @@ class FalResponseError(BaseError):
     """Error from Fal response."""
 
     pass
+
+
+class UploadImageError(BaseError):
+    """Error uploading image to bucket."""
+
+    pass

@@ -16,7 +16,11 @@ from ..exceptions import (
     StreamGeneratorError,
 )
 from ..models import EditEvent, Story
-from ..models.edit_event import EditEventStatus, OperationType, TargetType
+from ..models.edit_event import (
+    EditEventOperationType,
+    EditEventStatus,
+    EditEventTargetType,
+)
 from ..repository import RepositoryV2
 from ..schemas.story import GenerateStoryRequest
 
@@ -137,7 +141,7 @@ class StoryService:
         self, story_id: uuid.UUID, limit: int = 20
     ) -> list[EditEvent]:
         return await self.repository_v2.edit_event.get_edit_events_for_target(
-            target_type=TargetType.STORY, target_id=story_id, limit=limit
+            target_type=EditEventTargetType.STORY, target_id=story_id, limit=limit
         )
 
     async def generate_story(
@@ -162,13 +166,15 @@ class StoryService:
         # If story_text field is empty, then it is a refinement attempt
         is_refine = prev_story_text.strip() != ""
         operation = (
-            OperationType.REFINE_STORY if is_refine else OperationType.GENERATE_STORY
+            EditEventOperationType.REFINE_STORY
+            if is_refine
+            else EditEventOperationType.GENERATE_STORY
         )
 
         # TX1: create edit event
         edit_event = await self.repository_v2.edit_event.create_edit_event(
             project_id=project_id,
-            target_type=TargetType.STORY,
+            target_type=EditEventTargetType.STORY,
             target_id=story_id,
             operation_type=operation,
             user_instruction=request.story_prompt,

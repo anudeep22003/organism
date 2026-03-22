@@ -13,9 +13,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.story_engine.models import Character, EditEvent
 from core.story_engine.models.edit_event import (
+    EditEventOperationType,
     EditEventStatus,
-    OperationType,
-    TargetType,
+    EditEventTargetType,
 )
 from core.story_engine.schemas.character import CharacterResponseSchema
 
@@ -61,9 +61,9 @@ async def test_refine_character_smoke_existing_row(
     event = await db_session.get(EditEvent, character.source_event_id)
     assert event is not None
     assert str(event.project_id) == PROJECT_ID
-    assert str(event.target_type) == TargetType.CHARACTER.value
+    assert str(event.target_type) == EditEventTargetType.CHARACTER.value
     assert str(event.target_id) == CHARACTER_ID
-    assert event.operation_type == OperationType.REFINE_CHARACTER.value
+    assert event.operation_type == EditEventOperationType.REFINE_CHARACTER.value
     assert event.user_instruction == test_instruction
     assert event.status == "succeeded"
     assert event.input_snapshot == previous_attributes
@@ -78,7 +78,7 @@ async def test_get_existing_character_edit_history(
     api_client: AsyncClient,
 ) -> None:
     possible_operation_types = [
-        OperationType.REFINE_CHARACTER,
+        EditEventOperationType.REFINE_CHARACTER,
     ]
 
     response = await api_client.get(
