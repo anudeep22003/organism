@@ -1,9 +1,10 @@
+import datetime
 import uuid
 from dataclasses import dataclass
 from io import BytesIO
 from typing import BinaryIO
 
-from coolname import generate_slug
+from coolname.impl import generate_slug
 from google.cloud.storage import Client  # type: ignore[import-untyped]
 from loguru import logger
 from PIL import Image as PILImage
@@ -47,7 +48,7 @@ class ProcessedImage:
     content_type: ImageContentType
 
 
-class ImageUploadService:
+class ImageService:
     def __init__(self, db: AsyncSession, repository_v2: RepositoryV2):
         self.db = db
         self.repository_v2 = repository_v2
@@ -61,7 +62,7 @@ class ImageUploadService:
         story_id: uuid.UUID,
         character_id: uuid.UUID,
         image_byte_stream: BinaryIO,
-    ) -> None:
+    ) -> ImageModel:
         character = await self._get_authorized_character(
             user_id, project_id, story_id, character_id
         )
@@ -106,13 +107,25 @@ class ImageUploadService:
 
         for image_model in image_models_to_create:
             await self.repository_v2.image.create_image(image_model)
-        # complete edit event
         await self.repository_v2.edit_event.update_edit_event(
             edit_event_id=edit_event_id,
             status=EditEventStatus.SUCCEEDED,
             output_snapshot=None,
         )
         await self.db.commit()
+        await self.db.refresh(image_models_to_create[0])
+        return image_models_to_create[0]
+
+    async def get_signed_url(
+        self,
+        image_id: uuid.UUID,
+        user_id: str,
+    ) -> tuple[str, datetime.datetime]:
+        image = await self.repository_v2.image.get_image(image_id)
+        if image is None or str(image.user_id) != user_id:
+            raise NotFoundError(f"Image {image_id} not found")
+        url, expires_at = self.gcs_upload_service.generate_signed_url(image.object_key)
+        return url, expires_at
 
     async def _get_authorized_character(
         self,
@@ -158,11 +171,13 @@ class ImageProcessor:
         )
 
 
+SIGNED_URL_EXPIRY_MINUTES = 15
+
+
 class GCSUploadService:
     def __init__(self) -> None:
         self.client = Client(project=GCP_PROJECT_ID, credentials=None)
         self.bucket = self.client.bucket(GCP_STORAGE_BUCKET)
-        pass
 
     def upload(
         self, object_key: str, file_object: BinaryIO, content_type: ImageContentType
@@ -176,3 +191,14 @@ class GCSUploadService:
             raise UploadImageError(
                 f"Failed to upload image to bucket: {object_key}, {e}"
             ) from e
+
+    def generate_signed_url(self, object_key: str) -> tuple[str, datetime.datetime]:
+        expiry = datetime.timedelta(minutes=SIGNED_URL_EXPIRY_MINUTES)
+        blob = self.bucket.blob(object_key)
+        url = blob.generate_signed_url(
+            expiration=expiry,
+            method="GET",
+            version="v4",
+        )
+        expires_at = datetime.datetime.now(datetime.timezone.utc) + expiry
+        return url, expires_at

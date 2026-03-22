@@ -21,6 +21,7 @@ from ..exceptions import (
     NotFoundError,
 )
 from ..models import Character, EditEvent
+from ..models import Image as ImageModel
 from ..models.edit_event import (
     EditEventOperationType,
     EditEventStatus,
@@ -29,18 +30,18 @@ from ..models.edit_event import (
 from ..repository import NotFoundError as RepositoryNotFoundError
 from ..repository import RepositoryV2
 from ..state.character import CharacterBase as CharacterAttributes
-from .image import ImageUploadService
+from .image import ImageService
 
 
 class CharacterService:
     def __init__(
         self,
         db_session: AsyncSession,
-        image_upload_service: ImageUploadService | None = None,
+        image_service: ImageService | None = None,
     ):
         self.db = db_session
         self.repository_v2 = RepositoryV2(db_session)
-        self.image_upload_service = image_upload_service or ImageUploadService(
+        self.image_service = image_service or ImageService(
             db=self.db, repository_v2=self.repository_v2
         )
 
@@ -377,12 +378,11 @@ class CharacterService:
         story_id: uuid.UUID,
         character_id: uuid.UUID,
         image: UploadFile,
-    ) -> None:
-        await self.image_upload_service.upload_reference_image(
+    ) -> ImageModel:
+        return await self.image_service.upload_reference_image(
             user_id=user_id,
             project_id=project_id,
             story_id=story_id,
             character_id=character_id,
             image_byte_stream=image.file,
         )
-        return None
