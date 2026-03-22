@@ -41,7 +41,7 @@ from core.story_engine.models import Image as ImageModel
 from core.story_engine.models.edit_event import EditEventTargetType
 from core.story_engine.models.image import ImageDiscriminatorKey
 from core.story_engine.repository import RepositoryV2
-from core.story_engine.service.image.service import ImageService
+from core.story_engine.service.image_service import ImageService
 
 # ---------------------------------------------------------------------------
 # Config

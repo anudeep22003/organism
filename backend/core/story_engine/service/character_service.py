@@ -30,7 +30,7 @@ from ..models.edit_event import (
 from ..repository import NotFoundError as RepositoryNotFoundError
 from ..repository import RepositoryV2
 from ..state.character import CharacterBase as CharacterAttributes
-from .image import ImageService
+from .image_service import ImageService
 
 
 class CharacterService:

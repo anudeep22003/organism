@@ -14,8 +14,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.config import GCP_PROJECT_ID, GCP_STORAGE_BUCKET
 from core.story_engine.models.image import ImageDiscriminatorKey
 
-from ...exceptions import NotFoundError, UploadImageError
-from ...models import (
+from ..exceptions import NotFoundError, UploadImageError
+from ..models import (
     Character,
     EditEvent,
     EditEventOperationType,
@@ -23,14 +23,15 @@ from ...models import (
     EditEventTargetType,
     ImageContentType,
 )
-from ...models import (
+from ..models import (
     Image as ImageModel,
 )
-from ...repository import RepositoryV2
+from ..repository import RepositoryV2
 
 ORIGINAL_QUALITY = 90
 IMAGE_FORMAT = "jpeg"
 IMAGE_CONTENT_TYPE = ImageContentType.JPEG
+SIGNED_URL_EXPIRY_MINUTES = 15
 
 
 @dataclass(slots=True)
@@ -169,9 +170,6 @@ class ImageProcessor:
             image_bytes=buffer,
             content_type=ImageContentType.JPEG,
         )
-
-
-SIGNED_URL_EXPIRY_MINUTES = 15
 
 
 class GCSUploadService:

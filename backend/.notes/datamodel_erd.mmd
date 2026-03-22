@@ -1,0 +1,103 @@
+---
+title: Comic Builder Data Model
+config:
+    layout: elk
+---
+erDiagram
+    direction TB
+
+    Project {
+        uuid id PK
+        uuid user_id FK
+        string name "nullable"
+        datetime created_at
+        datetime updated_at
+        jsonb meta
+            %% string style "comic | manga | graphic novel | webtoon | anime | other"
+            %% string genre "action | adventure | comedy | drama | fantasy | horror | mystery | romance | science fiction | thriller | western | other"
+            %% string target_audience "children | teens | adults | other"
+            %% string language "en | es | fr | de | it | pt | ja | zh | other"
+        jsonb state
+    }
+
+    Story {
+        uuid id PK
+        uuid project_id FK
+        string story_text
+        string[] user_input_text
+        jsonb meta
+    }
+
+    Character {
+        uuid id PK
+        uuid user_id FK
+        string name
+        string slug "UK(user_id, slug)"
+        string brief
+        jsonb attributes
+            %% character_type character_type "humanoid | creature | concept | object"
+            %% string era
+            %% string visual_form
+            %% string color_palette
+            %% string distinctive_markers
+            %% string demeanor
+            %% character_role role "protagonist | antagonist | supporting | minor"
+        string[] user_input_text
+        jsonb reference_image_urls
+        jsonb meta
+    }
+
+    StoryCharacter {
+        uuid story_id FK "composite PK"
+        uuid character_id FK "composite PK"
+        jsonb meta
+    }
+
+    ComicPanel {
+        uuid id PK
+        uuid story_id FK
+        int panel_order "UK(story_id, panel_order)"
+        string background
+        string dialogue
+        string[] user_input_text
+        jsonb meta
+    }
+
+    PanelCharacter {
+        uuid panel_id FK "composite PK"
+        uuid character_id FK "composite PK"
+        jsonb meta
+    }
+
+    RenderJob {
+        uuid id PK
+        uuid renderable_id FK "character_id or panel_id"
+        string renderable_type "character | panel"
+        string output_url "nullable"
+        string prompt
+        jsonb inputs 
+            %% "snapshot" of reference urls, prompts, etc. used for this render
+        jsonb meta
+        string[] user_input_text
+        render_job_status status
+    }
+
+    %% User {
+    %%     uuid id PK
+    %%     string name
+    %%     string email
+    %%     string password
+    %%     datetime created_at
+    %%     datetime updated_at
+    %% }
+
+    Project ||--o{ Story : "has"
+    Story ||--o{ StoryCharacter : "casts"
+    Character ||--o{ StoryCharacter : "cast_in"
+    Story ||--o{ ComicPanel : "has"
+    ComicPanel ||--o{ PanelCharacter : "features"
+    Character ||--o{ PanelCharacter : "appears_in"
+    Character ||--o{ RenderJob : "render"
+    ComicPanel ||--o{ RenderJob : "render"
+    %% User ||--o{ Project : "owns"
+    %% User ||--o{ Character : "owns"
