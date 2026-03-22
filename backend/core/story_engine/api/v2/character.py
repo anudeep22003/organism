@@ -54,6 +54,7 @@ async def extract_characters_from_story(
 async def get_characters_for_story(
     project_id: uuid.UUID,
     story_id: uuid.UUID,
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     service: Annotated[CharacterService, Depends(get_character_service)],
 ) -> list[CharacterResponseSchema]:
     try:
@@ -171,6 +172,7 @@ async def get_character_history(
     project_id: uuid.UUID,
     story_id: uuid.UUID,
     character_id: uuid.UUID,
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     service: Annotated[CharacterService, Depends(get_character_service)],
     limit: int = 20,
 ) -> list[EditEventResponseSchema]:

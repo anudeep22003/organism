@@ -73,7 +73,7 @@ async def create_story(
     return StoryResponseSchema.model_validate(story)
 
 
-@router.delete("/projects/{project_id}/story/{story_id}")
+@router.delete("/projects/{project_id}/story/{story_id}", status_code=204)
 async def delete_story(
     project_id: uuid.UUID,
     story_id: uuid.UUID,

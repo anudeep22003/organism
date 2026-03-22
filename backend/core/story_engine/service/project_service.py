@@ -2,8 +2,10 @@ import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..exceptions import NotFoundError
 from ..models import Project, Story
 from ..repository import RepositoryV2
+from ..repository.exception import NotFoundError as RepoNotFoundError
 
 
 class ProjectService:
@@ -42,5 +44,8 @@ class ProjectService:
         return story
 
     async def delete_story(self, project_id: uuid.UUID, story_id: uuid.UUID) -> None:
-        await self.repository_v2.story.delete_story(project_id, story_id)
+        try:
+            await self.repository_v2.story.delete_story(project_id, story_id)
+        except RepoNotFoundError as e:
+            raise NotFoundError(str(e)) from e
         await self.db.commit()
