@@ -1,2 +1,6 @@
 *.pyc
 venv/
+.venv/
+
+# Service account key files — never commit these
+keys/*.json
