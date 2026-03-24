@@ -1,3 +1,0 @@
-config:
-  gcp:project: shared-apps-infra
-  github-understand:image_tag: 20250918-125724
