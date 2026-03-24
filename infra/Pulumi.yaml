@@ -1,0 +1,10 @@
+name: storyengine-infra
+description: A story generator for one and for all
+runtime:
+  name: python
+  options:
+    toolchain: uv
+config:
+  pulumi:tags:
+    value:
+      pulumi:template: python
