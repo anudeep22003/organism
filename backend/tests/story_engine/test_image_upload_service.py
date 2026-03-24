@@ -208,12 +208,6 @@ async def test_upload_reference_image_via_endpoint(
 @pytest.mark.manual
 @pytest.mark.integration
 @pytest.mark.asyncio
-@pytest.mark.skip(
-    reason=(
-        "Requires service account credentials with iam.serviceAccounts.signBlob permission. "
-        "ADC user credentials cannot sign blobs. Set up a service account key first."
-    )
-)
 async def test_get_signed_url_via_endpoint(
     api_client: AsyncClient,
     db_session: AsyncSession,
@@ -250,10 +244,10 @@ async def test_get_signed_url_via_endpoint(
 
     body = signed_url_response.json()
     assert "url" in body
-    assert "expires_at" in body
+    assert "expiresAt" in body
 
-    # expires_at is in the future
-    expires_at = datetime.fromisoformat(body["expires_at"])
+    # expiresAt is in the future
+    expires_at = datetime.fromisoformat(body["expiresAt"])
     assert expires_at > datetime.now(timezone.utc)
 
     # URL is actually accessible — GCS returns 200 for the image
