@@ -1,7 +1,7 @@
 [project]
-name = "eventengine"
+name = "storyengine"
 version = "0.0.1"
-description = "Event engine"
+description = "StoryEngine backend"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
@@ -172,9 +172,6 @@ docstring-code-format = false
 # This only has an effect when the `docstring-code-format` setting is
 # enabled.
 docstring-code-line-length = "dynamic"
-
-[tool.uv.sources]
-claude-code-sdk = { git = "https://github.com/anthropics/claude-code-sdk-python.git" }
 
 [tool.alembic]
 
