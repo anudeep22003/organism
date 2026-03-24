@@ -8,6 +8,24 @@ resolution-markers = [
 ]
 
 [[package]]
+name = "arpeggio"
+version = "2.0.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/3b/58/ba011f3cf8291804ce80f9d81289ac15f0319a27f9d7e3c124aa5e4981cc/Arpeggio-2.0.3.tar.gz", hash = "sha256:9e85ad35cfc6c938676817c7ae9a1000a7c72a34c71db0c687136c460d12b85e", size = 766566, upload-time = "2025-09-12T12:45:20.594Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/84/4d/53b8186b41842f7a5e971b1d1c28e678364dcf841e4170f5d14d38ac1e2a/Arpeggio-2.0.3-py2.py3-none-any.whl", hash = "sha256:9374d9c531b62018b787635f37fd81c9a6ee69ef2d28c5db3cd18791b1f7db2f", size = 54656, upload-time = "2025-09-12T12:45:17.971Z" },
+]
+
+[[package]]
+name = "attrs"
+version = "26.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/9a/8e/82a0fe20a541c03148528be8cac2408564a6c9a0cc7e9171802bc1d26985/attrs-26.1.0.tar.gz", hash = "sha256:d03ceb89cb322a8fd706d4fb91940737b6642aa36998fe130a9bc96c985eff32", size = 952055, upload-time = "2026-03-19T14:22:25.026Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/64/b4/17d4b0b2a2dc85a6df63d1157e028ed19f90d4cd97c36717afef2bc2f395/attrs-26.1.0-py3-none-any.whl", hash = "sha256:c647aa4a12dfbad9333ca4e71fe62ddc36f4e63b2d260a37a8b83d2f043ac309", size = 67548, upload-time = "2026-03-19T14:22:23.645Z" },
+]
+
+[[package]]
 name = "debugpy"
 version = "1.8.20"
 source = { registry = "https://pypi.org/simple" }
@@ -252,6 +270,19 @@ wheels = [
 ]
 
 [[package]]
+name = "parver"
+version = "0.5"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "arpeggio" },
+    { name = "attrs" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/cc/e5/1c774688a90f0b76e872e30f6f1ba3f5e14056cd0d96a684047d4a986226/parver-0.5.tar.gz", hash = "sha256:b9fde1e6bb9ce9f07e08e9c4bea8d8825c5e78e18a0052d02e02bf9517eb4777", size = 26908, upload-time = "2023-10-03T21:06:54.506Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/0f/4c/f98024021bef4d44dce3613feebd702c7ad8883f777ff8488384c59e9774/parver-0.5-py3-none-any.whl", hash = "sha256:2281b187276c8e8e3c15634f62287b2fb6fe0efe3010f739a6bd1e45fa2bf2b2", size = 15172, upload-time = "2023-10-03T21:06:52.796Z" },
+]
+
+[[package]]
 name = "protobuf"
 version = "6.33.6"
 source = { registry = "https://pypi.org/simple" }
@@ -285,6 +316,21 @@ dependencies = [
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e3/48/18568aabf2434e576053e6d6dfcbd40d48567136734c561b3bf7aee09f90/pulumi-3.227.0-py3-none-any.whl", hash = "sha256:0705cd6d69c98f2d4ec561464df186c5c03070a3e1514f083d5718b03d8e4c6f", size = 392976, upload-time = "2026-03-19T13:17:22.925Z" },
+]
+
+[[package]]
+name = "pulumi-gcp"
+version = "8.41.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "parver" },
+    { name = "pulumi" },
+    { name = "semver" },
+    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b2/e9/95559175372dbdc73fec5a473b612281df55198422e81acef11d836d09e7/pulumi_gcp-8.41.1.tar.gz", hash = "sha256:ff310d79dd929cdc3667eb37d18829438119d93bcd5cb2acae1ca60bd2ac33c2", size = 8343000, upload-time = "2025-08-25T21:45:11.845Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5b/0b/5841ca0cc22108d59a83a249abb83aa10534173ab44c9283ccefdb25fc05/pulumi_gcp-8.41.1-py3-none-any.whl", hash = "sha256:bac9fd9beb41b4cd8264c69722b5c817c037be5a2a11dec498456227a24b757c", size = 10415884, upload-time = "2025-08-25T21:45:08.566Z" },
 ]
 
 [[package]]
@@ -366,10 +412,14 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "pulumi" },
+    { name = "pulumi-gcp" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "pulumi", specifier = ">=3.0.0,<4.0.0" }]
+requires-dist = [
+    { name = "pulumi", specifier = ">=3.0.0,<4.0.0" },
+    { name = "pulumi-gcp", specifier = ">=8.0.0,<9.0.0" },
+]
 
 [[package]]
 name = "typing-extensions"

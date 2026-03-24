@@ -1,1 +1,4 @@
 encryptionsalt: v1:sW+JQABkRHo=:v1:7J9KOOOv28snXCef:bsFSX1NP/El1IPwSZCzRTWoV29ZT8g==
+config:
+  gcp:project: shared-apps-infrastructure
+  gcp:region: europe-west2
