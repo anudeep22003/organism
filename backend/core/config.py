@@ -24,6 +24,10 @@ GCP_REGION = os.getenv("GCP_REGION", "")
 GCP_STORAGE_BUCKET = os.getenv("GCP_STORAGE_BUCKET", "")
 
 
+if not OPENAI_API_KEY:
+    logger.error("OPENAI_API_KEY is not set")
+    raise ValueError("OPENAI_API_KEY is not set")
+
 if not ANTHROPIC_API_KEY:
     logger.error("ANTHROPIC_API_KEY is not set")
     raise ValueError("ANTHROPIC_API_KEY is not set")
