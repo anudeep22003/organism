@@ -5,7 +5,9 @@ REGISTRY_ID = "storyengine-dev"
 LOCATION = "europe-west2"
 
 
-def create_docker_registry() -> gcp.artifactregistry.Repository:
+def create_docker_registry() -> tuple[
+    gcp.artifactregistry.Repository, pulumi.Output[str]
+]:
     """
     Creates an Artifact Registry repository for storing Docker images.
 
