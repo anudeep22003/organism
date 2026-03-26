@@ -51,4 +51,10 @@ EXPOSE 8000
 # port it expects the container to listen on. We honour it and fall back
 # to 8000 for local docker run usage. --host 0.0.0.0 is required in a
 # container — 127.0.0.1 would make the process unreachable from outside.
-CMD ["sh", "-c", "uv run uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+#
+# We call uvicorn directly from the venv rather than via `uv run`.
+# `uv run` checks whether the venv is up to date and re-syncs if not —
+# at container startup that means downloading packages, wasting time and
+# memory before the app even starts. The venv was built correctly at image
+# build time and doesn't need re-checking at runtime.
+CMD ["sh", "-c", ".venv/bin/uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]

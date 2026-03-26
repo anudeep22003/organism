@@ -1,0 +1,23 @@
+# Virtual environment — CRITICAL to exclude.
+# uv sync builds the correct linux/amd64 venv inside the container during
+# the RUN uv sync step. If .venv is copied in via COPY . . it overwrites
+# that venv with the local macOS/arm64 one, breaking all binaries.
+.venv
+
+# Test files — not needed in the production image
+tests/
+.pytest_cache/
+
+# Local env files — secrets must never be baked into the image
+.env*
+
+# Editor and OS noise
+.DS_Store
+.vscode/
+__pycache__/
+*.pyc
+*.pyo
+
+# Git history — not needed at runtime
+.git/
+.gitignore
