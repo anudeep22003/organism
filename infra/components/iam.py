@@ -1,3 +1,4 @@
+import pulumi
 import pulumi_gcp as gcp
 
 from components.secrets import AppSecrets
@@ -116,6 +117,19 @@ def create_cloudrun_sa(
         "cloudrun-sa-object-user",
         bucket=bucket.name,
         role="roles/storage.objectUser",
+        member=member,
+    )
+
+    # --- Cloud SQL: allow the SA to open connections to any Cloud SQL
+    # instance in the project. This is a project-level role (not per-
+    # instance) because Cloud SQL IAM works at the project level.
+    # This role grants network-level access to Cloud SQL — it's the
+    # "allowed to knock on the door" permission. The database still
+    # requires a valid username + password to authenticate the session.
+    gcp.projects.IAMMember(
+        "cloudrun-sa-cloudsql-client",
+        project=pulumi.Config("gcp").require("project"),
+        role="roles/cloudsql.client",
         member=member,
     )
 
