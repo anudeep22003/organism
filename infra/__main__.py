@@ -1,9 +1,12 @@
 """StoryEngine infrastructure — dev stack."""
 
 import pulumi
+import pulumi_gcp as gcp
 
 from components.cloudrun import create_cloudrun_service
+from components.database import create_database
 from components.iam import create_cloudrun_sa, create_localhost_sa
+from components.networking import create_network
 from components.registry import create_docker_registry
 from components.secrets import create_app_secrets
 from components.storage import BUCKET_NAME, create_media_bucket
@@ -20,9 +23,35 @@ registry, registry_url = create_docker_registry()
 # --- Layer 4: Secrets ---
 secrets = create_app_secrets()
 
-# --- Layer 5: IAM (Cloud Run) + Cloud Run service ---
+# --- Layer 5: IAM (Cloud Run) ---
 cloudrun_sa = create_cloudrun_sa(bucket, registry, secrets)
-service, service_url = create_cloudrun_service(cloudrun_sa, secrets, registry_url)
+
+# --- Layer 6: Networking ---
+vpc, subnet, peering_connection = create_network()
+
+# --- Layer 7: Database ---
+# peering_connection is passed explicitly so Pulumi knows to wait for
+# the VPC peering to complete before creating the Cloud SQL instance.
+db = create_database(vpc, peering_connection, secrets)
+
+# Write the constructed DATABASE_URL to Secret Manager.
+# This runs after Cloud SQL is created and its private IP is known.
+# Cloud Run reads this secret at startup — it sees the final resolved
+# connection string and never needs to know how it was constructed.
+#
+# SecretVersion creates a new version in the existing secret container
+# (created in Layer 4 by secrets.py). If the URL changes (e.g. instance
+# is recreated with a new IP), pulumi up writes a new version automatically.
+gcp.secretmanager.SecretVersion(
+    "database-url-version",
+    secret=secrets.database_url.id,
+    secret_data=db.database_url,
+)
+
+# --- Layer 5 (cont): Cloud Run service — wired after networking + db ---
+service, service_url = create_cloudrun_service(
+    cloudrun_sa, secrets, registry_url, vpc, subnet
+)
 
 # --- Stack outputs ---
 # Readable via: pulumi stack output <key>
@@ -35,3 +64,7 @@ pulumi.export("secret_fal_api_key", secrets.fal_api_key.secret_id)
 pulumi.export("secret_database_url", secrets.database_url.secret_id)
 pulumi.export("cloudrun_sa_email", cloudrun_sa.email)
 pulumi.export("service_url", service_url)
+pulumi.export("vpc_name", vpc.name)
+pulumi.export("subnet_name", subnet.name)
+pulumi.export("db_instance_name", db.instance.name)
+pulumi.export("db_private_ip", db.instance.private_ip_address)

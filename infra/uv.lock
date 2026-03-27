@@ -334,6 +334,21 @@ wheels = [
 ]
 
 [[package]]
+name = "pulumi-random"
+version = "4.19.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "parver" },
+    { name = "pulumi" },
+    { name = "semver" },
+    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d7/14/98757312e8fbbb576e27a318ed50136c571268c9076f84db878d4cf4ed48/pulumi_random-4.19.1.tar.gz", hash = "sha256:c19c38ac78ba586fc4a96704c9e0b51edb0e52b290d8a42edd11ccea908fae7d", size = 22397, upload-time = "2026-01-28T04:09:22.358Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f5/5d/ea5b5312e61f2224d6cd5c6da9a5f1f9f7a50a9d8798e152233437ebc9f0/pulumi_random-4.19.1-py3-none-any.whl", hash = "sha256:20a7b078919e1e324dd6ffc58c3dbc0bec556fb0e852fc44e79371435b743ce3", size = 35761, upload-time = "2026-01-28T04:09:21.378Z" },
+]
+
+[[package]]
 name = "pyyaml"
 version = "6.0.3"
 source = { registry = "https://pypi.org/simple" }
@@ -413,12 +428,14 @@ source = { virtual = "." }
 dependencies = [
     { name = "pulumi" },
     { name = "pulumi-gcp" },
+    { name = "pulumi-random" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "pulumi", specifier = ">=3.0.0,<4.0.0" },
     { name = "pulumi-gcp", specifier = ">=8.0.0,<9.0.0" },
+    { name = "pulumi-random", specifier = ">=4.0.0,<5.0.0" },
 ]
 
 [[package]]
