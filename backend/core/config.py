@@ -11,7 +11,7 @@ def is_running_in_cloudrun() -> bool:
 
 
 if not is_running_in_cloudrun():
-    load_dotenv(override=True, dotenv_path=".env.local")
+    load_dotenv(override=False, dotenv_path=".env.local")
 
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
