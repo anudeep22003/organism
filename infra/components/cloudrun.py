@@ -19,6 +19,8 @@ def create_cloudrun_service(
     sa: gcp.serviceaccount.Account,
     secrets: AppSecrets,
     registry_url: pulumi.Output[str],
+    vpc: gcp.compute.Network,
+    subnet: gcp.compute.Subnetwork,
 ) -> tuple[gcp.cloudrunv2.Service, pulumi.Output[str]]:
     """
     Creates the Cloud Run service that runs the StoryEngine backend.
@@ -129,6 +131,24 @@ def create_cloudrun_service(
                 min_instance_count=0,
                 # Cap at 2 for dev — prevents surprise bills.
                 max_instance_count=2,
+            ),
+            # Direct VPC Egress: attaches Cloud Run containers directly to
+            # our subnet, giving them a VPC IP. This allows them to reach
+            # Cloud SQL's private IP (10.1.x.x) without a VPC connector.
+            #
+            # egress=PRIVATE_RANGES_ONLY: only traffic destined for private
+            # IP ranges (RFC 1918: 10.x, 172.16.x, 192.168.x) is routed
+            # through the VPC. Public internet traffic and Google API calls
+            # go direct — more efficient than ALL_TRAFFIC, and Google APIs
+            # are reachable via private_ip_google_access on the subnet.
+            vpc_access=gcp.cloudrunv2.ServiceTemplateVpcAccessArgs(
+                network_interfaces=[
+                    gcp.cloudrunv2.ServiceTemplateVpcAccessNetworkInterfaceArgs(
+                        network=vpc.name,
+                        subnetwork=subnet.name,
+                    )
+                ],
+                egress="PRIVATE_RANGES_ONLY",
             ),
         ),
     )

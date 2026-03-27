@@ -52,6 +52,13 @@ class AppSecrets:
             "secret-database-url",
             f"{_PREFIX}-database-url",
         )
+        # db_password is managed entirely by Pulumi — generated randomly,
+        # stored here so it's retrievable via gcloud if needed (e.g. make migrate).
+        # The app never reads this directly; it reads DATABASE_URL instead.
+        self.db_password = _make_secret(
+            "secret-db-password",
+            f"{_PREFIX}-db-password",
+        )
 
 
 def create_app_secrets() -> AppSecrets:
