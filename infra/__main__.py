@@ -5,6 +5,7 @@ import pulumi_gcp as gcp
 
 from components.cloudrun import create_cloudrun_service
 from components.database import create_database
+from components.frontend import create_frontend
 from components.iam import create_cloudrun_sa, create_localhost_sa
 from components.networking import create_network
 from components.registry import create_docker_registry
@@ -53,6 +54,9 @@ service, service_url = create_cloudrun_service(
     cloudrun_sa, secrets, registry_url, vpc, subnet
 )
 
+# --- Layer 8: Frontend hosting ---
+frontend = create_frontend()
+
 # --- Stack outputs ---
 # Readable via: pulumi stack output <key>
 pulumi.export("bucket_name", BUCKET_NAME)
@@ -68,3 +72,6 @@ pulumi.export("vpc_name", vpc.name)
 pulumi.export("subnet_name", subnet.name)
 pulumi.export("db_instance_name", db.instance.name)
 pulumi.export("db_private_ip", db.instance.private_ip_address)
+pulumi.export("frontend_bucket", frontend.bucket.name)
+pulumi.export("frontend_ip", frontend.ip_address)
+pulumi.export("frontend_url", frontend.url)
