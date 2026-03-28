@@ -91,6 +91,12 @@ while IFS= read -r line; do
   if [[ "$line" =~ ^([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]]; then
     key="${BASH_REMATCH[1]}"
     value="${BASH_REMATCH[2]}"
+    # Strip surrounding quotes (single or double) from the value.
+    # .env files often quote values: FAL_API_KEY="abc123" or FAL_API_KEY='abc123'
+    # The quotes are shell syntax — the actual secret value should not include them.
+    if [[ "$value" =~ ^\"(.*)\"$ ]] || [[ "$value" =~ ^\'(.*)\'$ ]]; then
+      value="${BASH_REMATCH[1]}"
+    fi
   else
     echo "  WARN: skipping unparseable line: $line" >&2
     continue
