@@ -7,6 +7,7 @@ BACKEND_DIR     := $(shell git rev-parse --show-toplevel)/backend
 FRONTEND_DIR    := $(shell git rev-parse --show-toplevel)/frontend
 FRONTEND_BUCKET := dev.dekatha.com
 DB_INSTANCE     := storyengine-dev-postgres
+MIGRATION_JOB   := storyengine-dev-migrate
 SA_KEY          := $(shell git rev-parse --show-toplevel)/infra/keys/dev-storage-sa-key.json
 
 # Git SHA of HEAD — used as the Docker image tag so every deployed revision
@@ -29,8 +30,11 @@ help:
 	@echo "    make deploy-all         Deploy both backend and frontend"
 	@echo ""
 	@echo "  Database"
-	@echo "    make proxy              Start Cloud SQL Auth Proxy in background (port 5433)"
-	@echo "    make migrate            Run Alembic migrations via Auth Proxy"
+	@echo "    make migrate            Run forward migrations via Cloud Run Job"
+	@echo "    make migrate-down       Downgrade one step (REVISION=abc123 for specific)"
+	@echo "    make migrate-status     Show current DB migration version (needs make proxy)"
+	@echo "    make migrate-history    Show full migration history (needs make proxy)"
+	@echo "    make proxy              Start Auth Proxy on :5433 (inspection only)"
 	@echo ""
 	@echo "  Secrets"
 	@echo "    make populate-secrets   Push secrets from .env.local to Secret Manager"
@@ -59,7 +63,7 @@ setup:
 	@echo "Step 2 — Authenticate Docker to Artifact Registry (one-time):"
 	@echo "  gcloud auth configure-docker $(REGION)-docker.pkg.dev"
 	@echo ""
-	@echo "Step 3 — Install Cloud SQL Auth Proxy (for local migrations):"
+	@echo "Step 3 — Install Cloud SQL Auth Proxy (for inspection commands):"
 	@echo "  brew install cloud-sql-proxy"
 	@echo ""
 	@echo "Step 4 — Add Pulumi passphrase to your shell profile (~/.zshrc or ~/.bashrc):"
@@ -75,9 +79,8 @@ setup:
 	@echo "Step 7 — Populate secrets from backend/.env.local:"
 	@echo "  make populate-secrets"
 	@echo ""
-	@echo "Step 8 — Run database migrations:"
-	@echo "  make proxy    # in one terminal"
-	@echo "  make migrate  # in another terminal"
+	@echo "Step 8 — Run initial database migrations:"
+	@echo "  make migrate    # triggers Cloud Run Job, no proxy needed"
 	@echo ""
 
 # ── Pulumi ────────────────────────────────────────────────────────────────────
@@ -94,7 +97,7 @@ preview:
 # also have code changes.
 .PHONY: up
 up:
-	PULUMI_CONFIG_PASSPHRASE="" pulumi up --stack $(STACK)
+	PULUMI_CONFIG_PASSPHRASE="" pulumi up --stack $(STACK) --yes
 
 # Show all stack outputs: URLs, bucket names, IPs, SA emails etc.
 .PHONY: outputs
@@ -112,6 +115,11 @@ status:
 	@gcloud run services describe storyengine-dev-backend \
 		--region $(REGION) --project $(PROJECT) \
 		--format="table(status.latestReadyRevisionName, status.url)" 2>&1
+	@echo ""
+	@echo "=== Migration Job ==="
+	@gcloud run jobs describe $(MIGRATION_JOB) \
+		--region $(REGION) --project $(PROJECT) \
+		--format="table(metadata.name, status.conditions[0].status)" 2>&1
 	@echo ""
 	@echo "=== SSL Certificate ==="
 	@gcloud compute ssl-certificates describe storyengine-dev-frontend-cert \
@@ -140,7 +148,7 @@ push:
 # ── Backend deploy ────────────────────────────────────────────────────────────
 
 # Full backend deploy: build image → push to Artifact Registry →
-# stamp SHA into Pulumi config → run pulumi up to update Cloud Run.
+# stamp SHA into Pulumi config → run pulumi up to update Cloud Run + Job.
 #
 # The SHA tag means every running revision is traceable to the exact commit
 # it was built from. Rollback = set image_tag to a previous SHA + make up.
@@ -151,7 +159,7 @@ push:
 .PHONY: deploy-backend
 deploy-backend: build push
 	PULUMI_CONFIG_PASSPHRASE="" pulumi config set image_tag $(SHA) --stack $(STACK)
-	PULUMI_CONFIG_PASSPHRASE="" pulumi up --stack $(STACK)
+	PULUMI_CONFIG_PASSPHRASE="" pulumi up --stack $(STACK) --yes
 
 # ── Frontend deploy ───────────────────────────────────────────────────────────
 
@@ -222,16 +230,82 @@ rotate-secrets: populate-secrets deploy-backend
 
 # ── Database migrations ───────────────────────────────────────────────────────
 
-# Start the Cloud SQL Auth Proxy in the background on port 5433.
-# Run this in your current terminal before running make migrate.
-# The proxy uses your local gcloud ADC credentials (anudeep@sidebrain.co)
-# to create an IAM-authenticated TLS tunnel to Cloud SQL.
+# Used by migrate-status and migrate-history (inspection commands via proxy).
+# Standard forward migrations use the Cloud Run Job and don't need these.
+CLOUD_DB_URL = $(shell gcloud secrets versions access latest \
+	--secret storyengine-dev-database-url \
+	--project $(PROJECT) 2>/dev/null)
+PROXY_DB_URL = $(shell echo "$(CLOUD_DB_URL)" | sed 's/@[^/]*\//@localhost:5433\//')
+
+# Run forward migrations via Cloud Run Job.
 #
-# Cloud SQL has a public IP enabled but NO authorized networks configured —
-# direct TCP connections from the internet are rejected. The proxy is the
-# only way to reach it from outside the VPC.
+# The job runs inside the VPC (storyengine-dev-subnet) and reaches Cloud SQL
+# at 10.1.0.3 directly — no Auth Proxy needed. Uses the same image as the
+# service (same git SHA) so migration code and app code are always in sync.
 #
-# To stop the proxy: kill %1  (or find the PID with: lsof -i :5433)
+# Blocks until the job completes. Exit code mirrors the job's exit code —
+# a failed migration will exit non-zero and stop any calling script (e.g. CI).
+#
+# This is the standard migration path for both local dev and the CI/CD pipeline.
+.PHONY: migrate
+migrate:
+	@echo "Running migrations via Cloud Run Job..."
+	gcloud run jobs execute $(MIGRATION_JOB) \
+		--region $(REGION) \
+		--project $(PROJECT) \
+		--wait
+	@echo ""
+	@echo "Migrations complete."
+
+# Downgrade one migration step — manual recovery operation only.
+# Never called from CI. To target a specific revision:
+#   make migrate-down REVISION=abc123def456
+# Default: one step back (-1).
+#
+# Recovery sequence after a bad migration:
+#   1. make migrate-down            (schema rolls back)
+#   2. pulumi config set image_tag  (point to previous good SHA)
+#   3. make up                      (Cloud Run rolls back to old image)
+.PHONY: migrate-down
+migrate-down:
+	@echo "Running downgrade via Cloud Run Job..."
+	gcloud run jobs execute $(MIGRATION_JOB) \
+		--region $(REGION) \
+		--project $(PROJECT) \
+		--args="downgrade,$(or $(REVISION),-1)" \
+		--wait
+	@echo ""
+	@echo "Downgrade complete."
+
+# Show the current migration version applied to the database.
+# Requires the Auth Proxy to be running: make proxy
+.PHONY: migrate-status
+migrate-status:
+	@lsof -i :5433 > /dev/null 2>&1 || \
+		(echo "ERROR: Proxy not running. Run 'make proxy' first."; exit 1)
+	cd $(BACKEND_DIR) && DATABASE_URL="$(PROXY_DB_URL)" .venv/bin/alembic current
+
+# Show full migration history — applied and pending.
+# Requires the Auth Proxy to be running: make proxy
+.PHONY: migrate-history
+migrate-history:
+	@lsof -i :5433 > /dev/null 2>&1 || \
+		(echo "ERROR: Proxy not running. Run 'make proxy' first."; exit 1)
+	cd $(BACKEND_DIR) && DATABASE_URL="$(PROXY_DB_URL)" .venv/bin/alembic history --verbose
+
+# Start the Cloud SQL Auth Proxy on localhost:5433.
+#
+# Standard migrations now use 'make migrate' (Cloud Run Job — no proxy needed).
+# The proxy is only needed for inspection commands:
+#   make migrate-status   (query current alembic version)
+#   make migrate-history  (view full migration history)
+#   manual psql, alembic downgrade, alembic stamp, etc.
+#
+# The proxy uses your local gcloud ADC credentials to create an
+# IAM-authenticated TLS tunnel to Cloud SQL. Cloud SQL has a public IP
+# enabled but NO authorized networks — the proxy is the only external path in.
+#
+# To stop the proxy: kill $(lsof -ti :5433)
 .PHONY: proxy
 proxy:
 	@echo "Starting Cloud SQL Auth Proxy on localhost:5433..."
@@ -239,39 +313,4 @@ proxy:
 	@echo "Proxy PID: $$!"
 	@echo "To stop: kill \$$(lsof -ti :5433)"
 	@sleep 2
-	@echo "Proxy ready. Run 'make migrate' to apply migrations."
-
-# Run Alembic database migrations against Cloud SQL via the Auth Proxy.
-#
-# Prerequisites:
-#   - Proxy must be running: make proxy (or manually in another terminal)
-#   - pulumi up must have been run (so the DATABASE_URL secret exists)
-#
-# How it works:
-#   1. Reads DATABASE_URL from Secret Manager (contains the real private IP)
-#   2. Rewrites the host to localhost:5433 (the proxy port)
-#   3. Runs alembic upgrade head directly via the backend venv
-#
-# The rewrite means: credentials stay the same (appuser + generated password),
-# only the network path changes (through the proxy instead of direct to 10.1.0.3).
-#
-# Future: replace with a Cloud Run Job that runs inside the VPC (no proxy
-# needed) triggered from CI before each deployment.
-CLOUD_DB_URL = $(shell gcloud secrets versions access latest \
-	--secret storyengine-dev-database-url \
-	--project $(PROJECT) 2>/dev/null)
-PROXY_DB_URL = $(shell echo "$(CLOUD_DB_URL)" | sed 's/@[^/]*\//@localhost:5433\//')
-
-.PHONY: migrate
-migrate:
-	@echo "Running Alembic migrations via Cloud SQL Auth Proxy..."
-	@echo ""
-	@test -n "$(CLOUD_DB_URL)" || \
-		(echo "ERROR: Could not read DATABASE_URL from Secret Manager."; \
-		 echo "Has 'pulumi up' been run?"; exit 1)
-	@lsof -i :5433 > /dev/null 2>&1 || \
-		(echo "ERROR: Nothing is listening on port 5433."; \
-		 echo "Run 'make proxy' first."; exit 1)
-	cd $(BACKEND_DIR) && DATABASE_URL="$(PROXY_DB_URL)" .venv/bin/alembic upgrade head
-	@echo ""
-	@echo "Migrations complete."
+	@echo "Proxy ready."

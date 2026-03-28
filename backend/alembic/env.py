@@ -1,14 +1,38 @@
+import os
 from logging.config import fileConfig
 
+from dotenv import load_dotenv
 from sqlalchemy import engine_from_config, pool
 
 from alembic import context
-from core.auth import models  # noqa: F401
-from core.common import ORMBase
-from core.config import DATABASE_URL
+
+# Load DATABASE_URL directly from the environment.
+# override=False so an explicitly set DATABASE_URL (e.g. in the Cloud Run Job
+# or injected by make migrate) takes precedence over .env.local.
+load_dotenv(override=False, dotenv_path=".env.local")
+DATABASE_URL = os.environ["DATABASE_URL"]
+
+# The model imports below transitively import core.config which validates
+# ALL required env vars (OPENAI_API_KEY, ANTHROPIC_API_KEY, FAL_API_KEY etc.).
+# The Cloud Run migration job only has DATABASE_URL — it doesn't need API keys.
+# We set dummy values for the vars that core.config checks so the import
+# succeeds. These values are never used — alembic only uses DATABASE_URL.
+_MIGRATION_ONLY_ENV_DEFAULTS = {
+    "OPENAI_API_KEY": "migration-placeholder",
+    "ANTHROPIC_API_KEY": "migration-placeholder",
+    "FAL_API_KEY": "migration-placeholder",
+    "GCP_PROJECT_ID": "migration-placeholder",
+    "GCP_STORAGE_BUCKET": "migration-placeholder",
+}
+for key, value in _MIGRATION_ONLY_ENV_DEFAULTS.items():
+    os.environ.setdefault(key, value)
+
+# Model imports needed for autogenerate support (alembic revision --autogenerate).
+from core.auth import models  # noqa: F401, E402
+from core.common import ORMBase  # noqa: E402
 
 # from core.comic_builder import models as comic_builder_models  # noqa: F401
-from core.story_engine import models as story_engine_models  # noqa: F401
+from core.story_engine import models as story_engine_models  # noqa: F401, E402
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
