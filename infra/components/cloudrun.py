@@ -10,6 +10,10 @@ _PLAIN_ENV_VARS = {
     "GCP_PROJECT_ID": "shared-apps-infrastructure",
     "GCP_REGION": "europe-west2",
     "GCP_STORAGE_BUCKET": "storyengine-dev-media-x7k2",
+    # Comma-separated list of allowed CORS origins.
+    # Read in main.py via os.getenv("CORS_ORIGINS").
+    # Not a secret — knowing this domain grants no access to anything.
+    "CORS_ORIGINS": "https://dev.dekatha.com",
 }
 
 _REGION = "europe-west2"
