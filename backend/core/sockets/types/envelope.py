@@ -29,7 +29,6 @@ Actor = Literal[
     "assistant",
     "coder",
     "writer",
-    "claude",
     "scriptwriter",
     "director",
     "manager",
