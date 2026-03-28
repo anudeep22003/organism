@@ -2,3 +2,10 @@ commit_details.txt
 
 *anudeep*
 *.tasks*
+
+# Ignore local env overrides (contain real credentials) but allow
+# committed env files like .env.production and .env.development
+.env.local
+.env.*.local
+backend/.env.local
+backend/.env.smoketest
