@@ -67,15 +67,45 @@ plaintext credentials out of Pulumi state and git history.
 
 Exception: `DATABASE_URL` is constructed by Pulumi after Cloud SQL is created
 (private IP only known at runtime) and written as a `SecretVersion` automatically.
+`make populate-secrets` must never overwrite this — see below.
+
+### DATABASE_URL ownership boundary — Pulumi owns it, not .env.local
+`DATABASE_URL` in Secret Manager is constructed and written by Pulumi from:
+- Cloud SQL's private IP (`instance.private_ip_address` output)
+- The generated DB password (`pulumi_random.RandomPassword`)
+
+This value should never be manually managed. The risk: if `DATABASE_URL` appears
+in the `# --- secrets ---` section of `.env.local` (pointing at local Postgres),
+running `make populate-secrets` will overwrite the Cloud SQL URL with the local
+one — breaking Cloud Run on the next cold start.
+
+**Rule:** `DATABASE_URL` belongs in the `# --- variables ---` section of `.env.local`
+so the populate script ignores it. Cloud Run reads the Cloud SQL URL from Secret
+Manager via the Pulumi-managed `SecretVersion`. Local dev reads the local Postgres
+URL from `.env.local` via `load_dotenv`.
+
+```bash
+# .env.local — correct structure
+# --- secrets ---
+ANTHROPIC_API_KEY=...      ← managed by populate-secrets.sh
+OPENAI_API_KEY=...
+FAL_API_KEY=...
+# DATABASE_URL is managed by Pulumi — never put it here
+
+# --- variables ---
+DATABASE_URL=postgresql+psycopg://postgres:123456@localhost:5432/mydb  ← local only
+GCP_PROJECT_ID=shared-apps-infrastructure
+GCP_REGION=europe-west2
+GCP_STORAGE_BUCKET=storyengine-dev-media-x7k2
+GOOGLE_APPLICATION_CREDENTIALS=...
+```
 
 ### .env.local uses section markers to separate secrets from plain vars
-```
-# --- secrets ---       ← populate-secrets.sh uploads these to Secret Manager
-ANTHROPIC_API_KEY=...
-# --- variables ---     ← injected directly as plain env vars in Cloud Run
-GCP_PROJECT_ID=...
-```
-The script reads the file, uploads only the secrets section, ignores variables.
+The `populate-secrets.sh` script reads the file line by line, tracking which
+section it's in. Only keys under `# --- secrets ---` are uploaded to Secret
+Manager. Everything under `# --- variables ---` is ignored by the script —
+those values are either local-only (like `DATABASE_URL`) or injected directly
+as plain env vars in the Cloud Run service definition (like `GCP_PROJECT_ID`).
 
 ### load_dotenv uses override=False
 `core/config.py` loads `.env.local` with `override=False`, meaning explicit
@@ -184,6 +214,69 @@ to `localhost:5433`, and runs `alembic upgrade head` directly via `.venv/bin/ale
 
 Future: replace with a Cloud Run Job that runs inside the VPC (no proxy needed)
 triggered from CI before each deployment.
+
+---
+
+## Layer 8 — Frontend Hosting
+
+### Bucket name must match the domain
+GCP requires the GCS bucket name to exactly equal the domain being served when
+using a load balancer backend bucket. `dev.dekatha.com` → bucket named
+`dev.dekatha.com`. Changing the subdomain requires creating a new bucket,
+syncing files, updating the LB backend, then deleting the old bucket.
+
+### Load balancer is required for custom domain + HTTPS
+GCS cannot serve HTTPS on a custom domain directly. The chain is:
+`Global Forwarding Rule → Target HTTPS Proxy (SSL termination) → URL Map →
+Backend Bucket → GCS`. The load balancer holds the managed SSL certificate
+and binds the static IP. HTTP (port 80) uses a separate forwarding rule that
+returns a 301 redirect to HTTPS via a redirect URL map.
+
+### Google-managed SSL certificate provisioning requires DNS first
+The cert stays in `PROVISIONING` or `FAILED_NOT_VISIBLE` until the domain's
+A record resolves to the load balancer IP. Do not expect the cert to provision
+until DNS propagates. `FAILED_NOT_VISIBLE` is not permanent — GCP retries
+automatically once DNS is correct.
+
+### Cloudflare proxy must be disabled (grey cloud) for GCP-managed certs
+Cloudflare's proxied mode intercepts TLS before it reaches GCP, preventing
+the managed certificate from provisioning. Set the A record to DNS-only mode
+in Cloudflare. CDN/DDoS protection via Cloudflare can be re-enabled later
+once the cert is active, at the cost of losing GCP's managed cert (Cloudflare
+would handle TLS instead).
+
+### Vite env files control the backend URL baked into the JS bundle
+Vite replaces `import.meta.env.VITE_*` at build time — the value is a literal
+string in the output bundle, not a runtime env var. Environment-specific values:
+- `.env.development` — loaded by `npm run dev`, points at `localhost:8085`
+- `.env.production` — loaded by `npm run build`, points at the Cloud Run URL
+
+`constants.ts` is unchanged — it reads `import.meta.env.VITE_BACKEND_URL` with
+a fallback, which is now always overridden by the correct env file.
+
+### CORS_ORIGINS read from env var, not hardcoded
+`main.py` reads `CORS_ORIGINS` via `os.getenv("CORS_ORIGINS", "http://localhost:5173")`.
+Cloud Run has `CORS_ORIGINS=https://dev.dekatha.com` as a plain env var in the
+service definition. Local dev uses the default (no `.env.local` change needed).
+Adding new allowed origins = update `_PLAIN_ENV_VARS` in `cloudrun.py` + `make up`.
+
+---
+
+## Operational Notes
+
+### Loguru Cloud Run JSON logging — use callable sink, not format=
+Loguru's `format=` callable receives a record and its return value is used as a
+**format string template** — Loguru then calls `.format_map()` on it. A JSON
+string like `{"severity": "INFO"}` breaks `format_map` because `"severity"` with
+quotes is not a valid Python format key (`KeyError: '"severity"'`).
+
+Fix: pass the formatter as the **sink** (first positional arg to `logger.add()`).
+When the sink is callable, Loguru passes the message object directly and the
+callable writes to `sys.stdout` — `format_map` is never called.
+
+Also: `diagnose=False` in production — `diagnose=True` includes local variable
+values in tracebacks, which can leak sensitive data (tokens, request bodies) into
+Cloud Logging.
 
 ---
 
