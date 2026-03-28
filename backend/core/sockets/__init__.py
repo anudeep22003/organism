@@ -19,6 +19,6 @@ def register_sio_handlers() -> None:
     logger.info("Registering socket handlers...")
 
     from . import handlers  # noqa: F401
-    from .actors import assistant, claude_sdk, director  # noqa: F401
+    from .actors import assistant, director  # noqa: F401
 
     logger.info("Socket handlers registered successfully")
