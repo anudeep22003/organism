@@ -7,6 +7,7 @@ from components.cloudrun import create_cloudrun_service
 from components.database import create_database
 from components.frontend import create_frontend
 from components.iam import create_cloudrun_sa, create_localhost_sa
+from components.migrations import create_migration_job
 from components.networking import create_network
 from components.registry import create_docker_registry
 from components.secrets import create_app_secrets
@@ -54,6 +55,11 @@ service, service_url = create_cloudrun_service(
     cloudrun_sa, secrets, registry_url, vpc, subnet
 )
 
+# --- Layer 9: Migration Job ---
+# Runs alembic upgrade head inside the VPC using the same image as the service.
+# Triggered via: make migrate (or gcloud run jobs execute in CI)
+migration_job = create_migration_job(cloudrun_sa, secrets, registry_url, vpc, subnet)
+
 # --- Layer 8: Frontend hosting ---
 frontend = create_frontend()
 
@@ -75,3 +81,4 @@ pulumi.export("db_private_ip", db.instance.private_ip_address)
 pulumi.export("frontend_bucket", frontend.bucket.name)
 pulumi.export("frontend_ip", frontend.ip_address)
 pulumi.export("frontend_url", frontend.url)
+pulumi.export("migration_job_name", migration_job.name)
