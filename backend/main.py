@@ -1,3 +1,4 @@
+import os
 from typing import AsyncGenerator
 
 import socketio
@@ -30,9 +31,14 @@ async def lifecycle_manager(app: FastAPI) -> AsyncGenerator[None, None]:
 
 fastapi_app = FastAPI(lifespan=lifecycle_manager)
 
+# CORS_ORIGINS is a comma-separated list of allowed origins.
+# Defaults to localhost:5173 for local dev — no .env.local change needed.
+# In Cloud Run, set CORS_ORIGINS=https://dev.dekatha.com as a plain env var.
+_cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
+
 fastapi_app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
