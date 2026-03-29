@@ -11,7 +11,7 @@ from PIL import Image as PILImage
 from PIL import ImageOps
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.config import GCP_PROJECT_ID, GCP_STORAGE_BUCKET
+from core.config import settings
 from core.story_engine.models.image import ImageDiscriminatorKey
 
 from ..exceptions import NotFoundError, UploadImageError
@@ -188,8 +188,8 @@ class ImageProcessor:
 
 class GCSUploadService:
     def __init__(self) -> None:
-        self.client = Client(project=GCP_PROJECT_ID, credentials=None)
-        self.bucket = self.client.bucket(GCP_STORAGE_BUCKET)
+        self.client = Client(project=settings.gcp_project_id, credentials=None)
+        self.bucket = self.client.bucket(settings.gcp_storage_bucket)
 
     def upload(
         self, object_key: str, file_object: BinaryIO, content_type: ImageContentType
@@ -197,7 +197,9 @@ class GCSUploadService:
         try:
             blob = self.bucket.blob(object_key)
             blob.upload_from_file(file_object, content_type=content_type)
-            return StorageReceipt(object_key=object_key, bucket=GCP_STORAGE_BUCKET)
+            return StorageReceipt(
+                object_key=object_key, bucket=settings.gcp_storage_bucket
+            )
         except Exception as e:
             logger.error(f"Failed to upload image to bucket: {object_key}, {e}")
             raise UploadImageError(

@@ -1,4 +1,3 @@
-from .dependencies import get_current_user_id, get_user_manager
 from .exceptions import (
     AuthenticationError,
     ExpiredTokenError,
@@ -19,14 +18,6 @@ __all__ = [
     "RefreshTokenManager",
     "SessionManager",
     "UserManager",
-    # Dependencies (for use in other routers)
-    "get_current_user_id",
-    "get_user_manager",
-    # Password utilities
-    "PasswordHasher",
-    "get_password_hasher",
-    # Models
-    "JWTPayload",
     # Exceptions
     "AuthenticationError",
     "UserNotFoundError",

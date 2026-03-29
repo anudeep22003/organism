@@ -6,8 +6,7 @@ from fastapi.responses import StreamingResponse
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.auth import get_current_user_id
-from core.auth.dependencies import get_session_manager
+from core.auth.dependencies import get_current_user_id, get_session_manager
 from core.auth.managers.session import SessionManager
 from core.common import AliasedBaseModel
 from core.services.database import get_async_db_session

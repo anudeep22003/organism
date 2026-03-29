@@ -7,26 +7,23 @@ from fastapi.concurrency import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
-# for env variable loading (this automatically loads config)
-from core import config  # noqa: F401
 from core.api.routers import router as v1_router
+from core.config import settings
 from core.logging import setup_logging
 from core.sockets import register_sio_handlers, sio
 
 
 @asynccontextmanager
 async def lifecycle_manager(app: FastAPI) -> AsyncGenerator[None, None]:
-    # Setup logging first
     setup_logging(level="DEBUG", json_format=True)
-
-    logger.debug("Starting FastAPI app")
-    logger.debug("Checking environment variables loaded")
-
-    # register socketio handlers
+    logger.info(
+        "StoryEngine starting",
+        project=settings.gcp_project_id,
+        region=settings.gcp_region,
+    )
     register_sio_handlers()
-
     yield
-    logger.info("Shutting down FastAPI app")
+    logger.info("StoryEngine shutting down")
 
 
 fastapi_app = FastAPI(lifespan=lifecycle_manager)
