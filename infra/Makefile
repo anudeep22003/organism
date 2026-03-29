@@ -181,13 +181,13 @@ status:
 		--format="table(metadata.name, status.conditions[0].status)" 2>&1
 	@echo ""
 	@echo "=== SSL Certificate ==="
-	@gcloud compute ssl-certificates describe storyengine-$(STACK)-frontend-cert \
+	@gcloud compute ssl-certificates describe storyengine-$(STACK)-frontend-cert-v2 \
 		--global --project $(PROJECT) \
 		--format="table(name, managed.status, managed.domainStatus)" 2>&1
 	@echo ""
 	@echo "=== DNS resolution ==="
-	@dig $(STACK).dekatha.com A +short 2>&1
-	@echo "(should be 136.110.212.53)"
+	@FRONTEND_URL=$$(PULUMI_CONFIG_PASSPHRASE="" pulumi stack output frontend_url --stack $(STACK) 2>/dev/null | sed 's|https://||'); \
+		dig $$FRONTEND_URL A +short 2>&1
 	@echo ""
 	@echo "=== Stack outputs ==="
 	@PULUMI_CONFIG_PASSPHRASE="" pulumi stack output --stack $(STACK)
