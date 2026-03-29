@@ -360,6 +360,66 @@ retries make this worse. Fail fast, alert a human.
 
 ---
 
+## Using this as a template for a new project
+
+This infra directory is designed to be reusable. To bootstrap a new project:
+
+### Step 1 — Rename the Pulumi project
+
+In `Pulumi.yaml`, change:
+```yaml
+name: storyengine-infra          # → yourapp-infra
+description: A story generator...  # → your description
+config:
+  storyengine-infra:app: storyengine  # → yourapp-infra:app: yourapp
+```
+
+The `name:` field drives the config key namespace (`storyengine-infra:` becomes
+`yourapp-infra:`). Every `storyengine-infra:` config key in `Pulumi.main.yaml`
+must be updated to match.
+
+### Step 2 — Update `Pulumi.main.yaml`
+
+```yaml
+config:
+  gcp:project: your-gcp-project
+  gcp:region: your-region
+  yourapp-infra:app: yourapp        # ← drives all GCP resource names
+  yourapp-infra:domain: app.yourdomain.com
+  yourapp-infra:api_domain: api.yourdomain.com
+  yourapp-infra:image_tag: latest   # updated automatically by make deploy-backend
+```
+
+### Step 3 — Update the Makefile (one line)
+
+```makefile
+APP := $(shell pulumi config get storyengine-infra:app ...)
+#                               ↑ change to yourapp-infra:app
+```
+
+That's it. All GCP resource names, the Makefile `PREFIX`, and the SSL cert
+filter all derive from `APP`. No other changes needed in the Makefile.
+
+### Step 4 — Create a new GCS state bucket
+
+```bash
+gcloud storage buckets create gs://yourapp-pulumi-state \
+  --project your-gcp-project \
+  --location your-region
+```
+
+Set `PULUMI_BACKEND_URL=gs://yourapp-pulumi-state` in GitHub Actions variables.
+
+### Step 5 — Init the stack and deploy
+
+```bash
+pulumi stack init main
+make up       # provisions all GCP resources
+make setup    # prints remaining manual steps
+```
+
+---
+
 ## What NOT to touch
 
 | Thing | Why |

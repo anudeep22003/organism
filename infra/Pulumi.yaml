@@ -8,3 +8,9 @@ config:
   pulumi:tags:
     value:
       pulumi:template: python
+  # App name — used as the prefix for all GCP resource names.
+  # Override in Pulumi.<stack>.yaml for a new project.
+  # If you change this, also update:
+  #   1. name: in this file (Pulumi project name — drives config key namespace)
+  #   2. APP := in Makefile (reads storyengine-infra:app — key prefix must match project name)
+  storyengine-infra:app: storyengine
