@@ -204,11 +204,19 @@ def create_frontend(service: gcp.cloudrunv2.Service) -> FrontendOutputs:
     # Adding or removing a domain triggers a cert replace (not in-place update).
     ssl_cert = gcp.compute.ManagedSslCertificate(
         "frontend-ssl-cert",
-        name=f"{_NAME_PREFIX}-cert",
+        name=f"{_NAME_PREFIX}-cert-v2",  # GCP resource name kept as-is to avoid replace
         managed=gcp.compute.ManagedSslCertificateManagedArgs(
             domains=[f"{DOMAIN}.", f"{API_DOMAIN}."],
         ),
         description=f"Google-managed SSL certificate for {DOMAIN} and {API_DOMAIN}",
+        opts=pulumi.ResourceOptions(
+            # Create the new cert before deleting the old one on future domain
+            # changes — GCP rejects deleting a cert while a proxy references it.
+            # aliases reconciles the Pulumi logical name (frontend-ssl-cert-v2 →
+            # frontend-ssl-cert) as a state-only rename with no GCP operation.
+            delete_before_replace=False,
+            aliases=[pulumi.Alias(name="frontend-ssl-cert-v2")],
+        ),
     )
 
     # HTTPS proxy — terminates SSL using the managed cert.
