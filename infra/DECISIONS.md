@@ -212,8 +212,7 @@ opens a local port (`localhost:5433`) that tunnels to Cloud SQL via IAM-authenti
 TLS. `make migrate` reads `DATABASE_URL` from Secret Manager, rewrites the host
 to `localhost:5433`, and runs `alembic upgrade head` directly via `.venv/bin/alembic`.
 
-Future: replace with a Cloud Run Job that runs inside the VPC (no proxy needed)
-triggered from CI before each deployment.
+CI migrations use the Cloud Run Job instead — see Layer 9.
 
 ---
 
@@ -249,16 +248,134 @@ would handle TLS instead).
 Vite replaces `import.meta.env.VITE_*` at build time — the value is a literal
 string in the output bundle, not a runtime env var. Environment-specific values:
 - `.env.development` — loaded by `npm run dev`, points at `localhost:8085`
-- `.env.production` — loaded by `npm run build`, points at the Cloud Run URL
+- `.env.production` — loaded by `npm run build`, does NOT set `VITE_BACKEND_URL`
+
+`VITE_BACKEND_URL` is intentionally absent from `.env.production`. It is injected
+at build time from the live stack output (`pulumi stack output service_url`) by
+both `make deploy-frontend` and the CI/CD pipeline. This guarantees it always
+matches the live infrastructure — hardcoding it in `.env.production` would produce
+stale URLs silently whenever the Cloud Run service URL changes.
 
 `constants.ts` is unchanged — it reads `import.meta.env.VITE_BACKEND_URL` with
-a fallback, which is now always overridden by the correct env file.
+a fallback, which is always set correctly at build time via the above mechanism.
 
 ### CORS_ORIGINS read from env var, not hardcoded
 `main.py` reads `CORS_ORIGINS` via `os.getenv("CORS_ORIGINS", "http://localhost:5173")`.
 Cloud Run has `CORS_ORIGINS=https://dev.dekatha.com` as a plain env var in the
 service definition. Local dev uses the default (no `.env.local` change needed).
 Adding new allowed origins = update `_PLAIN_ENV_VARS` in `cloudrun.py` + `make up`.
+
+---
+
+## Layer 9 — Migration Job (Cloud Run Job)
+
+### Cloud Run Job instead of Auth Proxy in CI
+GitHub Actions runners are outside the VPC. Cloud SQL has a private IP only —
+there is no path from a runner to `10.1.0.3` without a tunnel. The alternatives:
+
+- **Cloud SQL Auth Proxy in CI** — requires downloading the proxy binary,
+  authenticating it, and running it as a background process. Fragile, adds
+  latency, and exposes the database port on the runner.
+- **Cloud Run Job** — runs `alembic upgrade head` inside the VPC using direct
+  VPC egress. CI just calls `gcloud run jobs execute ... --wait` and reads the
+  exit code. The runner never touches the database directly.
+
+The Cloud Run Job is simpler, more secure, and uses the same network path as the
+running application.
+
+### Same image as the Cloud Run service
+The migration job uses the same Docker image as the backend service, tagged with
+the same git SHA. This guarantees that migration files in the image match the
+application code deployed in the same `pulumi up`. Running migrations with the
+old image before `pulumi up` would miss any migration files added in the current
+commit.
+
+### max_retries=0
+A failed migration must not retry automatically. If `alembic upgrade head` fails
+mid-way, the schema is in a partially-applied state. Retrying blindly can make
+this worse. The job exits non-zero, CI halts, and a human investigates. Recovery
+is manual: fix the migration, push a new commit.
+
+### Step ordering in CI: pulumi up before migrate
+`pulumi up` updates both the Cloud Run service and the migration job to the new
+image tag. The migration job must be on the new image before it runs — otherwise
+it executes the old image's migration files and misses anything added in the
+current commit.
+
+---
+
+## Layer 10 — CI/CD (GitHub Actions)
+
+### Two-workflow split
+- `ci.yml` — runs on every pull request push. Lint + type-check + build only.
+  Fast feedback during code review. Does not deploy anything.
+- `deploy.yml` — runs on push to `main` only (i.e. merged PRs). Inlines its own
+  CI gate jobs, then deploys if both pass.
+
+`ci.yml` does not run on push to `main` — `deploy.yml` owns that event entirely.
+Running both on `main` would duplicate the CI jobs on every merge with no benefit.
+
+### deploy.yml inlines CI rather than reusing ci.yml
+GitHub's `uses:` syntax for reusing workflows requires the called workflow to
+declare `on: workflow_call`. `ci.yml` does not declare this (and should not be
+modified). The deploy workflow inlines identical CI jobs and gates the deploy job
+on both with `needs: [ci-backend, ci-frontend]`.
+
+### Workload Identity Federation — no JSON key file
+GitHub Actions authenticates to GCP via OIDC, not a JSON key:
+
+1. GitHub generates a short-lived OIDC token for the workflow run.
+2. The GCP Workload Identity Pool exchanges it for a temporary GCP access token
+   scoped to `github-actions-sa`.
+3. The token expires when the workflow ends.
+
+The pool's `attribute_condition` rejects tokens from any repo other than
+`anudeep22003/organism`. A leaked token from a different repo cannot impersonate
+`github-actions-sa`. Nothing to rotate, nothing to leak.
+
+### github-actions-sa uses roles/editor at project level
+Pulumi manages Cloud Run, Cloud SQL, Secret Manager, VPC, GCS, Artifact Registry,
+IAM bindings, and more. The exhaustive list of individual roles required is 20+
+and changes whenever a new resource type is added to the stack. `roles/editor`
+at project level covers all of it in one binding.
+
+`roles/editor` does not include IAM permissions (`roles/iam.*`) — this is
+intentional. `github-actions-sa` can manage resources but cannot grant itself
+or others new IAM roles.
+
+### State bucket IAM is not explicitly bound
+The Pulumi state bucket (`storyengine-infra-state`) was created manually before
+the Pulumi stack existed — it is not managed by Pulumi. Attempting to bind IAM
+on it via `gcp.storage.BucketIAMMember` fails with a 404 because the Pulumi
+provider cannot find the bucket in its own state.
+
+`roles/editor` at project level includes `storage.objectAdmin` on all buckets in
+the project, including the state bucket. No separate binding is needed.
+
+### Python and Node versions are pinned via version files
+- `infra/.python-version` — pins Python 3.12 for the Pulumi runtime. Read by
+  `uv python install` in CI.
+- `backend/.python-version` — pins Python 3.12 for the backend. Same mechanism.
+- `frontend/.nvmrc` — pins Node 22 for the frontend build. Read by
+  `actions/setup-node` via `node-version-file: frontend/.nvmrc`.
+
+Pinning prevents CI from silently upgrading to a newer runtime when new versions
+are released, which could introduce subtle incompatibilities.
+
+### Deploy step ordering
+1. `docker build + push` — image must exist in Artifact Registry before Pulumi
+   references it in the Cloud Run service definition.
+2. `pulumi up` — updates Cloud Run service and migration job to the new image tag.
+3. `gcloud run jobs execute ... --wait` — runs migrations with the new image.
+   Must happen after `pulumi up` so the job has the new image. Must happen before
+   traffic shifts to the new revision (Cloud Run shifts traffic as part of
+   `pulumi up`, but the startup probe holds traffic until `/health` returns 200,
+   giving migrations time to complete).
+4. `pulumi stack output service_url` → `VITE_BACKEND_URL` — frontend build
+   injects the live backend URL. Must happen after `pulumi up` so the URL is
+   current.
+5. `npm run build + gcloud storage rsync` — frontend last, no dependency on
+   backend revision being healthy.
 
 ---
 
@@ -282,10 +399,8 @@ Cloud Logging.
 
 ## What's Next
 
-Planned layers not yet built:
+Planned work not yet built:
 
-- **CI/CD** — GitHub Actions: build image, push, run migrations via Cloud Run Job, deploy
-- **Cloud Run Job** — one-shot migration runner inside the VPC, replacing the Auth Proxy pattern
 - **Staging environment** — duplicate the stack with `pulumi stack init staging`
 - **Cloud SQL HA** — flip `availability_type=REGIONAL` and `deletion_protection=True` for prod
 - **IAM database auth** — replace password auth with `cloudrun-sa` identity as Postgres user
