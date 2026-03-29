@@ -32,9 +32,11 @@ IMAGE_TAG = _app.require("image_tag")  # git SHA set by make deploy-backend
 
 # ── Derived values ─────────────────────────────────────────────────────────────
 
-# Domain follows the pattern <stack>.dekatha.com.
-# For a new stack, add a Pulumi.<stack>.yaml — DOMAIN resolves automatically.
-DOMAIN = f"{STACK}.dekatha.com"
+# Domain is set explicitly per stack in Pulumi.<stack>.yaml.
+# e.g. storyengine-infra:domain: app.dekatha.com
+# This decouples the domain from the stack name — "main" stack serves
+# "app.dekatha.com", a future "dev" stack can serve "dev.dekatha.com".
+DOMAIN = _app.require("domain")
 
 # Media bucket name. The x7k2 suffix was generated on first creation to
 # avoid naming conflicts. It is intentionally static — GCS bucket names are

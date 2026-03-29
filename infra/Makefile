@@ -1,4 +1,4 @@
-STACK           := dev
+STACK           := main
 PROJECT         := $(shell pulumi config get gcp:project --stack $(STACK) 2>/dev/null)
 REGION          := $(shell pulumi config get gcp:region --stack $(STACK) 2>/dev/null)
 REGISTRY        := $(REGION)-docker.pkg.dev/$(PROJECT)/storyengine-$(STACK)

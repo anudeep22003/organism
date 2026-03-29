@@ -2,4 +2,5 @@ encryptionsalt: v1:sW+JQABkRHo=:v1:7J9KOOOv28snXCef:bsFSX1NP/El1IPwSZCzRTWoV29ZT
 config:
   gcp:project: shared-apps-infrastructure
   gcp:region: europe-west2
-  storyengine-infra:image_tag: 9322fe2
+  storyengine-infra:image_tag: 1236fcc
+  storyengine-infra:domain: app.dekatha.com
