@@ -25,7 +25,6 @@ class User(ORMBase):
         onupdate=lambda: datetime.now(timezone.utc),
     )
     meta: Mapped[dict] = mapped_column(JSONB, default=dict)
-    dummy_field: Mapped[str] = mapped_column(default="dummy")
 
     def __repr__(self) -> str:
         return f"User(email={self.email}, id={self.id})"
