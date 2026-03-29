@@ -146,15 +146,18 @@ jobs:
             --project shared-apps-infrastructure \
             --wait
 
-      # Read the live backend URL from Pulumi so the frontend build always
-      # bakes in the correct value — never a stale hardcoded URL.
-      - name: Get backend service URL
+      # Read all domain-derived values from the live stack so nothing is
+      # hardcoded in this file. A domain change in Pulumi.main.yaml is the
+      # single source of truth — no changes needed here.
+      - name: Get stack outputs
         working-directory: infra
         env:
           PULUMI_CONFIG_PASSPHRASE: ""
           PULUMI_BACKEND_URL: ${{ vars.PULUMI_BACKEND_URL }}
         run: |
           echo "SERVICE_URL=$(pulumi stack output api_url --stack main)" >> $GITHUB_ENV
+          echo "FRONTEND_BUCKET=$(pulumi stack output frontend_bucket --stack main)" >> $GITHUB_ENV
+          echo "FRONTEND_URL=$(pulumi stack output frontend_url --stack main)" >> $GITHUB_ENV
 
       # Node.js is installed here (not at the top) so the earlier steps don't
       # carry unnecessary tooling. npm cache is keyed on the lockfile.
@@ -178,7 +181,7 @@ jobs:
       # after a partial failure is safe.
       - name: Sync frontend to GCS
         run: |
-          gcloud storage rsync frontend/dist/ gs://app.dekatha.com \
+          gcloud storage rsync frontend/dist/ gs://${{ env.FRONTEND_BUCKET }} \
             --recursive \
             --delete-unmatched-destination-objects \
             --project shared-apps-infrastructure
@@ -191,5 +194,5 @@ jobs:
           echo "| | |" >> $GITHUB_STEP_SUMMARY
           echo "|---|---|" >> $GITHUB_STEP_SUMMARY
           echo "| **Image tag** | \`${{ env.SHA }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Backend** | https://api.dekatha.com |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Frontend** | https://app.dekatha.com |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Backend** | ${{ env.SERVICE_URL }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Frontend** | ${{ env.FRONTEND_URL }} |" >> $GITHUB_STEP_SUMMARY
