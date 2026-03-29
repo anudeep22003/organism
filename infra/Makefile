@@ -47,6 +47,7 @@ help:
 	@echo "    make destroy            Tear down all infrastructure for this stack"
 	@echo "    make status             Show cert, Cloud Run revision, and stack outputs"
 	@echo "    make outputs            Show all Pulumi stack outputs"
+	@echo "    make change-domain      Step-by-step instructions for switching domains"
 	@echo ""
 
 # ── Setup (one-time onboarding) ───────────────────────────────────────────────
@@ -98,6 +99,55 @@ setup:
 	@echo "  Also add the two Workload Identity secrets (from pulumi stack output):"
 	@echo "    GCP_WORKLOAD_IDENTITY_PROVIDER = \$$(pulumi stack output workload_identity_provider --stack main)"
 	@echo "    GCP_SERVICE_ACCOUNT            = \$$(pulumi stack output github_actions_sa_email --stack main)"
+	@echo ""
+
+# ── Domain change (checklist) ─────────────────────────────────────────────────
+
+# Prints the exact steps to switch the stack to a new domain.
+# Not a fully automated target — a DNS change at the registrar is required
+# in the middle, which cannot be scripted. Follow each step in order.
+.PHONY: change-domain
+change-domain:
+	@echo ""
+	@echo "=== Domain change checklist ==="
+	@echo ""
+	@echo "Current domains:"
+	@echo "  frontend : $$(PULUMI_CONFIG_PASSPHRASE="" pulumi config get storyengine-infra:domain --stack $(STACK) 2>/dev/null)"
+	@echo "  api      : $$(PULUMI_CONFIG_PASSPHRASE="" pulumi config get storyengine-infra:api_domain --stack $(STACK) 2>/dev/null)"
+	@echo ""
+	@echo "Step 1 — Update both domains in Pulumi.$(STACK).yaml:"
+	@echo "  storyengine-infra:domain: app.newdomain.com"
+	@echo "  storyengine-infra:api_domain: api.newdomain.com"
+	@echo ""
+	@echo "Step 2 — Apply infra:"
+	@echo "  make up"
+	@echo ""
+	@echo "  What this does:"
+	@echo "    - Recreates the GCS bucket (must match domain — old bucket deleted)"
+	@echo "    - Replaces the SSL cert to cover the new domains"
+	@echo "    - Updates CORS_ORIGINS on Cloud Run to the new frontend domain"
+	@echo "    - Updates URL map host rules"
+	@echo "  Expect brief HTTPS disruption while the new cert provisions."
+	@echo "  Frontend will be down until step 5 (bucket recreated but empty)."
+	@echo ""
+	@echo "Step 3 — Get the load balancer IP:"
+	@echo "  make outputs | grep frontend_ip"
+	@echo ""
+	@echo "Step 4 — Update DNS at your registrar (DNS-only mode, not proxied):"
+	@echo "  A  app.newdomain.com  →  <frontend_ip from step 3>"
+	@echo "  A  api.newdomain.com  →  <frontend_ip from step 3>"
+	@echo "  Remove old A records for the previous domain."
+	@echo ""
+	@echo "Step 5 — Redeploy frontend (syncs assets to new bucket, bakes new API URL):"
+	@echo "  make deploy-frontend"
+	@echo ""
+	@echo "Step 6 — Wait for SSL cert to provision (~10-30 min after DNS propagates):"
+	@echo "  make status"
+	@echo "  Watch managed.status → ACTIVE for both new domains."
+	@echo ""
+	@echo "Step 7 — Verify:"
+	@echo "  curl https://app.newdomain.com"
+	@echo "  curl https://api.newdomain.com/health"
 	@echo ""
 
 # ── Pulumi ────────────────────────────────────────────────────────────────────
