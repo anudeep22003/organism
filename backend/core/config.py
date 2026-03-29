@@ -28,6 +28,11 @@ class AppSettings(BaseSettings):
     # Cloud Run services authenticate via the attached service account (no key file).
     google_application_credentials: str = ""
 
+    # Deployment environment. Controls whether API docs are exposed.
+    # Set to "production" via plain env var in Cloud Run (cloudrun.py).
+    # Defaults to "development" locally — docs available at /docs.
+    env: str = "development"
+
     model_config = SettingsConfigDict(
         env_file=".env.local",
         env_ignore_empty=True,

@@ -26,7 +26,17 @@ async def lifecycle_manager(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("StoryEngine shutting down")
 
 
-fastapi_app = FastAPI(lifespan=lifecycle_manager)
+_is_production = settings.env == "production"
+
+fastapi_app = FastAPI(
+    lifespan=lifecycle_manager,
+    # Disable API docs in production — avoids exposing endpoint schema
+    # and request/response shapes to the public internet.
+    # Locally (env=development) docs remain available at /docs and /redoc.
+    docs_url=None if _is_production else "/docs",
+    redoc_url=None if _is_production else "/redoc",
+    openapi_url=None if _is_production else "/openapi.json",
+)
 
 # CORS_ORIGINS is a comma-separated list of allowed origins.
 # Defaults to localhost:5173 for local dev — no .env.local change needed.
