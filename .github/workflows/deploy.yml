@@ -1,0 +1,196 @@
+name: Deploy
+
+# Runs only on direct pushes to main (i.e. merged PRs).
+# PRs run ci.yml instead — no deploy on unmerged branches.
+on:
+  push:
+    branches: [main]
+
+jobs:
+  # ── CI Gate ───────────────────────────────────────────────────────────────────
+  # Both jobs run in parallel. The deploy job will not start until both pass.
+  # A failure in either job surfaces immediately with a red check on the commit.
+
+  ci-backend:
+    name: CI / Backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Setup Python
+        run: uv python install
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      - name: Ruff
+        run: uv run ruff check .
+
+      - name: Mypy
+        run: uv run mypy .
+
+  ci-frontend:
+    name: CI / Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run type-check
+
+      - name: Build
+        run: npm run build
+
+  # ── Deploy ────────────────────────────────────────────────────────────────────
+  # Runs only after both CI jobs pass. Any failure in the steps below marks
+  # the commit red and halts the pipeline — partial state (a pushed image that
+  # isn't yet live) is harmless and self-corrects on the next push.
+
+  deploy:
+    name: Deploy
+    needs: [ci-backend, ci-frontend]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # required for Workload Identity OIDC token exchange
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Install uv so Pulumi can use the uv toolchain defined in infra/Pulumi.yaml.
+      # Without this, `pulumi up` cannot install the Python dependencies.
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Setup Python
+        run: uv python install
+
+      # Exchange the GitHub OIDC token for a short-lived GCP access token.
+      # No JSON key file — credentials expire when this workflow run ends.
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      # Allow Docker to push to Artifact Registry using the GCP credentials
+      # that google-github-actions/auth just configured.
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker europe-west2-docker.pkg.dev --quiet
+
+      # Short SHA used as the image tag throughout the rest of this run.
+      # Stored in GITHUB_ENV so all subsequent steps can reference ${{ env.SHA }}.
+      - name: Set image tag
+        run: echo "SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+      # Cross-compile for linux/amd64 explicitly. The runner is x86_64 so this
+      # is a no-op here, but it documents the requirement and keeps parity with
+      # `make build` (which also passes --platform so Apple Silicon devs produce
+      # the correct architecture).
+      - name: Build backend image
+        run: |
+          docker build --platform linux/amd64 \
+            -t europe-west2-docker.pkg.dev/shared-apps-infrastructure/storyengine-main/backend:${{ env.SHA }} \
+            ./backend
+
+      - name: Push backend image
+        run: |
+          docker push \
+            europe-west2-docker.pkg.dev/shared-apps-infrastructure/storyengine-main/backend:${{ env.SHA }}
+
+      # Install the Pulumi CLI. The Python runtime (uv) was already set up above.
+      - name: Install Pulumi CLI
+        uses: pulumi/actions@v5
+
+      # Stamp the new image SHA into the stack config, then apply.
+      # pulumi up updates the Cloud Run service *and* the migration job to the
+      # new image tag — both must reference the new image before migrations run.
+      - name: Pulumi up
+        working-directory: infra
+        env:
+          PULUMI_CONFIG_PASSPHRASE: ""
+        run: |
+          pulumi config set image_tag ${{ env.SHA }} --stack main
+          pulumi up --stack main --yes
+
+      # The migration job runs inside the VPC (direct VPC egress to Cloud SQL).
+      # We trigger it and wait for the exit code — 0 means all migrations applied,
+      # non-zero fails the pipeline before traffic shifts to the new revision.
+      - name: Run database migrations
+        run: |
+          gcloud run jobs execute storyengine-main-migrate \
+            --region europe-west2 \
+            --project shared-apps-infrastructure \
+            --wait
+
+      # Read the live backend URL from Pulumi so the frontend build always
+      # bakes in the correct value — never a stale hardcoded URL.
+      - name: Get backend service URL
+        working-directory: infra
+        env:
+          PULUMI_CONFIG_PASSPHRASE: ""
+        run: |
+          echo "SERVICE_URL=$(pulumi stack output service_url --stack main)" >> $GITHUB_ENV
+
+      # Node.js is installed here (not at the top) so the earlier steps don't
+      # carry unnecessary tooling. npm cache is keyed on the lockfile.
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # VITE_BACKEND_URL is injected at build time from the live stack output.
+      # The built artifacts land in frontend/dist/ — that directory is synced
+      # in the next step.
+      - name: Build frontend
+        working-directory: frontend
+        env:
+          VITE_BACKEND_URL: ${{ env.SERVICE_URL }}
+        run: |
+          npm ci
+          npm run build
+
+      # Delete files in the bucket that are no longer in dist/ (--delete-unmatched)
+      # so stale assets don't accumulate. The rsync is idempotent — re-running
+      # after a partial failure is safe.
+      - name: Sync frontend to GCS
+        run: |
+          gcloud storage rsync frontend/dist/ gs://app.dekatha.com \
+            --recursive \
+            --delete-unmatched-destination-objects \
+            --project shared-apps-infrastructure
+
+      # Visible in the GitHub Actions UI under the Summary tab for this run.
+      - name: Write job summary
+        run: |
+          echo "### Deploy complete :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| | |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Image tag** | \`${{ env.SHA }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Backend** | https://storyengine-main-backend-aojdjt3wia-nw.a.run.app |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Frontend** | https://app.dekatha.com |" >> $GITHUB_STEP_SUMMARY
