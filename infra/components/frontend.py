@@ -51,6 +51,19 @@ def create_frontend() -> FrontendOutputs:
     don't need the caching layer yet. Enable by setting enable_cdn=True
     on the BackendBucket resource.
 
+    Deletion order:
+      GCP enforces a strict outside-in deletion order for load balancer
+      resources. Pulumi infers some of these from output references but
+      not all — particularly the forwarding rules' dependency on proxies
+      is through a string self_link that Pulumi may not trace deep enough.
+      We declare the full chain explicitly with depends_on so that on
+      destroy/replace Pulumi serialises deletions correctly:
+
+        forwarding rules → proxies → url maps + ssl cert → backend bucket
+
+      Without this, Pulumi attempts parallel deletion and GCP rejects it
+      with "resource is already being used by another resource" errors.
+
     DNS records required (add at your registrar after pulumi up):
       A    <domain>  →  <frontend_ip output>
       (TXT record for domain verification if prompted by GCP)
@@ -63,6 +76,13 @@ def create_frontend() -> FrontendOutputs:
         name=DOMAIN,
         location="US",
         uniform_bucket_level_access=True,
+        # force_destroy allows Pulumi to delete this bucket even if it contains
+        # objects. Safe for the frontend bucket — contents are build artifacts
+        # that are always reproducible with make deploy-frontend. This prevents
+        # "bucket not empty" errors on pulumi destroy or stack renames.
+        # NOTE: do NOT set force_destroy on the media bucket — that holds user
+        # data which cannot be regenerated.
+        force_destroy=True,
         # SPA hosting config: serve index.html for / and all unknown paths.
         website=gcp.storage.BucketWebsiteArgs(
             main_page_suffix="index.html",
@@ -129,14 +149,21 @@ def create_frontend() -> FrontendOutputs:
     )
 
     # HTTPS proxy — terminates SSL using the managed cert.
+    # depends_on url_map and ssl_cert explicitly so Pulumi deletes this proxy
+    # before either of them on destroy/replace (GCP rejects deleting a cert
+    # or url map while a proxy still references it).
     https_proxy = gcp.compute.TargetHttpsProxy(
         "frontend-https-proxy",
         name=f"{_NAME_PREFIX}-https-proxy",
         url_map=url_map.self_link,
         ssl_certificates=[ssl_cert.self_link],
+        opts=pulumi.ResourceOptions(depends_on=[url_map, ssl_cert]),
     )
 
     # Forwarding rule — binds the static IP + port 443 to the HTTPS proxy.
+    # depends_on the proxy explicitly so Pulumi deletes this forwarding rule
+    # before the proxy on destroy/replace (GCP rejects deleting a proxy while
+    # a forwarding rule still references it).
     gcp.compute.GlobalForwardingRule(
         "frontend-https-forwarding-rule",
         name=f"{_NAME_PREFIX}-https-rule",
@@ -145,6 +172,7 @@ def create_frontend() -> FrontendOutputs:
         port_range="443",
         target=https_proxy.self_link,
         load_balancing_scheme="EXTERNAL",
+        opts=pulumi.ResourceOptions(depends_on=[https_proxy]),
     )
 
     # ── HTTP → HTTPS redirect ─────────────────────────────────────────────────
@@ -160,12 +188,17 @@ def create_frontend() -> FrontendOutputs:
         ),
     )
 
+    # depends_on redirect_url_map explicitly so Pulumi deletes this proxy
+    # before the url map on destroy/replace.
     http_proxy = gcp.compute.TargetHttpProxy(
         "frontend-http-proxy",
         name=f"{_NAME_PREFIX}-http-proxy",
         url_map=redirect_url_map.self_link,
+        opts=pulumi.ResourceOptions(depends_on=[redirect_url_map]),
     )
 
+    # depends_on the http proxy explicitly so Pulumi deletes this forwarding
+    # rule before the proxy on destroy/replace.
     gcp.compute.GlobalForwardingRule(
         "frontend-http-forwarding-rule",
         name=f"{_NAME_PREFIX}-http-rule",
@@ -174,6 +207,7 @@ def create_frontend() -> FrontendOutputs:
         port_range="80",
         target=http_proxy.self_link,
         load_balancing_scheme="EXTERNAL",
+        opts=pulumi.ResourceOptions(depends_on=[http_proxy]),
     )
 
     return FrontendOutputs(
