@@ -21,7 +21,7 @@ load_dotenv(override=False, dotenv_path=".env.local")
 #   3. Therefore importing app models below is safe even without API keys set.
 #
 # Adding a new required var to AppSettings in future requires zero changes here.
-from core.config import DatabaseSettings  # noqa: E402
+from core.config.database import DatabaseSettings  # noqa: E402
 
 db_settings = DatabaseSettings()  # type: ignore[call-arg]
 
