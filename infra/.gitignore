@@ -4,3 +4,6 @@ venv/
 
 # Service account key files — never commit these
 keys/*.json
+
+# Agent session files
+session-*.md
