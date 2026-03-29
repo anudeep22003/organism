@@ -4,3 +4,4 @@ config:
   gcp:region: europe-west2
   storyengine-infra:image_tag: 1236fcc
   storyengine-infra:domain: app.dekatha.com
+  storyengine-infra:api_domain: api.dekatha.com

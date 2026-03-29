@@ -32,7 +32,7 @@ components/
   database.py            Layer 7 — Cloud SQL Postgres 16, private IP, random password
   cloudrun.py            Layer 8 — Cloud Run service (backend)
   migrations.py          Layer 9 — Cloud Run Job (alembic upgrade head)
-  frontend.py            Layer 8 — GCS bucket + Global LB + SSL cert + HTTP redirect
+  frontend.py            Layer 8 — GCS bucket + Global LB (shared frontend+API) + SSL cert + HTTP redirect
   ci.py                  Layer 10 — github-actions-sa + Workload Identity Federation
 scripts/
   populate-secrets.sh    Push .env.local secrets to Secret Manager (idempotent)
@@ -56,9 +56,9 @@ explicitly so Pulumi sequences operations correctly.
 6   networking    VPC + subnet + peering
 7   database      Cloud SQL (needs VPC + peering + secrets)
     __main__      Write DATABASE_URL SecretVersion (needs db output)
-8   cloudrun      Cloud Run service (needs SA, secrets, registry_url, vpc, subnet)
+8a  cloudrun      Cloud Run service (needs SA, secrets, registry_url, vpc, subnet)
 9   migrations    Cloud Run Job (needs SA, secrets, registry_url, vpc, subnet)
-8   frontend      GCS + LB + SSL (no dependencies)
+8b  frontend      GCS + shared LB + SSL (needs service for Serverless NEG)
 10  ci            github-actions-sa + WIF (needs registry, cloudrun_sa, frontend.bucket)
 ```
 
@@ -308,7 +308,7 @@ PULUMI_CONFIG_PASSPHRASE="" pulumi stack output service_url --stack main
 ```
 
 In the CI pipeline, `VITE_BACKEND_URL` is injected from `pulumi stack output
-service_url` at frontend build time — never from `.env.production`.
+api_url` at frontend build time — never from `.env.production`.
 
 ---
 
@@ -316,7 +316,7 @@ service_url` at frontend build time — never from `.env.production`.
 
 **`VITE_BACKEND_URL` is not in `.env.production`**
 Deliberately omitted. It is injected at build time from `pulumi stack output
-service_url`. Hardcoding it produces stale URLs when the stack is rebuilt.
+api_url`. Hardcoding it produces stale URLs when the stack is rebuilt.
 
 **`.venv/bin/uvicorn`, not `uv run uvicorn` in Dockerfile**
 `uv run` checks venv freshness at every startup and re-syncs if stale —
@@ -340,6 +340,14 @@ Pulumi manages 10+ resource types across the project. Enumerating individual
 roles is high-maintenance and breaks whenever a new resource type is added.
 `roles/editor` excludes IAM permissions — the SA cannot escalate its own
 privileges.
+
+**Frontend and API share one load balancer (cost decision)**
+`app.dekatha.com` (GCS) and `api.dekatha.com` (Cloud Run) share one Global IP,
+one SSL cert, and one set of forwarding rules via URL map host-based routing.
+A dedicated API LB costs ~$36/month extra (two additional forwarding rules).
+To decouple: extract the NEG + BackendService + new GlobalAddress + new SSL cert
++ new URLMap + new forwarding rules into `components/backend_lb.py`, remove the
+api host_rule and path_matcher from `frontend.py`, update DNS with a new A record.
 
 **Cloud Run Job for migrations, not Auth Proxy**
 GitHub Actions runners are outside the VPC. Cloud SQL has a private IP only.

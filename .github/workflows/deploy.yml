@@ -154,7 +154,7 @@ jobs:
           PULUMI_CONFIG_PASSPHRASE: ""
           PULUMI_BACKEND_URL: ${{ vars.PULUMI_BACKEND_URL }}
         run: |
-          echo "SERVICE_URL=$(pulumi stack output service_url --stack main)" >> $GITHUB_ENV
+          echo "SERVICE_URL=$(pulumi stack output api_url --stack main)" >> $GITHUB_ENV
 
       # Node.js is installed here (not at the top) so the earlier steps don't
       # carry unnecessary tooling. npm cache is keyed on the lockfile.
@@ -191,5 +191,5 @@ jobs:
           echo "| | |" >> $GITHUB_STEP_SUMMARY
           echo "|---|---|" >> $GITHUB_STEP_SUMMARY
           echo "| **Image tag** | \`${{ env.SHA }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Backend** | https://storyengine-main-backend-aojdjt3wia-nw.a.run.app |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Backend** | https://api.dekatha.com |" >> $GITHUB_STEP_SUMMARY
           echo "| **Frontend** | https://app.dekatha.com |" >> $GITHUB_STEP_SUMMARY

@@ -6,7 +6,7 @@ IMAGE           := $(REGISTRY)/backend
 BACKEND_DIR     := $(shell git rev-parse --show-toplevel)/backend
 FRONTEND_DIR    := $(shell git rev-parse --show-toplevel)/frontend
 FRONTEND_BUCKET := $(shell PULUMI_CONFIG_PASSPHRASE="" pulumi stack output frontend_bucket --stack $(STACK) 2>/dev/null)
-SERVICE_URL     := $(shell PULUMI_CONFIG_PASSPHRASE="" pulumi stack output service_url --stack $(STACK) 2>/dev/null)
+SERVICE_URL     := $(shell PULUMI_CONFIG_PASSPHRASE="" pulumi stack output api_url --stack $(STACK) 2>/dev/null)
 DB_INSTANCE     := $(shell PULUMI_CONFIG_PASSPHRASE="" pulumi stack output db_instance_name --stack $(STACK) 2>/dev/null)
 MIGRATION_JOB   := $(shell PULUMI_CONFIG_PASSPHRASE="" pulumi stack output migration_job_name --stack $(STACK) 2>/dev/null)
 SA_KEY          := $(shell git rev-parse --show-toplevel)/infra/keys/$(STACK)-storage-sa-key.json

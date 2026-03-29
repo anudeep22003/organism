@@ -38,6 +38,11 @@ IMAGE_TAG = _app.require("image_tag")  # git SHA set by make deploy-backend
 # "app.dekatha.com", a future "dev" stack can serve "dev.dekatha.com".
 DOMAIN = _app.require("domain")
 
+# API subdomain — served via the same load balancer as the frontend.
+# Routes to the Cloud Run backend service via a Serverless NEG.
+# Decoupling into a separate LB is possible but costs ~$36/month extra.
+API_DOMAIN = _app.require("api_domain")
+
 # Media bucket name. The x7k2 suffix was generated on first creation to
 # avoid naming conflicts. It is intentionally static — GCS bucket names are
 # globally unique and immutable. Change this only if you intend to recreate
