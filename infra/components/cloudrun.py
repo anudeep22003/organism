@@ -1,22 +1,15 @@
 import pulumi
 import pulumi_gcp as gcp
 
+from components.config import (
+    DOMAIN,
+    IMAGE_TAG,
+    MEDIA_BUCKET_NAME,
+    PROJECT,
+    REGION,
+    resource_name,
+)
 from components.secrets import AppSecrets
-
-# Non-sensitive config injected directly as plain env vars.
-# These are not secrets — knowing the project ID or bucket name
-# gives no one access to anything. No reason to encrypt them.
-_PLAIN_ENV_VARS = {
-    "GCP_PROJECT_ID": "shared-apps-infrastructure",
-    "GCP_REGION": "europe-west2",
-    "GCP_STORAGE_BUCKET": "storyengine-dev-media-x7k2",
-    # Comma-separated list of allowed CORS origins.
-    # Read in main.py via os.getenv("CORS_ORIGINS").
-    # Not a secret — knowing this domain grants no access to anything.
-    "CORS_ORIGINS": "https://dev.dekatha.com",
-}
-
-_REGION = "europe-west2"
 
 
 def create_cloudrun_service(
@@ -44,9 +37,23 @@ def create_cloudrun_service(
     while still allowing some concurrency. Scale-to-zero is enabled
     (min_instance_count=0) so idle time costs nothing.
     """
-    image_tag = pulumi.Config().require("image_tag")
+    image = registry_url.apply(lambda url: f"{url}/backend:{IMAGE_TAG}")
 
-    image = registry_url.apply(lambda url: f"{url}/backend:{image_tag}")
+    # Non-sensitive config injected directly as plain env vars.
+    # These are not secrets — knowing the project ID or bucket name
+    # gives no one access to anything. No reason to encrypt them.
+    plain_env_vars = [
+        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(name=k, value=v)
+        for k, v in {
+            "GCP_PROJECT_ID": PROJECT,
+            "GCP_REGION": REGION,
+            "GCP_STORAGE_BUCKET": MEDIA_BUCKET_NAME,
+            # Comma-separated list of allowed CORS origins.
+            # Read in main.py via os.getenv("CORS_ORIGINS").
+            # Not a secret — knowing this domain grants no access to anything.
+            "CORS_ORIGINS": f"https://{DOMAIN}",
+        }.items()
+    ]
 
     # Build the list of secret env var references.
     # Cloud Run fetches these from Secret Manager at container startup
@@ -91,16 +98,16 @@ def create_cloudrun_service(
         ),
     ]
 
-    # Plain env vars — just key/value, no secret machinery needed.
-    plain_env_vars = [
-        gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(name=k, value=v)
-        for k, v in _PLAIN_ENV_VARS.items()
-    ]
-
     service = gcp.cloudrunv2.Service(
         "backend",
-        name="storyengine-dev-backend",
-        location=_REGION,
+        name=resource_name("backend"),
+        location=REGION,
+        # Service-level scaling: GCP populates these API fields automatically.
+        # Declaring them explicitly keeps Pulumi state in sync and prevents
+        # spurious diffs on every preview.
+        scaling=gcp.cloudrunv2.ServiceScalingArgs(
+            min_instance_count=0,
+        ),
         template=gcp.cloudrunv2.ServiceTemplateArgs(
             # cloudrun-sa is the identity this container runs as.
             # GCP attaches it automatically — no JSON key needed.

@@ -29,8 +29,15 @@ set -euo pipefail
 # Config
 # ---------------------------------------------------------------------------
 
-PROJECT="shared-apps-infrastructure"
-SECRET_PREFIX="storyengine-dev"
+PROJECT="$(pulumi config get gcp:project 2>/dev/null)"
+STACK="$(pulumi stack --show-name 2>/dev/null)"
+SECRET_PREFIX="storyengine-${STACK}"
+
+if [[ -z "$PROJECT" ]]; then
+  echo "ERROR: could not read gcp:project from pulumi config." >&2
+  echo "Make sure you are in the infra directory and a stack is selected." >&2
+  exit 1
+fi
 
 # Path to the env file — relative to the repo root.
 # Script can be run from anywhere in the repo.

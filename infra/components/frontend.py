@@ -1,10 +1,11 @@
 import pulumi
 import pulumi_gcp as gcp
 
+from components.config import DOMAIN, resource_name
+
 # Bucket name must match the domain exactly — GCP requirement for
 # custom domain hosting via backend bucket + load balancer.
-_DOMAIN = "dev.dekatha.com"
-_NAME_PREFIX = "storyengine-dev-frontend"
+_NAME_PREFIX = resource_name("frontend")
 
 
 class FrontendOutputs:
@@ -21,7 +22,7 @@ class FrontendOutputs:
 
 def create_frontend() -> FrontendOutputs:
     """
-    Creates the static frontend hosting infrastructure for dev.dekatha.com.
+    Creates the static frontend hosting infrastructure for the stack domain.
 
     Architecture:
       browser → Global Load Balancer (SSL termination, static IP)
@@ -32,7 +33,7 @@ def create_frontend() -> FrontendOutputs:
       1. SSL termination — GCS cannot serve HTTPS on a custom domain alone.
          Google-managed certificates are provisioned automatically and
          auto-renewed at no cost.
-      2. Custom domain routing — maps dev.dekatha.com to the GCS bucket.
+      2. Custom domain routing — maps the domain to the GCS bucket.
 
     The bucket is publicly readable (allUsers → objectViewer) because every
     browser needs to fetch index.html, JS, CSS directly. Unlike the media
@@ -51,7 +52,7 @@ def create_frontend() -> FrontendOutputs:
     on the BackendBucket resource.
 
     DNS records required (add at your registrar after pulumi up):
-      A    dev.dekatha.com  →  <frontend_ip output>
+      A    <domain>  →  <frontend_ip output>
       (TXT record for domain verification if prompted by GCP)
     """
 
@@ -59,7 +60,7 @@ def create_frontend() -> FrontendOutputs:
 
     bucket = gcp.storage.Bucket(
         "frontend-bucket",
-        name=_DOMAIN,
+        name=DOMAIN,
         location="US",
         uniform_bucket_level_access=True,
         # SPA hosting config: serve index.html for / and all unknown paths.
@@ -122,9 +123,9 @@ def create_frontend() -> FrontendOutputs:
         "frontend-ssl-cert",
         name=f"{_NAME_PREFIX}-cert",
         managed=gcp.compute.ManagedSslCertificateManagedArgs(
-            domains=[f"{_DOMAIN}."],
+            domains=[f"{DOMAIN}."],
         ),
-        description=f"Google-managed SSL certificate for {_DOMAIN}",
+        description=f"Google-managed SSL certificate for {DOMAIN}",
     )
 
     # HTTPS proxy — terminates SSL using the managed cert.
@@ -178,5 +179,5 @@ def create_frontend() -> FrontendOutputs:
     return FrontendOutputs(
         bucket=bucket,
         ip_address=ip.address,
-        url=f"https://{_DOMAIN}",
+        url=f"https://{DOMAIN}",
     )

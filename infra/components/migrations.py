@@ -1,16 +1,13 @@
-import pulumi
 import pulumi_gcp as gcp
 
+from components.config import IMAGE_TAG, REGION, resource_name
 from components.secrets import AppSecrets
-
-_REGION = "europe-west2"
-_JOB_NAME = "storyengine-dev-migrate"
 
 
 def create_migration_job(
     sa: gcp.serviceaccount.Account,
     secrets: AppSecrets,
-    registry_url: pulumi.Output[str],
+    registry_url,
     vpc: gcp.compute.Network,
     subnet: gcp.compute.Subnetwork,
 ) -> gcp.cloudrunv2.Job:
@@ -34,7 +31,7 @@ def create_migration_job(
 
     Same SA as the service (cloudrun-sa):
     - Already has roles/cloudsql.client → can open connections to Cloud SQL
-    - Already has secretAccessor on storyengine-dev-database-url → reads the URL
+    - Already has secretAccessor on the database-url secret → reads the URL
     - No new SA needed — same identity, same database, same permissions
 
     max_retries=0:
@@ -47,17 +44,15 @@ def create_migration_job(
     - Cloud Run Jobs default to 10 minutes anyway, but explicit is better
 
     Trigger manually:   make migrate
-    Trigger in CI:      gcloud run jobs execute storyengine-dev-migrate --wait
+    Trigger in CI:      gcloud run jobs execute <job-name> --wait
     Downgrade:          make migrate-down (or REVISION=abc123 for specific target)
     """
-    image_tag = pulumi.Config().require("image_tag")
-
-    image = registry_url.apply(lambda url: f"{url}/backend:{image_tag}")
+    image = registry_url.apply(lambda url: f"{url}/backend:{IMAGE_TAG}")
 
     job = gcp.cloudrunv2.Job(
         "migrate-job",
-        name=_JOB_NAME,
-        location=_REGION,
+        name=resource_name("migrate"),
+        location=REGION,
         template=gcp.cloudrunv2.JobTemplateArgs(
             template=gcp.cloudrunv2.JobTemplateTemplateArgs(
                 # cloudrun-sa is the identity this job runs as.

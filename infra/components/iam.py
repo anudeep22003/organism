@@ -1,6 +1,6 @@
-import pulumi
 import pulumi_gcp as gcp
 
+from components.config import PROJECT
 from components.secrets import AppSecrets
 
 
@@ -128,7 +128,7 @@ def create_cloudrun_sa(
     # requires a valid username + password to authenticate the session.
     gcp.projects.IAMMember(
         "cloudrun-sa-cloudsql-client",
-        project=pulumi.Config("gcp").require("project"),
+        project=PROJECT,
         role="roles/cloudsql.client",
         member=member,
     )

@@ -2,13 +2,12 @@ import pulumi
 import pulumi_gcp as gcp
 import pulumi_random as random
 
+from components.config import REGION, resource_name
 from components.secrets import AppSecrets
 
-_REGION = "europe-west2"
 _DB_VERSION = "POSTGRES_16"
 _DB_NAME = "storyengine"
 _DB_USER = "appuser"
-_INSTANCE_NAME = "storyengine-dev-postgres"
 
 
 class DatabaseOutputs:
@@ -41,12 +40,12 @@ def create_database(
     the application database, and the application user.
 
     Password management: the DB password is generated randomly by Pulumi
-    on first run and stored in Secret Manager (storyengine-dev-db-password).
-    It is never stored in Pulumi config or git. To retrieve it:
+    on first run and stored in Secret Manager. It is never stored in
+    Pulumi config or git. To retrieve it:
 
       gcloud secrets versions access latest \\
-        --secret storyengine-dev-db-password \\
-        --project shared-apps-infrastructure
+        --secret <stack-prefix>-db-password \\
+        --project <project>
 
     The make migrate target reads it automatically from Secret Manager.
 
@@ -87,9 +86,9 @@ def create_database(
 
     instance = gcp.sql.DatabaseInstance(
         "postgres",
-        name=_INSTANCE_NAME,
+        name=resource_name("postgres"),
         database_version=_DB_VERSION,
-        region=_REGION,
+        region=REGION,
         deletion_protection=False,
         # Explicit dependency: peering must be fully established before Cloud
         # SQL is created. Without this Pulumi runs them in parallel and Cloud
