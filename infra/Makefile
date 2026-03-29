@@ -1,12 +1,13 @@
 STACK           := main
 PROJECT         := $(shell pulumi config get gcp:project --stack $(STACK) 2>/dev/null)
 REGION          := $(shell pulumi config get gcp:region --stack $(STACK) 2>/dev/null)
+# PULUMI_PROJECT reads the project name directly from Pulumi.yaml.
+# This drives the config key namespace (e.g. storyengine-infra:app).
+# For a new project, changing name: in Pulumi.yaml is the only change needed here.
+PULUMI_PROJECT  := $(shell grep "^name:" Pulumi.yaml | awk '{print $$2}')
 # APP and PREFIX drive all GCP resource names — must match config.py.
-# APP is read from Pulumi config (storyengine-infra:app) so a new project
-# only needs to change it in Pulumi.yaml. The config key prefix
-# (storyengine-infra:) is the Pulumi project name — if you rename the
-# project, update this line too.
-APP             := $(shell pulumi config get storyengine-infra:app --stack $(STACK) 2>/dev/null)
+# Reads from Pulumi config using the project name as the namespace prefix.
+APP             := $(shell pulumi config get $(PULUMI_PROJECT):app --stack $(STACK) 2>/dev/null)
 PREFIX          := $(APP)-$(STACK)
 # REGISTRY reads from stack output — derived from PROJECT + APP + STACK in registry.py.
 # Never construct this manually; the stack output is the single source of truth.
@@ -122,12 +123,12 @@ change-domain:
 	@echo "=== Domain change checklist ==="
 	@echo ""
 	@echo "Current domains:"
-	@echo "  frontend : $$(PULUMI_CONFIG_PASSPHRASE="" pulumi config get storyengine-infra:domain --stack $(STACK) 2>/dev/null)"
-	@echo "  api      : $$(PULUMI_CONFIG_PASSPHRASE="" pulumi config get storyengine-infra:api_domain --stack $(STACK) 2>/dev/null)"
+	@echo "  frontend : $$(PULUMI_CONFIG_PASSPHRASE="" pulumi config get $(PULUMI_PROJECT):domain --stack $(STACK) 2>/dev/null)"
+	@echo "  api      : $$(PULUMI_CONFIG_PASSPHRASE="" pulumi config get $(PULUMI_PROJECT):api_domain --stack $(STACK) 2>/dev/null)"
 	@echo ""
 	@echo "Step 1 — Update both domains in Pulumi.$(STACK).yaml:"
-	@echo "  storyengine-infra:domain: app.newdomain.com"
-	@echo "  storyengine-infra:api_domain: api.newdomain.com"
+	@echo "  $(PULUMI_PROJECT):domain: app.newdomain.com"
+	@echo "  $(PULUMI_PROJECT):api_domain: api.newdomain.com"
 	@echo ""
 	@echo "Step 2 — Apply infra:"
 	@echo "  make up"

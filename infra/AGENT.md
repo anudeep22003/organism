@@ -390,15 +390,17 @@ config:
   yourapp-infra:image_tag: latest   # updated automatically by make deploy-backend
 ```
 
-### Step 3 — Update the Makefile (one line)
+### Step 3 — No Makefile changes needed
+
+The Makefile reads the Pulumi project name directly from `Pulumi.yaml`:
 
 ```makefile
-APP := $(shell pulumi config get storyengine-infra:app ...)
-#                               ↑ change to yourapp-infra:app
+PULUMI_PROJECT := $(shell grep "^name:" Pulumi.yaml | awk '{print $$2}')
+APP            := $(shell pulumi config get $(PULUMI_PROJECT):app ...)
 ```
 
-That's it. All GCP resource names, the Makefile `PREFIX`, and the SSL cert
-filter all derive from `APP`. No other changes needed in the Makefile.
+Changing `name:` in `Pulumi.yaml` automatically updates the config key
+namespace used everywhere in the Makefile. No manual Makefile edits needed.
 
 ### Step 4 — Create a new GCS state bucket
 
