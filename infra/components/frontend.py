@@ -1,7 +1,7 @@
 import pulumi
 import pulumi_gcp as gcp
 
-from components.config import DOMAIN, resource_name
+from components.config import API_DOMAIN, DOMAIN, REGION, resource_name
 
 # Bucket name must match the domain exactly — GCP requirement for
 # custom domain hosting via backend bucket + load balancer.
@@ -14,59 +14,62 @@ class FrontendOutputs:
         bucket: gcp.storage.Bucket,
         ip_address: pulumi.Output[str],
         url: str,
+        api_url: str,
     ) -> None:
         self.bucket = bucket
         self.ip_address = ip_address
         self.url = url
+        self.api_url = api_url
 
 
-def create_frontend() -> FrontendOutputs:
+def create_frontend(service: gcp.cloudrunv2.Service) -> FrontendOutputs:
     """
-    Creates the static frontend hosting infrastructure for the stack domain.
+    Creates the static frontend hosting infrastructure and API routing.
 
     Architecture:
-      browser → Global Load Balancer (SSL termination, static IP)
-             → Backend Bucket
-             → GCS Bucket (serves static files)
+      browser → single Global Load Balancer (one IP, one SSL cert)
+             ├─ host: DOMAIN     → Backend Bucket → GCS (static frontend)
+             └─ host: API_DOMAIN → Backend Service → Serverless NEG → Cloud Run
 
-    The load balancer is necessary for two reasons:
-      1. SSL termination — GCS cannot serve HTTPS on a custom domain alone.
-         Google-managed certificates are provisioned automatically and
-         auto-renewed at no cost.
-      2. Custom domain routing — maps the domain to the GCS bucket.
+    Both domains share one Global IP, one SSL cert, one set of forwarding
+    rules. This saves ~$36/month vs a dedicated API load balancer (which
+    requires two additional forwarding rules billed at ~$18/month each).
 
-    The bucket is publicly readable (allUsers → objectViewer) because every
-    browser needs to fetch index.html, JS, CSS directly. Unlike the media
-    bucket (private, signed URLs), there is no sensitive content here.
-
-    HTTP (port 80) is redirected to HTTPS. No plaintext traffic reaches
-    the bucket.
-
-    SPA routing: both main_page_suffix and not_found_page are set to
-    index.html. This means all paths (including deep links like
-    /projects/123) return index.html and React Router handles routing
-    client-side. Without not_found_page=index.html, deep links return 404.
-
-    CDN is disabled for now — the load balancer is CDN-capable but we
-    don't need the caching layer yet. Enable by setting enable_cdn=True
-    on the BackendBucket resource.
+    NOTE — decoupling the API LB:
+      If a separate API load balancer is needed (e.g. for independent
+      scaling, CDN config, or IAM restrictions on the Cloud Run URL),
+      extract the following into components/backend_lb.py:
+        - RegionNetworkEndpointGroup (neg)
+        - BackendService (backend_service)
+        - A new GlobalAddress, ManagedSslCertificate for API_DOMAIN only
+        - A new URLMap, TargetHttpsProxy, GlobalForwardingRule (443 + 80)
+      Then remove the api host_rule and path_matcher from this URL map,
+      remove API_DOMAIN from the SSL cert domains, and add a new DNS
+      A record for API_DOMAIN pointing at the new IP.
 
     Deletion order:
-      GCP enforces a strict outside-in deletion order for load balancer
-      resources. Pulumi infers some of these from output references but
-      not all — particularly the forwarding rules' dependency on proxies
-      is through a string self_link that Pulumi may not trace deep enough.
-      We declare the full chain explicitly with depends_on so that on
-      destroy/replace Pulumi serialises deletions correctly:
+      GCP enforces strict outside-in deletion for load balancer resources.
+      The full correct order is:
 
-        forwarding rules → proxies → url maps + ssl cert → backend bucket
+        forwarding rules (443 + 80)
+          → proxies (https + http)
+            → url maps + ssl cert
+              → backend bucket + backend service
+                → NEG + GCS bucket
 
-      Without this, Pulumi attempts parallel deletion and GCP rejects it
-      with "resource is already being used by another resource" errors.
+      All depends_on chains are declared explicitly — Pulumi cannot always
+      infer deletion order from self_link string references alone.
 
-    DNS records required (add at your registrar after pulumi up):
-      A    <domain>  →  <frontend_ip output>
-      (TXT record for domain verification if prompted by GCP)
+    DNS records required (add at registrar after pulumi up):
+      A    DOMAIN      →  <frontend_ip output>
+      A    API_DOMAIN  →  <frontend_ip output>  (same IP — shared LB)
+
+    SSL cert provisioning:
+      Google-managed certs provision asynchronously after DNS propagates.
+      Adding API_DOMAIN to the cert triggers a replace (GCP does not allow
+      in-place domain changes) — expect a brief HTTPS disruption (~minutes)
+      while the new cert provisions. Status:
+        gcloud compute ssl-certificates describe <name> --global
     """
 
     # ── Bucket ────────────────────────────────────────────────────────────────
@@ -109,16 +112,15 @@ def create_frontend() -> FrontendOutputs:
 
     # ── Load Balancer ─────────────────────────────────────────────────────────
 
-    # Static global IP — your DNS A record points at this forever.
+    # Static global IP — both DNS A records (DOMAIN + API_DOMAIN) point here.
     # Global (not regional) because the HTTPS load balancer is global.
     ip = gcp.compute.GlobalAddress(
         "frontend-ip",
         name=f"{_NAME_PREFIX}-ip",
-        description="Static IP for the storyengine dev frontend load balancer",
+        description="Static IP for the storyengine frontend + API load balancer",
     )
 
-    # Backend bucket — the LB target that serves files from GCS.
-    # enable_cdn=False for now. Flip to True when caching is needed.
+    # Backend bucket — the LB target that serves static files from GCS.
     backend_bucket = gcp.compute.BackendBucket(
         "frontend-backend-bucket",
         name=f"{_NAME_PREFIX}-backend",
@@ -127,31 +129,91 @@ def create_frontend() -> FrontendOutputs:
         description="Serves static frontend assets from GCS",
     )
 
-    # URL map — routes all requests to the backend bucket.
-    # For a pure static site this is trivial: everything goes to the bucket.
+    # ── API routing (Serverless NEG + Backend Service) ─────────────────────────
+
+    # Serverless NEG — the bridge between the load balancer world (IPs/ports)
+    # and Cloud Run (no fixed IPs). Points at the Cloud Run service by name.
+    # Must be in the same region as the Cloud Run service.
+    neg = gcp.compute.RegionNetworkEndpointGroup(
+        "api-neg",
+        name=f"{_NAME_PREFIX}-api-neg",
+        network_endpoint_type="SERVERLESS",
+        region=REGION,
+        cloud_run=gcp.compute.RegionNetworkEndpointGroupCloudRunArgs(
+            service=service.name,
+        ),
+    )
+
+    # Backend Service — wraps the NEG and is referenced by the URL map.
+    # protocol=HTTPS because Cloud Run only accepts HTTPS.
+    # Must be deleted before the URL map on destroy (URL map references it).
+    backend_service = gcp.compute.BackendService(
+        "api-backend-service",
+        name=f"{_NAME_PREFIX}-api-backend",
+        protocol="HTTPS",
+        load_balancing_scheme="EXTERNAL",
+        backends=[
+            gcp.compute.BackendServiceBackendArgs(
+                group=neg.id,
+            )
+        ],
+        opts=pulumi.ResourceOptions(depends_on=[neg]),
+    )
+
+    # ── URL Map (host-based routing) ──────────────────────────────────────────
+
+    # Routes requests to the correct backend based on the Host: header.
+    # DOMAIN → GCS bucket (static frontend assets)
+    # API_DOMAIN → Cloud Run service (via Backend Service + NEG)
+    # Default fallback → GCS bucket (handles bare IP requests, healthchecks)
+    #
+    # depends_on both backend targets so Pulumi deletes those resources
+    # AFTER the URL map on destroy — GCP rejects deleting a backend while
+    # any URL map still references it.
     url_map = gcp.compute.URLMap(
         "frontend-url-map",
         name=f"{_NAME_PREFIX}-urlmap",
         default_service=backend_bucket.self_link,
-        description="Routes all traffic to the frontend GCS bucket",
+        host_rules=[
+            gcp.compute.URLMapHostRuleArgs(
+                hosts=[DOMAIN],
+                path_matcher="frontend",
+            ),
+            gcp.compute.URLMapHostRuleArgs(
+                hosts=[API_DOMAIN],
+                path_matcher="api",
+            ),
+        ],
+        path_matchers=[
+            gcp.compute.URLMapPathMatcherArgs(
+                name="frontend",
+                default_service=backend_bucket.self_link,
+            ),
+            gcp.compute.URLMapPathMatcherArgs(
+                name="api",
+                default_service=backend_service.self_link,
+            ),
+        ],
+        opts=pulumi.ResourceOptions(depends_on=[backend_bucket, backend_service]),
     )
 
-    # Google-managed SSL certificate — GCP provisions and auto-renews.
-    # Free. Provisioning takes 10-30 minutes after DNS propagates.
-    # Status check: gcloud compute ssl-certificates describe <name> --global
+    # Google-managed SSL certificate covering both domains.
+    # GCP provisions and auto-renews. Free.
+    # Trailing dot = fully-qualified domain name (GCP requirement).
+    # Provisioning takes 10-30 minutes after DNS propagates for both domains.
+    # Adding or removing a domain triggers a cert replace (not in-place update).
     ssl_cert = gcp.compute.ManagedSslCertificate(
         "frontend-ssl-cert",
         name=f"{_NAME_PREFIX}-cert",
         managed=gcp.compute.ManagedSslCertificateManagedArgs(
-            domains=[f"{DOMAIN}."],
+            domains=[f"{DOMAIN}.", f"{API_DOMAIN}."],
         ),
-        description=f"Google-managed SSL certificate for {DOMAIN}",
+        description=f"Google-managed SSL certificate for {DOMAIN} and {API_DOMAIN}",
     )
 
     # HTTPS proxy — terminates SSL using the managed cert.
     # depends_on url_map and ssl_cert explicitly so Pulumi deletes this proxy
-    # before either of them on destroy/replace (GCP rejects deleting a cert
-    # or url map while a proxy still references it).
+    # before either of them on destroy/replace.
     https_proxy = gcp.compute.TargetHttpsProxy(
         "frontend-https-proxy",
         name=f"{_NAME_PREFIX}-https-proxy",
@@ -161,9 +223,8 @@ def create_frontend() -> FrontendOutputs:
     )
 
     # Forwarding rule — binds the static IP + port 443 to the HTTPS proxy.
-    # depends_on the proxy explicitly so Pulumi deletes this forwarding rule
-    # before the proxy on destroy/replace (GCP rejects deleting a proxy while
-    # a forwarding rule still references it).
+    # depends_on the proxy explicitly so Pulumi deletes this rule before the
+    # proxy on destroy/replace.
     gcp.compute.GlobalForwardingRule(
         "frontend-https-forwarding-rule",
         name=f"{_NAME_PREFIX}-https-rule",
@@ -177,8 +238,7 @@ def create_frontend() -> FrontendOutputs:
 
     # ── HTTP → HTTPS redirect ─────────────────────────────────────────────────
 
-    # All port 80 traffic is redirected to HTTPS.
-    # Uses a separate URL map that returns a 301 redirect for every request.
+    # All port 80 traffic (both domains) is redirected to HTTPS.
     redirect_url_map = gcp.compute.URLMap(
         "frontend-redirect-url-map",
         name=f"{_NAME_PREFIX}-redirect-urlmap",
@@ -188,8 +248,6 @@ def create_frontend() -> FrontendOutputs:
         ),
     )
 
-    # depends_on redirect_url_map explicitly so Pulumi deletes this proxy
-    # before the url map on destroy/replace.
     http_proxy = gcp.compute.TargetHttpProxy(
         "frontend-http-proxy",
         name=f"{_NAME_PREFIX}-http-proxy",
@@ -197,8 +255,6 @@ def create_frontend() -> FrontendOutputs:
         opts=pulumi.ResourceOptions(depends_on=[redirect_url_map]),
     )
 
-    # depends_on the http proxy explicitly so Pulumi deletes this forwarding
-    # rule before the proxy on destroy/replace.
     gcp.compute.GlobalForwardingRule(
         "frontend-http-forwarding-rule",
         name=f"{_NAME_PREFIX}-http-rule",
@@ -214,4 +270,5 @@ def create_frontend() -> FrontendOutputs:
         bucket=bucket,
         ip_address=ip.address,
         url=f"https://{DOMAIN}",
+        api_url=f"https://{API_DOMAIN}",
     )

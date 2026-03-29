@@ -63,7 +63,9 @@ service, service_url = create_cloudrun_service(
 migration_job = create_migration_job(cloudrun_sa, secrets, registry_url, vpc, subnet)
 
 # --- Layer 8: Frontend hosting ---
-frontend = create_frontend()
+# service is passed so the LB can create a Serverless NEG pointing at the
+# Cloud Run service — routing api.dekatha.com through the same LB as the frontend.
+frontend = create_frontend(service)
 
 # --- Layer 10: CI/CD (Workload Identity + github-actions-sa) ---
 ci = create_ci_resources(registry, cloudrun_sa, frontend.bucket)
@@ -86,6 +88,7 @@ pulumi.export("db_private_ip", db.instance.private_ip_address)
 pulumi.export("frontend_bucket", frontend.bucket.name)
 pulumi.export("frontend_ip", frontend.ip_address)
 pulumi.export("frontend_url", frontend.url)
+pulumi.export("api_url", frontend.api_url)
 pulumi.export("migration_job_name", migration_job.name)
 pulumi.export("workload_identity_provider", ci.provider_name)
 pulumi.export("github_actions_sa_email", ci.sa_email)
