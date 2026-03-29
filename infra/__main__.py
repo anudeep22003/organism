@@ -3,6 +3,7 @@
 import pulumi
 import pulumi_gcp as gcp
 
+from components.ci import create_ci_resources
 from components.cloudrun import create_cloudrun_service
 from components.config import MEDIA_BUCKET_NAME
 from components.database import create_database
@@ -64,6 +65,9 @@ migration_job = create_migration_job(cloudrun_sa, secrets, registry_url, vpc, su
 # --- Layer 8: Frontend hosting ---
 frontend = create_frontend()
 
+# --- Layer 10: CI/CD (Workload Identity + github-actions-sa) ---
+ci = create_ci_resources(registry, cloudrun_sa, frontend.bucket)
+
 # --- Stack outputs ---
 # Readable via: pulumi stack output <key>
 pulumi.export("bucket_name", MEDIA_BUCKET_NAME)
@@ -83,3 +87,5 @@ pulumi.export("frontend_bucket", frontend.bucket.name)
 pulumi.export("frontend_ip", frontend.ip_address)
 pulumi.export("frontend_url", frontend.url)
 pulumi.export("migration_job_name", migration_job.name)
+pulumi.export("workload_identity_provider", ci.provider_name)
+pulumi.export("github_actions_sa_email", ci.sa_email)
