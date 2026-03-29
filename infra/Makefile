@@ -44,6 +44,7 @@ help:
 	@echo "  Infra"
 	@echo "    make preview            Show what pulumi up would change (dry run)"
 	@echo "    make up                 Apply infra changes only (no image rebuild)"
+	@echo "    make destroy            Tear down all infrastructure for this stack"
 	@echo "    make status             Show cert, Cloud Run revision, and stack outputs"
 	@echo "    make outputs            Show all Pulumi stack outputs"
 	@echo ""
@@ -104,6 +105,48 @@ up:
 .PHONY: outputs
 outputs:
 	PULUMI_CONFIG_PASSPHRASE="" pulumi stack output --stack $(STACK)
+
+# Full stack teardown — destroys all GCP resources for this stack.
+#
+# Why not just `pulumi destroy`?
+# GCP enforces strict deletion ordering that Pulumi can't always infer:
+#   1. Cloud Run holds a serverless VPC address reservation in the subnet.
+#      GCP won't delete the subnet until Cloud Run is gone AND the reservation
+#      is released — which takes ~30s after Cloud Run deletion. If Pulumi tries
+#      to delete the subnet in parallel it fails.
+#   2. Cloud SQL holds a reference to the VPC peering connection. GCP won't
+#      delete the peering until SQL is fully gone. Again, async on GCP's side.
+#
+# This target pre-deletes the two blocking resources manually before handing
+# off to `pulumi destroy`, giving GCP time to release its internal references.
+# The frontend LB ordering (forwarding rules → proxies → url maps/certs) is
+# handled by explicit depends_on in frontend.py so Pulumi manages that itself.
+#
+# The -gcloud commands use - prefix so make continues even if already deleted.
+# CAUTION: this destroys all infrastructure for the $(STACK) stack.
+.PHONY: destroy
+destroy:
+	@echo ""
+	@echo "=== Destroying $(STACK) stack ==="
+	@echo ""
+	@echo "Step 1/4: Deleting Cloud Run service + job (releases VPC address reservation)..."
+	-gcloud run services delete storyengine-$(STACK)-backend \
+		--region $(REGION) --project $(PROJECT) --quiet 2>/dev/null
+	-gcloud run jobs delete storyengine-$(STACK)-migrate \
+		--region $(REGION) --project $(PROJECT) --quiet 2>/dev/null
+	@echo ""
+	@echo "Step 2/4: Waiting 30s for GCP to release serverless VPC address..."
+	@sleep 30
+	@echo ""
+	@echo "Step 3/4: Deleting Cloud SQL instance (releases VPC peering reference)..."
+	-gcloud sql instances delete storyengine-$(STACK)-postgres \
+		--project $(PROJECT) --quiet 2>/dev/null
+	@echo ""
+	@echo "Step 4/4: Waiting 30s for Cloud SQL deletion to propagate..."
+	@sleep 30
+	@echo ""
+	@echo "Running pulumi destroy (remaining resources)..."
+	PULUMI_CONFIG_PASSPHRASE="" pulumi destroy --stack $(STACK) --yes
 
 # ── Status ────────────────────────────────────────────────────────────────────
 
