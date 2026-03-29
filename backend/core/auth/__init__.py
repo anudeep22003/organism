@@ -8,11 +8,8 @@ from .exceptions import (
     UserNotFoundError,
 )
 from .managers import JWTTokenManager, RefreshTokenManager, SessionManager, UserManager
-from .router import router as auth_router
 
 __all__ = [
-    # Router
-    "auth_router",
     # Managers
     "JWTTokenManager",
     "RefreshTokenManager",
