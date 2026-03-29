@@ -1,3 +1,4 @@
+import os
 from logging.config import fileConfig
 
 from dotenv import load_dotenv
@@ -10,20 +11,17 @@ from alembic import context
 # takes precedence over the file. Missing file is silently ignored.
 load_dotenv(override=False, dotenv_path=".env.local")
 
-# DatabaseSettings only requires DATABASE_URL — no API keys, no GCP vars.
+# Read DATABASE_URL directly from the environment — no app imports needed.
 #
-# Why this works cleanly now:
-#   1. AppSettings (the full singleton in config.py) is never imported here,
-#      so the API key validation in AppSettings never runs.
-#   2. core/services/database.py is now lazy — importing it no longer creates
-#      a live engine or DB connection. The engine is only created on the first
-#      call to get_async_db_session(), which never happens in alembic context.
-#   3. Therefore importing app models below is safe even without API keys set.
+# We intentionally do NOT import from core.config here. Any import of the
+# core.config package (even `from core.config.database import X`) causes Python
+# to execute core/config/__init__.py, which imports app.py, which instantiates
+# AppSettings() and validates all API keys. The migration job only has
+# DATABASE_URL — it doesn't have API keys.
 #
-# Adding a new required var to AppSettings in future requires zero changes here.
-from core.config.database import DatabaseSettings  # noqa: E402
-
-db_settings = DatabaseSettings()  # type: ignore[call-arg]
+# Reading from os.environ directly is simpler, has zero side effects, and is
+# the only correct approach when you need exactly one value from the environment.
+DATABASE_URL = os.environ["DATABASE_URL"]
 
 # Model imports for autogenerate support (alembic revision --autogenerate).
 # These drag in core.auth, core.services.database etc. — all safe now.
@@ -35,7 +33,7 @@ from core.story_engine import models as story_engine_models  # noqa: F401, E402
 
 # Alembic config object — access to values within the .ini file.
 config = context.config
-config.set_main_option("sqlalchemy.url", db_settings.database_url)
+config.set_main_option("sqlalchemy.url", DATABASE_URL)
 
 # Set up loggers from the alembic.ini [loggers] section.
 if config.config_file_name is not None:
