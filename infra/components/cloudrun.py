@@ -52,6 +52,9 @@ def create_cloudrun_service(
             # Read in main.py via os.getenv("CORS_ORIGINS").
             # Not a secret — knowing this domain grants no access to anything.
             "CORS_ORIGINS": f"https://{DOMAIN}",
+            # Disables FastAPI's /docs, /redoc, and /openapi.json in Cloud Run.
+            # Locally defaults to "development" (docs available) via config.py.
+            "ENV": "production",
         }.items()
     ]
 
