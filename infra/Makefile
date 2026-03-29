@@ -6,6 +6,7 @@ IMAGE           := $(REGISTRY)/backend
 BACKEND_DIR     := $(shell git rev-parse --show-toplevel)/backend
 FRONTEND_DIR    := $(shell git rev-parse --show-toplevel)/frontend
 FRONTEND_BUCKET := $(shell PULUMI_CONFIG_PASSPHRASE="" pulumi stack output frontend_bucket --stack $(STACK) 2>/dev/null)
+SERVICE_URL     := $(shell PULUMI_CONFIG_PASSPHRASE="" pulumi stack output service_url --stack $(STACK) 2>/dev/null)
 DB_INSTANCE     := $(shell PULUMI_CONFIG_PASSPHRASE="" pulumi stack output db_instance_name --stack $(STACK) 2>/dev/null)
 MIGRATION_JOB   := $(shell PULUMI_CONFIG_PASSPHRASE="" pulumi stack output migration_job_name --stack $(STACK) 2>/dev/null)
 SA_KEY          := $(shell git rev-parse --show-toplevel)/infra/keys/$(STACK)-storage-sa-key.json
@@ -165,9 +166,12 @@ deploy-backend: build push
 
 # Build the Vite/React app and sync the output to the GCS bucket.
 #
-# Vite loads .env.production at build time — VITE_BACKEND_URL and other
-# vars are baked into the JS bundle. The bucket serves the built files
-# directly; the load balancer at 136.110.212.53 handles SSL termination.
+# VITE_BACKEND_URL is injected from the live stack output at build time so
+# it always points at the correct Cloud Run service URL. It is NOT read from
+# .env.production (that file intentionally omits it) — this prevents stale
+# URLs from ever being baked into a production build.
+#
+# Other vars (POSTHOG_URL, POSTHOG_KEY) come from .env.production as normal.
 #
 # --delete-unmatched-destination-objects removes stale files from previous
 # builds. Critical because Vite uses content-hashed filenames (main.abc123.js)
@@ -175,7 +179,7 @@ deploy-backend: build push
 # storage and potentially serving outdated assets.
 .PHONY: build-frontend
 build-frontend:
-	cd $(FRONTEND_DIR) && npm run build
+	cd $(FRONTEND_DIR) && VITE_BACKEND_URL=$(SERVICE_URL) npm run build
 
 .PHONY: sync-frontend
 sync-frontend:
