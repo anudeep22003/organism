@@ -23,8 +23,12 @@ REGION = _gcp.require("region")  # e.g. "europe-west2"
 # ── Stack / naming ─────────────────────────────────────────────────────────────
 
 STACK = pulumi.get_stack()  # "dev", "staging", "prod" — active stack name
-APP = "storyengine"
-PREFIX = f"{APP}-{STACK}"  # "storyengine-dev"
+
+# App name — read from Pulumi config so new projects can set their own prefix.
+# Default defined in Pulumi.yaml: storyengine-infra:app: storyengine
+# All GCP resource names derive from this via PREFIX and resource_name().
+APP = _app.require("app")
+PREFIX = f"{APP}-{STACK}"  # "storyengine-main"
 
 # ── App-level config ───────────────────────────────────────────────────────────
 

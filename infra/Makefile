@@ -1,15 +1,25 @@
 STACK           := main
 PROJECT         := $(shell pulumi config get gcp:project --stack $(STACK) 2>/dev/null)
 REGION          := $(shell pulumi config get gcp:region --stack $(STACK) 2>/dev/null)
-REGISTRY        := $(REGION)-docker.pkg.dev/$(PROJECT)/storyengine-$(STACK)
+# APP and PREFIX drive all GCP resource names — must match config.py.
+# APP is read from Pulumi config (storyengine-infra:app) so a new project
+# only needs to change it in Pulumi.yaml. The config key prefix
+# (storyengine-infra:) is the Pulumi project name — if you rename the
+# project, update this line too.
+APP             := $(shell pulumi config get storyengine-infra:app --stack $(STACK) 2>/dev/null)
+PREFIX          := $(APP)-$(STACK)
+# REGISTRY reads from stack output — derived from PROJECT + APP + STACK in registry.py.
+# Never construct this manually; the stack output is the single source of truth.
+REGISTRY        := $(shell PULUMI_CONFIG_PASSPHRASE="" pulumi stack output registry_url --stack $(STACK) 2>/dev/null)
 IMAGE           := $(REGISTRY)/backend
 BACKEND_DIR     := $(shell git rev-parse --show-toplevel)/backend
 FRONTEND_DIR    := $(shell git rev-parse --show-toplevel)/frontend
 FRONTEND_BUCKET := $(shell PULUMI_CONFIG_PASSPHRASE="" pulumi stack output frontend_bucket --stack $(STACK) 2>/dev/null)
+FRONTEND_URL    := $(shell PULUMI_CONFIG_PASSPHRASE="" pulumi stack output frontend_url --stack $(STACK) 2>/dev/null)
 SERVICE_URL     := $(shell PULUMI_CONFIG_PASSPHRASE="" pulumi stack output api_url --stack $(STACK) 2>/dev/null)
 DB_INSTANCE     := $(shell PULUMI_CONFIG_PASSPHRASE="" pulumi stack output db_instance_name --stack $(STACK) 2>/dev/null)
 MIGRATION_JOB   := $(shell PULUMI_CONFIG_PASSPHRASE="" pulumi stack output migration_job_name --stack $(STACK) 2>/dev/null)
-SA_KEY          := $(shell git rev-parse --show-toplevel)/infra/keys/$(STACK)-storage-sa-key.json
+SA_KEY          := $(shell git rev-parse --show-toplevel)/infra/keys/$(STACK)-localhost-sa-key.json
 
 # Git SHA of HEAD — used as the Docker image tag so every deployed revision
 # is traceable to an exact commit. Never use 'latest' as a tag in production.
@@ -89,7 +99,7 @@ setup:
 	@echo "  Go to: GitHub repo → Settings → Secrets and variables → Actions → Variables"
 	@echo "  Add the following variable (not secret — it is not sensitive):"
 	@echo ""
-	@echo "    PULUMI_BACKEND_URL = gs://storyengine-infra-state"
+	@echo "    PULUMI_BACKEND_URL = gs://my-app-pulumi-state"
 	@echo ""
 	@echo "  Why: Pulumi defaults to Pulumi Cloud in non-interactive sessions."
 	@echo "  This variable tells the CI pipeline to use the GCS state backend instead."
@@ -195,16 +205,16 @@ destroy:
 	@echo "=== Destroying $(STACK) stack ==="
 	@echo ""
 	@echo "Step 1/4: Deleting Cloud Run service + job (releases VPC address reservation)..."
-	-gcloud run services delete storyengine-$(STACK)-backend \
+	-gcloud run services delete $(PREFIX)-backend \
 		--region $(REGION) --project $(PROJECT) --quiet 2>/dev/null
-	-gcloud run jobs delete storyengine-$(STACK)-migrate \
+	-gcloud run jobs delete $(PREFIX)-migrate \
 		--region $(REGION) --project $(PROJECT) --quiet 2>/dev/null
 	@echo ""
 	@echo "Step 2/4: Waiting 30s for GCP to release serverless VPC address..."
 	@sleep 30
 	@echo ""
 	@echo "Step 3/4: Deleting Cloud SQL instance (releases VPC peering reference)..."
-	-gcloud sql instances delete storyengine-$(STACK)-postgres \
+	-gcloud sql instances delete $(PREFIX)-postgres \
 		--project $(PROJECT) --quiet 2>/dev/null
 	@echo ""
 	@echo "Step 4/4: Waiting 30s for Cloud SQL deletion to propagate..."
@@ -221,7 +231,7 @@ destroy:
 status:
 	@echo ""
 	@echo "=== Cloud Run (backend) ==="
-	@gcloud run services describe storyengine-$(STACK)-backend \
+	@gcloud run services describe $(PREFIX)-backend \
 		--region $(REGION) --project $(PROJECT) \
 		--format="table(status.latestReadyRevisionName, status.url)" 2>&1
 	@echo ""
@@ -231,7 +241,8 @@ status:
 		--format="table(metadata.name, status.conditions[0].status)" 2>&1
 	@echo ""
 	@echo "=== SSL Certificate ==="
-	@gcloud compute ssl-certificates describe storyengine-$(STACK)-frontend-cert-v2 \
+	@gcloud compute ssl-certificates list \
+		--filter="name~$(PREFIX)-frontend" \
 		--global --project $(PROJECT) \
 		--format="table(name, managed.status, managed.domainStatus)" 2>&1
 	@echo ""
@@ -300,7 +311,7 @@ sync-frontend:
 deploy-frontend: build-frontend sync-frontend
 	@echo ""
 	@echo "Frontend deployed to gs://$(FRONTEND_BUCKET)"
-	@echo "Live at: https://$(FRONTEND_BUCKET)"
+	@echo "Live at: $(FRONTEND_URL)"
 
 # ── Deploy both ───────────────────────────────────────────────────────────────
 
