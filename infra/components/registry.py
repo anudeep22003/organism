@@ -1,8 +1,7 @@
 import pulumi
 import pulumi_gcp as gcp
 
-REGISTRY_ID = "storyengine-dev"
-LOCATION = "europe-west2"
+from components.config import PREFIX, PROJECT, REGION
 
 
 def create_docker_registry() -> tuple[
@@ -22,13 +21,11 @@ def create_docker_registry() -> tuple[
     so every pushed image is permanently tied to the exact source it was
     built from.
     """
-    project = pulumi.Config("gcp").require("project")
-
     repository = gcp.artifactregistry.Repository(
         "docker-registry",
-        repository_id=REGISTRY_ID,
+        repository_id=PREFIX,
         format="DOCKER",
-        location=LOCATION,
+        location=REGION,
         description="StoryEngine dev Docker images",
     )
 
@@ -36,9 +33,9 @@ def create_docker_registry() -> tuple[
     # We export it so callers have a single source of truth — no hardcoding
     # the project or location string outside of this file.
     registry_url = pulumi.Output.concat(
-        LOCATION,
+        REGION,
         "-docker.pkg.dev/",
-        project,
+        PROJECT,
         "/",
         repository.repository_id,
     )

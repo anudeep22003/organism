@@ -1,14 +1,14 @@
 STACK           := dev
-PROJECT         := shared-apps-infrastructure
-REGION          := europe-west2
-REGISTRY        := $(REGION)-docker.pkg.dev/$(PROJECT)/storyengine-dev
+PROJECT         := $(shell pulumi config get gcp:project --stack $(STACK) 2>/dev/null)
+REGION          := $(shell pulumi config get gcp:region --stack $(STACK) 2>/dev/null)
+REGISTRY        := $(REGION)-docker.pkg.dev/$(PROJECT)/storyengine-$(STACK)
 IMAGE           := $(REGISTRY)/backend
 BACKEND_DIR     := $(shell git rev-parse --show-toplevel)/backend
 FRONTEND_DIR    := $(shell git rev-parse --show-toplevel)/frontend
-FRONTEND_BUCKET := dev.dekatha.com
-DB_INSTANCE     := storyengine-dev-postgres
-MIGRATION_JOB   := storyengine-dev-migrate
-SA_KEY          := $(shell git rev-parse --show-toplevel)/infra/keys/dev-storage-sa-key.json
+FRONTEND_BUCKET := $(shell PULUMI_CONFIG_PASSPHRASE="" pulumi stack output frontend_bucket --stack $(STACK) 2>/dev/null)
+DB_INSTANCE     := $(shell PULUMI_CONFIG_PASSPHRASE="" pulumi stack output db_instance_name --stack $(STACK) 2>/dev/null)
+MIGRATION_JOB   := $(shell PULUMI_CONFIG_PASSPHRASE="" pulumi stack output migration_job_name --stack $(STACK) 2>/dev/null)
+SA_KEY          := $(shell git rev-parse --show-toplevel)/infra/keys/$(STACK)-storage-sa-key.json
 
 # Git SHA of HEAD — used as the Docker image tag so every deployed revision
 # is traceable to an exact commit. Never use 'latest' as a tag in production.
@@ -112,7 +112,7 @@ outputs:
 status:
 	@echo ""
 	@echo "=== Cloud Run (backend) ==="
-	@gcloud run services describe storyengine-dev-backend \
+	@gcloud run services describe storyengine-$(STACK)-backend \
 		--region $(REGION) --project $(PROJECT) \
 		--format="table(status.latestReadyRevisionName, status.url)" 2>&1
 	@echo ""
@@ -122,12 +122,12 @@ status:
 		--format="table(metadata.name, status.conditions[0].status)" 2>&1
 	@echo ""
 	@echo "=== SSL Certificate ==="
-	@gcloud compute ssl-certificates describe storyengine-dev-frontend-cert \
+	@gcloud compute ssl-certificates describe storyengine-$(STACK)-frontend-cert \
 		--global --project $(PROJECT) \
 		--format="table(name, managed.status, managed.domainStatus)" 2>&1
 	@echo ""
 	@echo "=== DNS resolution ==="
-	@dig dev.dekatha.com A +short 2>&1
+	@dig $(STACK).dekatha.com A +short 2>&1
 	@echo "(should be 136.110.212.53)"
 	@echo ""
 	@echo "=== Stack outputs ==="
@@ -233,7 +233,7 @@ rotate-secrets: populate-secrets deploy-backend
 # Used by migrate-status and migrate-history (inspection commands via proxy).
 # Standard forward migrations use the Cloud Run Job and don't need these.
 CLOUD_DB_URL = $(shell gcloud secrets versions access latest \
-	--secret storyengine-dev-database-url \
+	--secret $(shell PULUMI_CONFIG_PASSPHRASE="" pulumi stack output secret_database_url --stack $(STACK) 2>/dev/null) \
 	--project $(PROJECT) 2>/dev/null)
 PROXY_DB_URL = $(shell echo "$(CLOUD_DB_URL)" | sed 's/@[^/]*\//@localhost:5433\//')
 

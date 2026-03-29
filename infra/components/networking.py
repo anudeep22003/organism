@@ -1,6 +1,6 @@
 import pulumi_gcp as gcp
 
-_REGION = "europe-west2"
+from components.config import REGION, resource_name
 
 # Subnet CIDR for our resources (Cloud Run direct VPC egress, future VMs).
 # 10.0.0.0/20 = 4096 addresses. Plenty for dev.
@@ -42,15 +42,15 @@ def create_network() -> tuple[
     """
     vpc = gcp.compute.Network(
         "vpc",
-        name="storyengine-dev-vpc",
+        name=resource_name("vpc"),
         auto_create_subnetworks=False,
         description="StoryEngine dev VPC",
     )
 
     subnet = gcp.compute.Subnetwork(
         "subnet",
-        name="storyengine-dev-subnet",
-        region=_REGION,
+        name=resource_name("subnet"),
+        region=REGION,
         ip_cidr_range=_SUBNET_CIDR,
         network=vpc.id,
         # Allows Cloud Run (via VPC egress) to reach Google APIs privately.
@@ -63,7 +63,7 @@ def create_network() -> tuple[
     # purpose=VPC_PEERING signals this is for private services access.
     reserved_range = gcp.compute.GlobalAddress(
         "private-services-range",
-        name="storyengine-dev-private-services",
+        name=resource_name("private-services"),
         purpose="VPC_PEERING",
         address_type="INTERNAL",
         prefix_length=_SERVICES_CIDR_PREFIX,

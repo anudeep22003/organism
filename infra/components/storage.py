@@ -1,6 +1,6 @@
 import pulumi_gcp as gcp
 
-BUCKET_NAME = "storyengine-dev-media-x7k2"
+from components.config import MEDIA_BUCKET_NAME, REGION
 
 
 def create_media_bucket() -> gcp.storage.Bucket:
@@ -14,8 +14,8 @@ def create_media_bucket() -> gcp.storage.Bucket:
     """
     bucket = gcp.storage.Bucket(
         "media-bucket",
-        name=BUCKET_NAME,
-        location="europe-west2",
+        name=MEDIA_BUCKET_NAME,
+        location=REGION,
         uniform_bucket_level_access=True,
         public_access_prevention="enforced",
     )

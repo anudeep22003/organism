@@ -1,10 +1,6 @@
-import pulumi
 import pulumi_gcp as gcp
 
-# Secret names are prefixed with the stack name so they are
-# unambiguous in the GCP project if more services are added later.
-# e.g. storyengine-dev-anthropic-api-key
-_PREFIX = "storyengine-dev"
+from components.config import PREFIX
 
 
 def _make_secret(logical_name: str, secret_id: str) -> gcp.secretmanager.Secret:
@@ -38,26 +34,26 @@ class AppSecrets:
     def __init__(self) -> None:
         self.anthropic_api_key = _make_secret(
             "secret-anthropic-api-key",
-            f"{_PREFIX}-anthropic-api-key",
+            f"{PREFIX}-anthropic-api-key",
         )
         self.openai_api_key = _make_secret(
             "secret-openai-api-key",
-            f"{_PREFIX}-openai-api-key",
+            f"{PREFIX}-openai-api-key",
         )
         self.fal_api_key = _make_secret(
             "secret-fal-api-key",
-            f"{_PREFIX}-fal-api-key",
+            f"{PREFIX}-fal-api-key",
         )
         self.database_url = _make_secret(
             "secret-database-url",
-            f"{_PREFIX}-database-url",
+            f"{PREFIX}-database-url",
         )
         # db_password is managed entirely by Pulumi — generated randomly,
         # stored here so it's retrievable via gcloud if needed (e.g. make migrate).
         # The app never reads this directly; it reads DATABASE_URL instead.
         self.db_password = _make_secret(
             "secret-db-password",
-            f"{_PREFIX}-db-password",
+            f"{PREFIX}-db-password",
         )
 
 

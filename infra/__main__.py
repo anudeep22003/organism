@@ -4,6 +4,7 @@ import pulumi
 import pulumi_gcp as gcp
 
 from components.cloudrun import create_cloudrun_service
+from components.config import MEDIA_BUCKET_NAME
 from components.database import create_database
 from components.frontend import create_frontend
 from components.iam import create_cloudrun_sa, create_localhost_sa
@@ -11,7 +12,7 @@ from components.migrations import create_migration_job
 from components.networking import create_network
 from components.registry import create_docker_registry
 from components.secrets import create_app_secrets
-from components.storage import BUCKET_NAME, create_media_bucket
+from components.storage import create_media_bucket
 
 # --- Layer 1: Storage ---
 bucket = create_media_bucket()
@@ -65,7 +66,7 @@ frontend = create_frontend()
 
 # --- Stack outputs ---
 # Readable via: pulumi stack output <key>
-pulumi.export("bucket_name", BUCKET_NAME)
+pulumi.export("bucket_name", MEDIA_BUCKET_NAME)
 pulumi.export("service_account_email", localhost_sa.email)
 pulumi.export("registry_url", registry_url)
 pulumi.export("secret_anthropic_api_key", secrets.anthropic_api_key.secret_id)
