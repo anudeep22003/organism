@@ -2,4 +2,4 @@ encryptionsalt: v1:sW+JQABkRHo=:v1:7J9KOOOv28snXCef:bsFSX1NP/El1IPwSZCzRTWoV29ZT
 config:
   gcp:project: shared-apps-infrastructure
   gcp:region: europe-west2
-  storyengine-infra:image_tag: e3c6c95
+  storyengine-infra:image_tag: 4301e7f

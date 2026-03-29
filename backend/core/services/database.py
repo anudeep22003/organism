@@ -1,9 +1,8 @@
+import os
 from functools import lru_cache
 from typing import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-
-from core.config import settings
 
 
 @lru_cache(maxsize=1)
@@ -14,13 +13,13 @@ def _get_session_maker() -> "async_sessionmaker[AsyncSession]":
     of how many times it is called. The same session_maker is returned on every
     subsequent call with no re-instantiation.
 
-    Lazy creation (not at module import time) is critical because:
-    - alembic/env.py imports app models which transitively import this module.
-      If the engine were created at import time, importing any model would
-      immediately open a DB connection — even in contexts where no DB is needed.
-    - Tests can import modules freely without needing a live DB available.
+    Reads DATABASE_URL from os.environ at call time (not at import time).
+    This keeps module import side-effect free — importing this module does not
+    trigger core.config imports, which means alembic can safely import app models
+    (which transitively import this module) without needing API keys.
     """
-    engine = create_async_engine(settings.database_url, echo=False)
+    database_url = os.environ["DATABASE_URL"]
+    engine = create_async_engine(database_url, echo=False)
     return async_sessionmaker(bind=engine)
 
 
