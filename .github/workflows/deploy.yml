@@ -49,7 +49,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version-file: frontend/.nvmrc
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
@@ -159,13 +159,10 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version-file: frontend/.nvmrc
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      # VITE_BACKEND_URL is injected at build time from the live stack output.
-      # The built artifacts land in frontend/dist/ — that directory is synced
-      # in the next step.
       - name: Build frontend
         working-directory: frontend
         env:
