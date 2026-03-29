@@ -4,7 +4,7 @@ from typing import Callable, NamedTuple
 import fal_client
 from fal_client.client import AnyJSON, Status
 
-from core.config import FAL_API_KEY
+from core.config import settings
 
 MAX_CONCURRENT_REQUESTS = 10
 
@@ -37,7 +37,7 @@ DEFAULT_IMAGE_GENERATION_MODEL = nano_banana
 class ConcurrentMediaGenerator:
     def __init__(self) -> None:
         self._semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
-        self._client = fal_client.AsyncClient(key=FAL_API_KEY)
+        self._client = fal_client.AsyncClient(key=settings.fal_api_key)
 
     async def subscribe(
         self,

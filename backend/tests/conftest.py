@@ -32,9 +32,10 @@ load_dotenv(
     dotenv_path=os.path.join(os.path.dirname(__file__), "../.env.local"), override=True
 )
 
-# These imports must come after load_dotenv
+# These imports must come after load_dotenv — pydantic-settings reads .env.local
+# but load_dotenv with override=True above ensures test values take precedence.
 from core.auth.models.user import User  # noqa: E402
-from core.config import DATABASE_URL  # noqa: E402
+from core.config import settings  # noqa: E402
 from core.story_engine.models import Character, Project, Story  # noqa: E402
 from main import fastapi_app  # noqa: E402
 
@@ -50,7 +51,7 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
     Uses the same DATABASE_URL as the running app (from .env.local).
     Each test gets its own session and engine; cleaned up after the test.
     """
-    engine = create_async_engine(DATABASE_URL, echo=False)
+    engine = create_async_engine(settings.database_url, echo=False)
     factory = async_sessionmaker(engine, expire_on_commit=False)
 
     async with factory() as session:

@@ -6,7 +6,7 @@ from core.auth import SessionManager
 from core.auth.exceptions import InvalidTokenError
 from core.auth.managers.jwt import JWTTokenManager
 from core.common import AliasedBaseModel
-from core.services.database import async_session_maker
+from core.services.database import get_async_db_session
 from core.universe.timeline import SubscriptionKey, primary_timeline
 
 from . import active_connections, sio
@@ -37,8 +37,9 @@ async def connect(sid: str, environ: dict, auth: dict) -> bool:
         logger.debug("Invalid access token, closing connection")
         return False
     target_room = None
+    session = None
 
-    async with async_session_maker() as async_db_session:
+    async for async_db_session in get_async_db_session():
         session_manager = SessionManager(db_session=async_db_session)
         session = await session_manager.find_session_by_user_id(user_id)
         if not session:
@@ -48,6 +49,9 @@ async def connect(sid: str, environ: dict, auth: dict) -> bool:
         sid_to_session_id[sid] = target_room
         session_id_to_sid[target_room] = sid
 
+    assert (
+        target_room is not None
+    )  # set inside async for; only reach here if session found
     await sio.enter_room(sid, target_room)
     manager = Manager(
         target_room=target_room,
