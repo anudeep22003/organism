@@ -84,6 +84,21 @@ setup:
 	@echo "Step 8 — Run initial database migrations:"
 	@echo "  make migrate    # triggers Cloud Run Job, no proxy needed"
 	@echo ""
+	@echo "Step 9 — Set GitHub Actions repository variables (one-time, per repo):"
+	@echo "  Go to: GitHub repo → Settings → Secrets and variables → Actions → Variables"
+	@echo "  Add the following variable (not secret — it is not sensitive):"
+	@echo ""
+	@echo "    PULUMI_BACKEND_URL = gs://storyengine-infra-state"
+	@echo ""
+	@echo "  Why: Pulumi defaults to Pulumi Cloud in non-interactive sessions."
+	@echo "  This variable tells the CI pipeline to use the GCS state backend instead."
+	@echo "  It cannot be read from Pulumi itself — it is the bootstrap value that"
+	@echo "  Pulumi needs before it can run any command."
+	@echo ""
+	@echo "  Also add the two Workload Identity secrets (from pulumi stack output):"
+	@echo "    GCP_WORKLOAD_IDENTITY_PROVIDER = \$$(pulumi stack output workload_identity_provider --stack main)"
+	@echo "    GCP_SERVICE_ACCOUNT            = \$$(pulumi stack output github_actions_sa_email --stack main)"
+	@echo ""
 
 # ── Pulumi ────────────────────────────────────────────────────────────────────
 

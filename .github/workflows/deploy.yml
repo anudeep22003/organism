@@ -131,7 +131,7 @@ jobs:
         working-directory: infra
         env:
           PULUMI_CONFIG_PASSPHRASE: ""
-          PULUMI_BACKEND_URL: gs://storyengine-infra-state
+          PULUMI_BACKEND_URL: ${{ vars.PULUMI_BACKEND_URL }}
         run: |
           pulumi config set image_tag ${{ env.SHA }} --stack main
           pulumi up --stack main --yes
@@ -152,7 +152,7 @@ jobs:
         working-directory: infra
         env:
           PULUMI_CONFIG_PASSPHRASE: ""
-          PULUMI_BACKEND_URL: gs://storyengine-infra-state
+          PULUMI_BACKEND_URL: ${{ vars.PULUMI_BACKEND_URL }}
         run: |
           echo "SERVICE_URL=$(pulumi stack output service_url --stack main)" >> $GITHUB_ENV
 
