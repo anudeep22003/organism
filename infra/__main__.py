@@ -1,17 +1,16 @@
 """StoryEngine infrastructure — main stack.
 
-Refactor status: Round 4 complete (storage, registry, secrets, networking, iam, database, cloudrun, migrations).
-Remaining: frontend, ci.
+Refactor status: Round 5 complete — all components converted to ComponentResource.
 """
 
 import pulumi
 import pulumi_gcp as gcp
 
-from components.ci import create_ci_resources
+from components.ci import CiResources
 from components.cloudrun import CloudRunService
 from components.config import MEDIA_BUCKET_NAME
 from components.database import Database
-from components.frontend import create_frontend
+from components.frontend import Frontend
 from components.iam import CloudRunServiceAccount, LocalhostServiceAccount
 from components.migrations import MigrationJob
 from components.networking import Network
@@ -95,10 +94,15 @@ migrations = MigrationJob(
 # --- Layer 8b: Frontend hosting ---
 # service.service is passed so the LB can create a Serverless NEG pointing at the
 # Cloud Run service — routing api.dekatha.com through the same LB as the frontend.
-frontend = create_frontend(service.service)
+frontend = Frontend("frontend", service=service.service)
 
 # --- Layer 10: CI/CD (Workload Identity + github-actions-sa) ---
-ci = create_ci_resources(registry.repository, cloudrun_sa.account, frontend.bucket)
+ci = CiResources(
+    "ci",
+    registry=registry.repository,
+    cloudrun_sa=cloudrun_sa.account,
+    frontend_bucket=frontend.bucket,
+)
 
 # --- Stack outputs ---
 # Readable via: pulumi stack output <key>
