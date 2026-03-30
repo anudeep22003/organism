@@ -1,7 +1,7 @@
 """StoryEngine infrastructure — main stack.
 
-Refactor status: Round 2 complete (storage, registry, secrets, networking, iam).
-Remaining: database, cloudrun, migrations, frontend, ci.
+Refactor status: Round 3 complete (storage, registry, secrets, networking, iam, database).
+Remaining: cloudrun, migrations, frontend, ci.
 """
 
 import pulumi
@@ -10,7 +10,7 @@ import pulumi_gcp as gcp
 from components.ci import create_ci_resources
 from components.cloudrun import create_cloudrun_service
 from components.config import MEDIA_BUCKET_NAME
-from components.database import create_database
+from components.database import Database
 from components.frontend import create_frontend
 from components.iam import CloudRunServiceAccount, LocalhostServiceAccount
 from components.migrations import create_migration_job
@@ -45,7 +45,12 @@ network = Network("network")
 # --- Layer 7: Database ---
 # network.peering_connection is passed explicitly so Pulumi knows to wait for
 # the VPC peering to complete before creating the Cloud SQL instance.
-db = create_database(network.vpc, network.peering_connection, secrets)
+db = Database(
+    "db",
+    vpc=network.vpc,
+    peering=network.peering_connection,
+    secrets=secrets,
+)
 
 # Write the constructed DATABASE_URL to Secret Manager.
 # This runs after Cloud SQL is created and its private IP is known.
