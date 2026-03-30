@@ -439,58 +439,86 @@ without `CloudRunServiceAccount`. Keep them separate.
 
 ## Using this as a template for a new project
 
-This infra directory is designed to be reusable. All project-specific strings
-flow from `Pulumi.yaml` config — zero hardcoded values remain in components.
+Clone this repo and follow the steps below. All project-specific values flow
+from two YAML files — no component code changes are needed for a standard stack.
 
-### Step 1 — Rename the Pulumi project
+### Step 1 — Edit `Pulumi.yaml`
 
-In `Pulumi.yaml`, change:
-```yaml
-name: storyengine-infra          # → yourapp-infra
-description: A story generator...  # → your description
-config:
-  storyengine-infra:app: storyengine  # → yourapp-infra:app: yourapp
-```
-
-The `name:` field drives the config key namespace (`storyengine-infra:` becomes
-`yourapp-infra:`). Every `storyengine-infra:` config key in `Pulumi.main.yaml`
-must be updated to match.
-
-### Step 2 — Update `Pulumi.main.yaml`
+Two lines to change:
 
 ```yaml
-config:
-  gcp:project: your-gcp-project
-  gcp:region: your-region
-  yourapp-infra:app: yourapp        # ← drives all GCP resource names
-  yourapp-infra:domain: app.yourdomain.com
-  yourapp-infra:api_domain: api.yourdomain.com
-  yourapp-infra:image_tag: latest   # updated automatically by make deploy-backend
+name: myapp-infra                    # was: storyengine-infra
+  storyengine-infra:app: storyengine # → myapp-infra:app: myapp
 ```
 
-### Step 3 — No Makefile changes needed
+The `name:` field drives the config key namespace everywhere — in the Makefile,
+in `Pulumi.<stack>.yaml`, and in the Pulumi state. Change it first, before
+anything else.
 
-The Makefile reads the Pulumi project name directly from `Pulumi.yaml`:
+No other changes to `Pulumi.yaml` are needed. The Makefile reads `name:`
+automatically — no Makefile edits required.
 
-```makefile
-PULUMI_PROJECT := $(shell grep "^name:" Pulumi.yaml | awk '{print $$2}')
-APP            := $(shell pulumi config get $(PULUMI_PROJECT):app ...)
-```
-
-Changing `name:` in `Pulumi.yaml` automatically updates the config key
-namespace used everywhere in the Makefile. No manual Makefile edits needed.
-
-### Step 4 — Create a new GCS state bucket
+### Step 2 — Generate your stack config
 
 ```bash
-gcloud storage buckets create gs://yourapp-pulumi-state \
-  --project your-gcp-project \
-  --location your-region
+make init-project
 ```
 
-Set `PULUMI_BACKEND_URL=gs://yourapp-pulumi-state` in GitHub Actions variables.
+This generates `Pulumi.main.yaml` with:
+- The correct key prefix derived from your updated `Pulumi.yaml`
+- An auto-generated `media_bucket_suffix` (so you don't have to run `openssl rand -hex 2`)
+- `<...>` placeholders for every value you need to supply
 
-### Step 5 — Write a 15-line `__main__.py`
+See `Pulumi.main.yaml.example` for a fully annotated reference of every key.
+
+### Step 3 — Fill in the generated file
+
+Open `Pulumi.main.yaml` and replace every `<...>` placeholder:
+
+| Key | What to put |
+|-----|-------------|
+| `gcp:project` | Your GCP project ID |
+| `gcp:region` | Your preferred region (e.g. `europe-west2`) |
+| `app` | Your app name — lowercase, no spaces |
+| `domain` | Frontend domain (e.g. `app.myapp.com`) |
+| `api_domain` | API domain (e.g. `api.myapp.com`) |
+| `github_repo` | Your GitHub repo as `owner/repo` — **security-critical** |
+| `media_bucket_suffix` | Already filled in — do not change it again after first deploy |
+| `image_tag` | Leave as `latest` — overwritten by `make deploy-backend` |
+
+### Step 4 — Create a GCS state bucket
+
+Pulumi needs somewhere to store its state. This bucket lives outside Pulumi
+(it predates any stack) so you create it manually once:
+
+```bash
+gcloud storage buckets create gs://myapp-pulumi-state \
+  --project <your-gcp-project> \
+  --location <your-region>
+export PULUMI_BACKEND_URL=gs://myapp-pulumi-state
+```
+
+Add `PULUMI_BACKEND_URL` as a repository variable (not secret) in GitHub Actions:
+Settings → Secrets and variables → Actions → Variables.
+
+### Step 5 — Update `__main__.py` for your secrets
+
+The existing `__main__.py` wires `AppSecrets` with StoryEngine's three API key slots
+(`anthropic_api_key`, `openai_api_key`, `fal_api_key`). Replace these with your
+own secrets — or remove them entirely if your app has different external dependencies.
+
+Everything else in `__main__.py` (storage, IAM, networking, database, Cloud Run,
+migrations, frontend, CI) is generic and needs no changes for a standard stack.
+
+### Step 6 — Init the stack and deploy
+
+```bash
+pulumi stack init main
+make up       # provisions all GCP resources (~5 min on first run)
+make setup    # prints remaining developer onboarding steps
+```
+
+### Reference: full `__main__.py` shape
 
 ```python
 from components.ci import CiResources
@@ -527,15 +555,7 @@ ci = CiResources("ci", registry=registry.repository,
 pulumi.export("service_url", service.url)
 pulumi.export("frontend_url", frontend.url)
 pulumi.export("registry_url", registry.url)
-# ... add any other outputs you need
-```
-
-### Step 6 — Init the stack and deploy
-
-```bash
-pulumi stack init main
-make up       # provisions all GCP resources
-make setup    # prints remaining manual steps
+# add any other outputs you need
 ```
 
 ---
