@@ -95,10 +95,33 @@ jobs:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
+      # Install the Pulumi CLI. The Python runtime (uv) was already set up above.
+      - name: Install Pulumi CLI
+        uses: pulumi/actions@v5
+
+      # Read everything we need from the live stack before any build steps.
+      # This is the single source of truth — no GCP values are hardcoded below.
+      # A region change, project rename, or domain change in Pulumi.main.yaml
+      # is automatically picked up here without touching this file.
+      - name: Get stack outputs and config
+        working-directory: infra
+        env:
+          PULUMI_CONFIG_PASSPHRASE: ""
+          PULUMI_BACKEND_URL: ${{ vars.PULUMI_BACKEND_URL }}
+        run: |
+          echo "REGISTRY_URL=$(pulumi stack output registry_url --stack main)" >> $GITHUB_ENV
+          echo "MIGRATION_JOB=$(pulumi stack output migration_job_name --stack main)" >> $GITHUB_ENV
+          echo "SERVICE_URL=$(pulumi stack output api_url --stack main)" >> $GITHUB_ENV
+          echo "FRONTEND_BUCKET=$(pulumi stack output frontend_bucket --stack main)" >> $GITHUB_ENV
+          echo "FRONTEND_URL=$(pulumi stack output frontend_url --stack main)" >> $GITHUB_ENV
+          echo "REGION=$(pulumi config get gcp:region --stack main)" >> $GITHUB_ENV
+          echo "PROJECT=$(pulumi config get gcp:project --stack main)" >> $GITHUB_ENV
+
       # Allow Docker to push to Artifact Registry using the GCP credentials
       # that google-github-actions/auth just configured.
+      # Region is read from stack config — no hardcoded registry hostname.
       - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker europe-west2-docker.pkg.dev --quiet
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
 
       # Short SHA used as the image tag throughout the rest of this run.
       # Stored in GITHUB_ENV so all subsequent steps can reference ${{ env.SHA }}.
@@ -112,17 +135,11 @@ jobs:
       - name: Build backend image
         run: |
           docker build --platform linux/amd64 \
-            -t europe-west2-docker.pkg.dev/shared-apps-infrastructure/storyengine-main/backend:${{ env.SHA }} \
+            -t ${{ env.REGISTRY_URL }}/backend:${{ env.SHA }} \
             ./backend
 
       - name: Push backend image
-        run: |
-          docker push \
-            europe-west2-docker.pkg.dev/shared-apps-infrastructure/storyengine-main/backend:${{ env.SHA }}
-
-      # Install the Pulumi CLI. The Python runtime (uv) was already set up above.
-      - name: Install Pulumi CLI
-        uses: pulumi/actions@v5
+        run: docker push ${{ env.REGISTRY_URL }}/backend:${{ env.SHA }}
 
       # Stamp the new image SHA into the stack config, then apply.
       # pulumi up updates the Cloud Run service *and* the migration job to the
@@ -139,25 +156,13 @@ jobs:
       # The migration job runs inside the VPC (direct VPC egress to Cloud SQL).
       # We trigger it and wait for the exit code — 0 means all migrations applied,
       # non-zero fails the pipeline before traffic shifts to the new revision.
+      # Job name and region read from stack outputs — no hardcoded values.
       - name: Run database migrations
         run: |
-          gcloud run jobs execute storyengine-main-migrate \
-            --region europe-west2 \
-            --project shared-apps-infrastructure \
+          gcloud run jobs execute ${{ env.MIGRATION_JOB }} \
+            --region ${{ env.REGION }} \
+            --project ${{ env.PROJECT }} \
             --wait
-
-      # Read all domain-derived values from the live stack so nothing is
-      # hardcoded in this file. A domain change in Pulumi.main.yaml is the
-      # single source of truth — no changes needed here.
-      - name: Get stack outputs
-        working-directory: infra
-        env:
-          PULUMI_CONFIG_PASSPHRASE: ""
-          PULUMI_BACKEND_URL: ${{ vars.PULUMI_BACKEND_URL }}
-        run: |
-          echo "SERVICE_URL=$(pulumi stack output api_url --stack main)" >> $GITHUB_ENV
-          echo "FRONTEND_BUCKET=$(pulumi stack output frontend_bucket --stack main)" >> $GITHUB_ENV
-          echo "FRONTEND_URL=$(pulumi stack output frontend_url --stack main)" >> $GITHUB_ENV
 
       # Node.js is installed here (not at the top) so the earlier steps don't
       # carry unnecessary tooling. npm cache is keyed on the lockfile.
@@ -184,7 +189,7 @@ jobs:
           gcloud storage rsync frontend/dist/ gs://${{ env.FRONTEND_BUCKET }} \
             --recursive \
             --delete-unmatched-destination-objects \
-            --project shared-apps-infrastructure
+            --project ${{ env.PROJECT }}
 
       # Visible in the GitHub Actions UI under the Summary tab for this run.
       - name: Write job summary
