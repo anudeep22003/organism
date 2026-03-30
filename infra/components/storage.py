@@ -17,12 +17,13 @@ Design decisions:
     - public_access_prevention="enforced": no one can ever make this bucket
       or its objects public, even accidentally. All access goes through signed URLs.
     - The bucket name is fixed via MEDIA_BUCKET_NAME from config (includes a
-      random suffix generated on first creation — immutable, globally unique).
+      random suffix set in media_bucket_suffix — immutable, globally unique).
 
 To use in a new project:
-    Set `app` and stack name in Pulumi.yaml — MEDIA_BUCKET_NAME derives from them.
-    The x7k2 suffix in MEDIA_BUCKET_NAME is intentionally static; change it only
-    if you intend to recreate the bucket (destructive).
+    Set app, stack name, and media_bucket_suffix in Pulumi.<stack>.yaml.
+    Generate the suffix with: openssl rand -hex 2
+    NEVER change media_bucket_suffix after first deploy — it recreates the
+    bucket and loses all stored media.
 """
 
 import pulumi

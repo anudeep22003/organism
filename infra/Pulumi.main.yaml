@@ -5,3 +5,5 @@ config:
   storyengine-infra:image_tag: 1236fcc
   storyengine-infra:domain: app.dekatha.com
   storyengine-infra:api_domain: api.dekatha.com
+  storyengine-infra:media_bucket_suffix: x7k2
+  storyengine-infra:github_repo: anudeep22003/organism

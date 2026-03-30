@@ -51,11 +51,11 @@ import pulumi
 import pulumi_gcp as gcp
 import pulumi_random as random
 
-from components.config import APP, REGION, resource_name
+from components.config import APP, DB_NAME, REGION, resource_name
 from components.secrets import AppSecrets
 
 _DB_VERSION = "POSTGRES_16"
-_DB_NAME = "storyengine"
+_DB_NAME = DB_NAME  # read from config (db_name key), defaults to APP if not set
 _DB_USER = "appuser"
 
 
