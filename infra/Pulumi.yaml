@@ -14,3 +14,12 @@ config:
   #   1. name: in this file (Pulumi project name — drives config key namespace)
   #   2. APP := in Makefile (reads storyengine-infra:app — key prefix must match project name)
   storyengine-infra:app: storyengine
+  # Short random suffix appended to the GCS media bucket name for global uniqueness.
+  # MUST be set in Pulumi.<stack>.yaml before first deploy.
+  # Generate one with: openssl rand -hex 2   (gives 4 hex chars, e.g. "a3f1")
+  # IMMUTABLE after first deploy — changing it recreates the bucket and loses all media.
+  storyengine-infra:media_bucket_suffix: ""
+  # GitHub repo that may authenticate via Workload Identity Federation.
+  # SECURITY: only tokens from this repo can impersonate github-actions-sa.
+  # Set in Pulumi.<stack>.yaml. Format: "owner/repo"  e.g. "acme/myapp"
+  storyengine-infra:github_repo: ""

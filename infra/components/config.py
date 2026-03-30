@@ -47,18 +47,33 @@ DOMAIN = _app.require("domain")
 # Decoupling into a separate LB is possible but costs ~$36/month extra.
 API_DOMAIN = _app.require("api_domain")
 
-# Media bucket name. The x7k2 suffix was generated on first creation to
-# avoid naming conflicts. It is intentionally static — GCS bucket names are
-# globally unique and immutable. Change this only if you intend to recreate
-# the bucket (which is destructive).
-MEDIA_BUCKET_NAME = f"{PREFIX}-media-x7k2"
+# Media bucket name suffix — set once on first deploy, then never change.
+# GCS bucket names are globally unique and immutable; changing this suffix
+# means recreating the bucket (destructive — all media uploads are lost).
+# For a new project: choose a short random string (e.g. run `openssl rand -hex 2`).
+# Set it in Pulumi.<stack>.yaml as: <project>:media_bucket_suffix: <value>
+_MEDIA_BUCKET_SUFFIX = _app.require("media_bucket_suffix")
+MEDIA_BUCKET_NAME = f"{PREFIX}-media-{_MEDIA_BUCKET_SUFFIX}"
+
+# PostgreSQL database name created inside Cloud SQL.
+# Defaults to APP so a new project gets a sensibly-named database without
+# any config required. Override in Pulumi.<stack>.yaml as:
+#   <project>:db_name: mydbname
+DB_NAME = _app.get("db_name") or APP
+
+# GitHub repository allowed to authenticate via Workload Identity Federation.
+# SECURITY: this is the access-control gate. Only tokens from this repo can
+# impersonate github-actions-sa. Set correctly before running pulumi up.
+# Format: "owner/repo" e.g. "acme/myapp"
+# Set in Pulumi.<stack>.yaml as: <project>:github_repo: owner/repo
+GITHUB_REPO = _app.require("github_repo")
 
 
 def resource_name(suffix: str) -> str:
     """Returns the canonical resource name for this stack.
 
-    Examples (dev stack):
-        resource_name("backend")  → "storyengine-dev-backend"
-        resource_name("postgres") → "storyengine-dev-postgres"
+    Examples (main stack, app=storyengine):
+        resource_name("backend")  → "storyengine-main-backend"
+        resource_name("postgres") → "storyengine-main-postgres"
     """
     return f"{PREFIX}-{suffix}"

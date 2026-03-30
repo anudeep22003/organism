@@ -67,7 +67,13 @@ SSL cert provisioning:
 import pulumi
 import pulumi_gcp as gcp
 
-from components.config import APP, API_DOMAIN, DOMAIN, REGION, resource_name
+from components.config import (
+    APP,
+    API_DOMAIN,
+    DOMAIN,
+    REGION,
+    resource_name,
+)  # REGION used for bucket location
 
 
 class Frontend(pulumi.ComponentResource):
@@ -113,7 +119,7 @@ class Frontend(pulumi.ComponentResource):
         self.bucket = gcp.storage.Bucket(
             f"{name}-bucket",
             name=DOMAIN,
-            location="US",
+            location=REGION,
             uniform_bucket_level_access=True,
             # force_destroy allows Pulumi to delete this bucket even if it contains
             # objects. Safe for the frontend bucket — contents are build artifacts
