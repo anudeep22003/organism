@@ -1,7 +1,7 @@
 """StoryEngine infrastructure — main stack.
 
-Refactor status: Round 1 complete (storage, registry, secrets, networking).
-Remaining: iam, database, cloudrun, migrations, frontend, ci.
+Refactor status: Round 2 complete (storage, registry, secrets, networking, iam).
+Remaining: database, cloudrun, migrations, frontend, ci.
 """
 
 import pulumi
@@ -12,7 +12,7 @@ from components.cloudrun import create_cloudrun_service
 from components.config import MEDIA_BUCKET_NAME
 from components.database import create_database
 from components.frontend import create_frontend
-from components.iam import create_cloudrun_sa, create_localhost_sa
+from components.iam import CloudRunServiceAccount, LocalhostServiceAccount
 from components.migrations import create_migration_job
 from components.networking import Network
 from components.registry import DockerRegistry
@@ -23,7 +23,7 @@ from components.storage import MediaBucket
 storage = MediaBucket("storage")
 
 # --- Layer 2: IAM (localhost) ---
-localhost_sa = create_localhost_sa(storage.bucket)
+localhost_sa = LocalhostServiceAccount("localhost-sa", bucket=storage.bucket)
 
 # --- Layer 3: Artifact Registry ---
 registry = DockerRegistry("registry")
@@ -32,7 +32,12 @@ registry = DockerRegistry("registry")
 secrets = AppSecrets("secrets")
 
 # --- Layer 5: IAM (Cloud Run) ---
-cloudrun_sa = create_cloudrun_sa(storage.bucket, registry.repository, secrets)
+cloudrun_sa = CloudRunServiceAccount(
+    "cloudrun-sa",
+    bucket=storage.bucket,
+    registry=registry.repository,
+    secrets=secrets,
+)
 
 # --- Layer 6: Networking ---
 network = Network("network")
@@ -62,14 +67,14 @@ gcp.secretmanager.SecretVersion(
 
 # --- Layer 8a: Cloud Run service — wired after networking + db ---
 service, service_url = create_cloudrun_service(
-    cloudrun_sa, secrets, registry.url, network.vpc, network.subnet
+    cloudrun_sa.account, secrets, registry.url, network.vpc, network.subnet
 )
 
 # --- Layer 9: Migration Job ---
 # Runs alembic upgrade head inside the VPC using the same image as the service.
 # Triggered via: make migrate (or gcloud run jobs execute in CI)
 migration_job = create_migration_job(
-    cloudrun_sa, secrets, registry.url, network.vpc, network.subnet
+    cloudrun_sa.account, secrets, registry.url, network.vpc, network.subnet
 )
 
 # --- Layer 8b: Frontend hosting ---
@@ -78,7 +83,7 @@ migration_job = create_migration_job(
 frontend = create_frontend(service)
 
 # --- Layer 10: CI/CD (Workload Identity + github-actions-sa) ---
-ci = create_ci_resources(registry.repository, cloudrun_sa, frontend.bucket)
+ci = create_ci_resources(registry.repository, cloudrun_sa.account, frontend.bucket)
 
 # --- Stack outputs ---
 # Readable via: pulumi stack output <key>
