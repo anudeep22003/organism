@@ -117,7 +117,40 @@ class CloudRunService(pulumi.ComponentResource):
         # Cloud Run fetches these from Secret Manager at container startup
         # and injects them as normal env vars. The app reads os.getenv()
         # as usual — it never knows they came from Secret Manager.
+
+        # ── Infrastructure env var — keep this, every project needs it ─────────
         secret_env_vars = [
+            gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                name="DATABASE_URL",
+                value_source=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceArgs(
+                    secret_key_ref=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceSecretKeyRefArgs(
+                        secret=secrets.database_url.secret_id,
+                        version="latest",
+                    ),
+                ),
+            ),
+        ]
+
+        # ── App secret env vars — replace these with your own ──────────────────
+        # These correspond to the app secrets in secrets.py and the accessors
+        # in iam.py. When starting a new project:
+        #   1. Delete these three entries and add your own below.
+        #   2. Also delete/replace the matching secrets in secrets.py and the
+        #      matching accessors in iam.py → CloudRunServiceAccount.
+        #
+        # To mount a new secret as an env var:
+        #   secret_env_vars.append(
+        #       gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+        #           name="MY_SECRET",
+        #           value_source=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceArgs(
+        #               secret_key_ref=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceSecretKeyRefArgs(
+        #                   secret=secrets.my_secret.secret_id,
+        #                   version="latest",
+        #               ),
+        #           ),
+        #       )
+        #   )
+        secret_env_vars += [
             gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
                 name="ANTHROPIC_API_KEY",
                 value_source=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceArgs(
@@ -141,15 +174,6 @@ class CloudRunService(pulumi.ComponentResource):
                 value_source=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceArgs(
                     secret_key_ref=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceSecretKeyRefArgs(
                         secret=secrets.fal_api_key.secret_id,
-                        version="latest",
-                    ),
-                ),
-            ),
-            gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
-                name="DATABASE_URL",
-                value_source=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceArgs(
-                    secret_key_ref=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceSecretKeyRefArgs(
-                        secret=secrets.database_url.secret_id,
                         version="latest",
                     ),
                 ),

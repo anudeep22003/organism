@@ -109,6 +109,8 @@ ci = CiResources(
 pulumi.export("bucket_name", MEDIA_BUCKET_NAME)
 pulumi.export("service_account_email", localhost_sa.email)
 pulumi.export("registry_url", registry.url)
+# App secret exports — StoryEngine-specific. Replace with your own when
+# starting a new project (remove these and export your own secret_ids).
 pulumi.export("secret_anthropic_api_key", secrets.anthropic_api_key.secret_id)
 pulumi.export("secret_openai_api_key", secrets.openai_api_key.secret_id)
 pulumi.export("secret_fal_api_key", secrets.fal_api_key.secret_id)

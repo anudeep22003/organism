@@ -190,6 +190,32 @@ class CloudRunServiceAccount(pulumi.ComponentResource):
 
         # --- Secret Manager: read each secret value at startup ---
         # Bound per-secret, not project-wide — least privilege.
+
+        # ── Infrastructure accessor — keep this, every project needs it ────────
+        gcp.secretmanager.SecretIamMember(
+            f"{name}-database-accessor",
+            secret_id=secrets.database_url.secret_id,
+            role="roles/secretmanager.secretAccessor",
+            member=member,
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+
+        # ── App secret accessors — replace these with your own ─────────────────
+        # These correspond to the app secrets in secrets.py.
+        # When starting a new project:
+        #   1. Delete these three accessors and add your own below.
+        #   2. Each accessor grants cloudrun-sa permission to read one secret slot.
+        #   3. Also delete/replace the matching secrets in secrets.py and the
+        #      matching env var mounts in cloudrun.py.
+        #
+        # To add an accessor for a new secret:
+        #   gcp.secretmanager.SecretIamMember(
+        #       f"{name}-my-secret-accessor",
+        #       secret_id=secrets.my_secret.secret_id,
+        #       role="roles/secretmanager.secretAccessor",
+        #       member=member,
+        #       opts=pulumi.ResourceOptions(parent=self),
+        #   )
         gcp.secretmanager.SecretIamMember(
             f"{name}-anthropic-accessor",
             secret_id=secrets.anthropic_api_key.secret_id,
@@ -209,14 +235,6 @@ class CloudRunServiceAccount(pulumi.ComponentResource):
         gcp.secretmanager.SecretIamMember(
             f"{name}-fal-accessor",
             secret_id=secrets.fal_api_key.secret_id,
-            role="roles/secretmanager.secretAccessor",
-            member=member,
-            opts=pulumi.ResourceOptions(parent=self),
-        )
-
-        gcp.secretmanager.SecretIamMember(
-            f"{name}-database-accessor",
-            secret_id=secrets.database_url.secret_id,
             role="roles/secretmanager.secretAccessor",
             member=member,
             opts=pulumi.ResourceOptions(parent=self),

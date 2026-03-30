@@ -141,6 +141,18 @@ logical names are completely decoupled.
 
 ## How to add a new secret (e.g. Stripe API key)
 
+**Starting a new project?** `secrets.py`, `iam.py`, and `cloudrun.py` each contain
+three StoryEngine-specific secrets (`anthropic_api_key`, `openai_api_key`, `fal_api_key`)
+clearly labelled with comments. Delete those three from each file and add your own
+using the exact same pattern shown below. The steps are identical whether you are
+replacing the examples or adding to an existing project.
+
+Every secret requires the same three-file change — no exceptions. An agent that
+updates only one or two of the three files will produce a broken deployment:
+- Missing from `secrets.py` → no GCP slot → `make up` fails
+- Missing from `iam.py` → Cloud Run cannot read the secret → container crashes on startup
+- Missing from `cloudrun.py` → secret never injected as env var → `os.getenv()` returns `None`
+
 ### Step 1 — `components/secrets.py`
 
 Add a new secret container to `AppSecrets.__init__`:
