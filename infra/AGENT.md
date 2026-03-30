@@ -12,28 +12,32 @@ One active stack: `main` → `app.dekatha.com`.
 
 Runtime: Python 3.12, toolchain: `uv`. Run everything from `infra/`.
 
+All components are `pulumi.ComponentResource` subclasses. This makes the
+infra reusable — new projects get a 15-line `__main__.py` and the full
+battle-tested GCP stack.
+
 ---
 
 ## File map
 
 ```
-__main__.py              Wiring — imports and calls all components in order
+__main__.py              Wiring — instantiates all components in dependency order
 Pulumi.yaml              Project definition (name, runtime, toolchain)
 Pulumi.main.yaml         Stack config (project, region, image_tag, domain)
 Makefile                 All operational commands — run `make help`
 DECISIONS.md             Full reasoning for non-obvious choices
 components/
   config.py              Single source of truth: PROJECT, REGION, PREFIX, IMAGE_TAG, DOMAIN
-  storage.py             Layer 1 — GCS media bucket (private, signed URLs)
-  iam.py                 Layers 2+5 — localhost-sa, cloudrun-sa, all IAM bindings
-  registry.py            Layer 3 — Artifact Registry Docker repo
-  secrets.py             Layer 4 — Secret Manager containers (slots only, not values)
-  networking.py          Layer 6 — VPC, subnet, private services peering
-  database.py            Layer 7 — Cloud SQL Postgres 16, private IP, random password
-  cloudrun.py            Layer 8 — Cloud Run service (backend)
-  migrations.py          Layer 9 — Cloud Run Job (alembic upgrade head)
-  frontend.py            Layer 8 — GCS bucket + Global LB (shared frontend+API) + SSL cert + HTTP redirect
-  ci.py                  Layer 10 — github-actions-sa + Workload Identity Federation
+  storage.py             Layer 1 — class MediaBucket — GCS media bucket (private, signed URLs)
+  iam.py                 Layers 2+5 — class LocalhostServiceAccount, class CloudRunServiceAccount
+  registry.py            Layer 3 — class DockerRegistry — Artifact Registry Docker repo
+  secrets.py             Layer 4 — class AppSecrets — Secret Manager containers (slots only)
+  networking.py          Layer 6 — class Network — VPC, subnet, private services peering
+  database.py            Layer 7 — class Database — Cloud SQL Postgres 16, private IP, random password
+  cloudrun.py            Layer 8 — class CloudRunService — Cloud Run service (backend)
+  migrations.py          Layer 9 — class MigrationJob — Cloud Run Job (alembic upgrade head)
+  frontend.py            Layer 8b — class Frontend — GCS bucket + Global LB + SSL cert + HTTP redirect
+  ci.py                  Layer 10 — class CiResources — github-actions-sa + Workload Identity Federation
 scripts/
   populate-secrets.sh    Push .env.local secrets to Secret Manager (idempotent)
 keys/
@@ -44,29 +48,79 @@ keys/
 
 ## Layer order in `__main__.py`
 
-Order matters — later layers depend on earlier ones. Pass dependencies
-explicitly so Pulumi sequences operations correctly.
+Order matters — later layers depend on earlier ones. All dependencies are
+passed explicitly via keyword arguments so Pulumi sequences operations correctly.
 
 ```
-1   storage       GCS media bucket
-2   iam           localhost-sa (needs bucket)
-3   registry      Artifact Registry repo
-4   secrets       Secret Manager containers
-5   iam           cloudrun-sa (needs bucket, registry, secrets)
-6   networking    VPC + subnet + peering
-7   database      Cloud SQL (needs VPC + peering + secrets)
-    __main__      Write DATABASE_URL SecretVersion (needs db output)
-8a  cloudrun      Cloud Run service (needs SA, secrets, registry_url, vpc, subnet)
-9   migrations    Cloud Run Job (needs SA, secrets, registry_url, vpc, subnet)
-8b  frontend      GCS + shared LB + SSL (needs service for Serverless NEG)
-10  ci            github-actions-sa + WIF (needs registry, cloudrun_sa, frontend.bucket)
+1   storage         MediaBucket("storage")
+2   iam (localhost)  LocalhostServiceAccount("localhost-sa", bucket=storage.bucket)
+3   registry        DockerRegistry("registry")
+4   secrets         AppSecrets("secrets")
+5   iam (cloudrun)  CloudRunServiceAccount("cloudrun-sa", bucket=..., registry=..., secrets=...)
+6   networking      Network("network")
+7   database        Database("db", vpc=..., peering=..., secrets=...)
+    __main__        Write DATABASE_URL SecretVersion (cross-component wiring)
+8a  cloudrun        CloudRunService("backend", sa=..., secrets=..., registry_url=..., vpc=..., subnet=...)
+9   migrations      MigrationJob("migrations", sa=..., secrets=..., registry_url=..., vpc=..., subnet=...)
+8b  frontend        Frontend("frontend", service=service.service)
+10  ci              CiResources("ci", registry=..., cloudrun_sa=..., frontend_bucket=...)
 ```
+
+---
+
+## ComponentResource pattern
+
+Every component follows this structure:
+
+```python
+class MyComponent(pulumi.ComponentResource):
+    """Docstring with: what it creates, what it exposes, why."""
+
+    # Type annotations for exposed attributes
+    some_resource: gcp.SomeResource
+    some_output: pulumi.Output[str]
+
+    def __init__(
+        self,
+        name: str,
+        dependency: gcp.SomeOtherResource,      # explicit, named dependencies
+        opts: pulumi.ResourceOptions | None = None,
+    ) -> None:
+        super().__init__(f"{APP}:infra:MyComponent", name, {}, opts)
+
+        # Every child resource MUST have opts=pulumi.ResourceOptions(parent=self)
+        self.some_resource = gcp.SomeResource(
+            f"{name}-resource",           # logical name: {name}-suffix
+            name=resource_name("gcp-name"),  # GCP resource name: unchanged
+            ...,
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+
+        # If a resource already has depends_on, merge parent= in:
+        other_resource = gcp.Other(
+            f"{name}-other",
+            ...,
+            opts=pulumi.ResourceOptions(parent=self, depends_on=[self.some_resource]),
+        )
+
+        self.register_outputs({
+            "some_resource": self.some_resource,
+            "some_output": self.some_output,
+        })
+```
+
+**Critical rules:**
+1. Every `gcp.*` resource inside `__init__` needs `opts=pulumi.ResourceOptions(parent=self)`
+2. `register_outputs({...})` must be called at the end of every `__init__`
+3. Logical names use `f"{name}-suffix"` (component-scoped, not hardcoded)
+4. GCP resource `name=` stays as `resource_name("...")` — never change these
+5. Every `__init__` accepts `opts: pulumi.ResourceOptions | None = None`
 
 ---
 
 ## Naming conventions
 
-All resource names use `PREFIX = f"storyengine-{stack}"` — currently `storyengine-main`.
+All GCP resource names use `PREFIX = f"storyengine-{stack}"` — currently `storyengine-main`.
 
 ```python
 from components.config import PREFIX, resource_name
@@ -76,8 +130,9 @@ resource_name("migrate")   # → "storyengine-main-migrate"
 f"{PREFIX}-some-secret"    # → "storyengine-main-some-secret"
 ```
 
-Use `resource_name()` for GCP resource names. Use `f"{PREFIX}-..."` for
-Secret Manager secret IDs and bucket names. Never hardcode `storyengine-main`.
+Pulumi logical names (what appears in `pulumi up` output) use `f"{name}-suffix"` where
+`name` is the instance name passed to the component. GCP resource names and Pulumi
+logical names are completely decoupled.
 
 **Image tags:** always git SHA, never `latest`. The SHA is stamped into
 `Pulumi.main.yaml` via `pulumi config set image_tag <sha>` before every deploy.
@@ -92,25 +147,27 @@ Add a new secret container to `AppSecrets.__init__`:
 
 ```python
 self.stripe_api_key = _make_secret(
-    "secret-stripe-api-key",
+    f"{name}-stripe-api-key",
     f"{PREFIX}-stripe-api-key",
+    parent=self,
 )
 ```
 
-### Step 2 — `components/iam.py` → `create_cloudrun_sa()`
+### Step 2 — `components/iam.py` → `CloudRunServiceAccount.__init__`
 
 Grant `cloudrun-sa` access to read the new secret:
 
 ```python
 gcp.secretmanager.SecretIamMember(
-    "cloudrun-sa-stripe-accessor",
+    f"{name}-stripe-accessor",
     secret_id=secrets.stripe_api_key.secret_id,
     role="roles/secretmanager.secretAccessor",
     member=member,
+    opts=pulumi.ResourceOptions(parent=self),
 )
 ```
 
-### Step 3 — `components/cloudrun.py` → `create_cloudrun_service()`
+### Step 3 — `components/cloudrun.py` → `CloudRunService.__init__`
 
 Add to `secret_env_vars`:
 
@@ -125,8 +182,6 @@ gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
     ),
 ),
 ```
-
-Also pass `secrets.stripe_api_key` through the function signature if needed.
 
 ### Step 4 — Apply infra
 
@@ -159,8 +214,8 @@ make deploy-backend   # new Cloud Run revision fetches the secret at startup
 ## How to add a plain env var (non-secret)
 
 For values that aren't sensitive (project IDs, bucket names, feature flags),
-skip Secret Manager entirely. Add directly to `plain_env_vars` in
-`components/cloudrun.py`:
+skip Secret Manager entirely. Add directly to the `plain_env_vars` dict in
+`CloudRunService.__init__` in `components/cloudrun.py`:
 
 ```python
 "SOME_CONFIG_VALUE": "the-value",
@@ -175,29 +230,34 @@ Then `make up` — no `populate-secrets`, no IAM changes needed.
 This is the pattern for any credential that must be auto-generated:
 
 ```python
-# components/database.py
-password = random.RandomPassword("db-password", length=32, special=False)
+# components/database.py — inside Database.__init__
+password = random.RandomPassword(
+    f"{name}-password",
+    length=32,
+    special=False,
+    opts=pulumi.ResourceOptions(parent=self),
+)
 
 # Store raw password in Secret Manager (retrievable for debugging)
 gcp.secretmanager.SecretVersion(
-    "db-password-version",
+    f"{name}-password-version",
     secret=secrets.db_password.id,
     secret_data=password.result,
+    opts=pulumi.ResourceOptions(parent=self),
 )
 
-# Construct DATABASE_URL from the private IP + generated password
-# and write it as a SecretVersion — Cloud Run reads this at startup
-database_url = pulumi.Output.concat(
-    "postgresql+psycopg://postgres:",
-    password.result,
-    "@", instance.private_ip_address,
-    "/postgres"
+# Construct DATABASE_URL from private IP + generated password
+self.database_url = pulumi.Output.all(
+    self.instance.private_ip_address, password.result
+).apply(
+    lambda args: f"postgresql+psycopg://appuser:{args[1]}@{args[0]}:5432/storyengine"
 )
 ```
 
 Then in `__main__.py`, after the database is created:
 
 ```python
+# Cross-component wiring: depends on BOTH db.database_url AND secrets.database_url.id
 gcp.secretmanager.SecretVersion(
     "database-url-version",
     secret=secrets.database_url.id,
@@ -241,48 +301,56 @@ silently breaks on the next cold start.
 
 ## How to add a new GCP resource (e.g. Redis / Memorystore)
 
-Pattern: one file per layer, one `create_*()` function, wire in `__main__.py`.
+Pattern: one file per component, one `ComponentResource` class, wire in `__main__.py`.
 
 1. **Create `components/redis.py`**
 
 ```python
+import pulumi
 import pulumi_gcp as gcp
-from components.config import PROJECT, REGION, resource_name
+from components.config import APP, REGION, resource_name
 
-def create_redis(vpc: gcp.compute.Network):
-    instance = gcp.redis.Instance(
-        "redis",
-        name=resource_name("redis"),
-        tier="BASIC",
-        memory_size_gb=1,
-        region=REGION,
-        authorized_network=vpc.id,
-    )
-    return instance
+class Redis(pulumi.ComponentResource):
+    instance: gcp.redis.Instance
+
+    def __init__(self, name: str, vpc: gcp.compute.Network,
+                 opts: pulumi.ResourceOptions | None = None) -> None:
+        super().__init__(f"{APP}:infra:Redis", name, {}, opts)
+
+        self.instance = gcp.redis.Instance(
+            f"{name}-instance",
+            name=resource_name("redis"),
+            tier="BASIC",
+            memory_size_gb=1,
+            region=REGION,
+            authorized_network=vpc.id,
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+        self.register_outputs({"instance": self.instance})
 ```
 
 2. **Wire in `__main__.py`** — after networking (Layer 6), before Cloud Run (Layer 8):
 
 ```python
-from components.redis import create_redis
-redis = create_redis(vpc)
+from components.redis import Redis
+redis = Redis("redis", vpc=network.vpc)
 ```
 
-3. **Pass the Redis host to Cloud Run** via `plain_env_vars` in `cloudrun.py`:
+3. **Pass the Redis host to Cloud Run** via `plain_env_vars` in `CloudRunService.__init__`:
 
 ```python
-"REDIS_HOST": redis.host,   # Pulumi Output[str] — resolved at deploy time
+"REDIS_HOST": redis.instance.host,   # Pulumi Output[str] — resolved at deploy time
 ```
 
 4. **Export the output** if useful:
 
 ```python
-pulumi.export("redis_host", redis.host)
+pulumi.export("redis_host", redis.instance.host)
 ```
 
 Any resource that needs VPC access follows the same pattern as Cloud SQL:
-it must be provisioned after the VPC peering connection is established.
-Pass `peering_connection` in `depends_on` if Pulumi can't infer the dependency.
+provision after the VPC peering connection is established. Pass `peering_connection`
+in `depends_on` if Pulumi can't infer the dependency.
 
 ---
 
@@ -358,11 +426,21 @@ with `gcloud run jobs execute ... --wait` and reads the exit code.
 A failed migration leaves the schema in a partially-applied state. Automatic
 retries make this worse. Fail fast, alert a human.
 
+**DATABASE_URL SecretVersion lives in `__main__.py`, not in `Database`**
+It depends on both `db.database_url` (from `Database`) and `secrets.database_url.id`
+(from `AppSecrets`). Cross-component wiring belongs at the orchestration level.
+
+**`iam.py` has two separate classes, not one**
+`LocalhostServiceAccount` and `CloudRunServiceAccount` have different dependencies
+and different lifecycles. A future project might want `LocalhostServiceAccount`
+without `CloudRunServiceAccount`. Keep them separate.
+
 ---
 
 ## Using this as a template for a new project
 
-This infra directory is designed to be reusable. To bootstrap a new project:
+This infra directory is designed to be reusable. All project-specific strings
+flow from `Pulumi.yaml` config — zero hardcoded values remain in components.
 
 ### Step 1 — Rename the Pulumi project
 
@@ -412,7 +490,47 @@ gcloud storage buckets create gs://yourapp-pulumi-state \
 
 Set `PULUMI_BACKEND_URL=gs://yourapp-pulumi-state` in GitHub Actions variables.
 
-### Step 5 — Init the stack and deploy
+### Step 5 — Write a 15-line `__main__.py`
+
+```python
+from components.ci import CiResources
+from components.cloudrun import CloudRunService
+from components.config import MEDIA_BUCKET_NAME
+from components.database import Database
+from components.frontend import Frontend
+from components.iam import CloudRunServiceAccount, LocalhostServiceAccount
+from components.migrations import MigrationJob
+from components.networking import Network
+from components.registry import DockerRegistry
+from components.secrets import AppSecrets
+from components.storage import MediaBucket
+import pulumi, pulumi_gcp as gcp
+
+storage = MediaBucket("storage")
+localhost_sa = LocalhostServiceAccount("localhost-sa", bucket=storage.bucket)
+registry = DockerRegistry("registry")
+secrets = AppSecrets("secrets")
+cloudrun_sa = CloudRunServiceAccount("cloudrun-sa", bucket=storage.bucket,
+                                     registry=registry.repository, secrets=secrets)
+network = Network("network")
+db = Database("db", vpc=network.vpc, peering=network.peering_connection, secrets=secrets)
+gcp.secretmanager.SecretVersion("database-url-version",
+    secret=secrets.database_url.id, secret_data=db.database_url)
+service = CloudRunService("backend", sa=cloudrun_sa.account, secrets=secrets,
+                          registry_url=registry.url, vpc=network.vpc, subnet=network.subnet)
+migrations = MigrationJob("migrations", sa=cloudrun_sa.account, secrets=secrets,
+                          registry_url=registry.url, vpc=network.vpc, subnet=network.subnet)
+frontend = Frontend("frontend", service=service.service)
+ci = CiResources("ci", registry=registry.repository,
+                 cloudrun_sa=cloudrun_sa.account, frontend_bucket=frontend.bucket)
+
+pulumi.export("service_url", service.url)
+pulumi.export("frontend_url", frontend.url)
+pulumi.export("registry_url", registry.url)
+# ... add any other outputs you need
+```
+
+### Step 6 — Init the stack and deploy
 
 ```bash
 pulumi stack init main
@@ -430,6 +548,7 @@ make setup    # prints remaining manual steps
 | `DATABASE_URL` in `.env.local` | Must stay in `# --- variables ---`, never `# --- secrets ---` |
 | `.github/workflows/ci.yml` trigger | PR-only by design — `deploy.yml` owns `main` |
 | `Pulumi.main.yaml` `image_tag` | Set automatically by `make deploy-backend` and CI — don't edit manually |
+| GCP resource names (`resource_name()` calls) | Stable across refactors — changing them recreates GCP resources |
 
 ---
 
