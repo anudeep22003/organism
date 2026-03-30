@@ -1,4 +1,8 @@
-"""StoryEngine infrastructure — dev stack."""
+"""StoryEngine infrastructure — main stack.
+
+Refactor status: Round 1 complete (storage, registry, secrets, networking).
+Remaining: iam, database, cloudrun, migrations, frontend, ci.
+"""
 
 import pulumi
 import pulumi_gcp as gcp
@@ -10,33 +14,33 @@ from components.database import create_database
 from components.frontend import create_frontend
 from components.iam import create_cloudrun_sa, create_localhost_sa
 from components.migrations import create_migration_job
-from components.networking import create_network
-from components.registry import create_docker_registry
-from components.secrets import create_app_secrets
-from components.storage import create_media_bucket
+from components.networking import Network
+from components.registry import DockerRegistry
+from components.secrets import AppSecrets
+from components.storage import MediaBucket
 
 # --- Layer 1: Storage ---
-bucket = create_media_bucket()
+storage = MediaBucket("storage")
 
 # --- Layer 2: IAM (localhost) ---
-localhost_sa = create_localhost_sa(bucket)
+localhost_sa = create_localhost_sa(storage.bucket)
 
 # --- Layer 3: Artifact Registry ---
-registry, registry_url = create_docker_registry()
+registry = DockerRegistry("registry")
 
 # --- Layer 4: Secrets ---
-secrets = create_app_secrets()
+secrets = AppSecrets("secrets")
 
 # --- Layer 5: IAM (Cloud Run) ---
-cloudrun_sa = create_cloudrun_sa(bucket, registry, secrets)
+cloudrun_sa = create_cloudrun_sa(storage.bucket, registry.repository, secrets)
 
 # --- Layer 6: Networking ---
-vpc, subnet, peering_connection = create_network()
+network = Network("network")
 
 # --- Layer 7: Database ---
-# peering_connection is passed explicitly so Pulumi knows to wait for
+# network.peering_connection is passed explicitly so Pulumi knows to wait for
 # the VPC peering to complete before creating the Cloud SQL instance.
-db = create_database(vpc, peering_connection, secrets)
+db = create_database(network.vpc, network.peering_connection, secrets)
 
 # Write the constructed DATABASE_URL to Secret Manager.
 # This runs after Cloud SQL is created and its private IP is known.
@@ -46,43 +50,49 @@ db = create_database(vpc, peering_connection, secrets)
 # SecretVersion creates a new version in the existing secret container
 # (created in Layer 4 by secrets.py). If the URL changes (e.g. instance
 # is recreated with a new IP), pulumi up writes a new version automatically.
+#
+# This resource lives in __main__.py intentionally — it depends on BOTH
+# db.database_url (from Database) and secrets.database_url.id (from AppSecrets).
+# It's a cross-component wiring step that belongs at the orchestration level.
 gcp.secretmanager.SecretVersion(
     "database-url-version",
     secret=secrets.database_url.id,
     secret_data=db.database_url,
 )
 
-# --- Layer 5 (cont): Cloud Run service — wired after networking + db ---
+# --- Layer 8a: Cloud Run service — wired after networking + db ---
 service, service_url = create_cloudrun_service(
-    cloudrun_sa, secrets, registry_url, vpc, subnet
+    cloudrun_sa, secrets, registry.url, network.vpc, network.subnet
 )
 
 # --- Layer 9: Migration Job ---
 # Runs alembic upgrade head inside the VPC using the same image as the service.
 # Triggered via: make migrate (or gcloud run jobs execute in CI)
-migration_job = create_migration_job(cloudrun_sa, secrets, registry_url, vpc, subnet)
+migration_job = create_migration_job(
+    cloudrun_sa, secrets, registry.url, network.vpc, network.subnet
+)
 
-# --- Layer 8: Frontend hosting ---
+# --- Layer 8b: Frontend hosting ---
 # service is passed so the LB can create a Serverless NEG pointing at the
 # Cloud Run service — routing api.dekatha.com through the same LB as the frontend.
 frontend = create_frontend(service)
 
 # --- Layer 10: CI/CD (Workload Identity + github-actions-sa) ---
-ci = create_ci_resources(registry, cloudrun_sa, frontend.bucket)
+ci = create_ci_resources(registry.repository, cloudrun_sa, frontend.bucket)
 
 # --- Stack outputs ---
 # Readable via: pulumi stack output <key>
 pulumi.export("bucket_name", MEDIA_BUCKET_NAME)
 pulumi.export("service_account_email", localhost_sa.email)
-pulumi.export("registry_url", registry_url)
+pulumi.export("registry_url", registry.url)
 pulumi.export("secret_anthropic_api_key", secrets.anthropic_api_key.secret_id)
 pulumi.export("secret_openai_api_key", secrets.openai_api_key.secret_id)
 pulumi.export("secret_fal_api_key", secrets.fal_api_key.secret_id)
 pulumi.export("secret_database_url", secrets.database_url.secret_id)
 pulumi.export("cloudrun_sa_email", cloudrun_sa.email)
 pulumi.export("service_url", service_url)
-pulumi.export("vpc_name", vpc.name)
-pulumi.export("subnet_name", subnet.name)
+pulumi.export("vpc_name", network.vpc.name)
+pulumi.export("subnet_name", network.subnet.name)
 pulumi.export("db_instance_name", db.instance.name)
 pulumi.export("db_private_ip", db.instance.private_ip_address)
 pulumi.export("frontend_bucket", frontend.bucket.name)
