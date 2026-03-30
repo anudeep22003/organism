@@ -1,19 +1,19 @@
 """StoryEngine infrastructure — main stack.
 
-Refactor status: Round 3 complete (storage, registry, secrets, networking, iam, database).
-Remaining: cloudrun, migrations, frontend, ci.
+Refactor status: Round 4 complete (storage, registry, secrets, networking, iam, database, cloudrun, migrations).
+Remaining: frontend, ci.
 """
 
 import pulumi
 import pulumi_gcp as gcp
 
 from components.ci import create_ci_resources
-from components.cloudrun import create_cloudrun_service
+from components.cloudrun import CloudRunService
 from components.config import MEDIA_BUCKET_NAME
 from components.database import Database
 from components.frontend import create_frontend
 from components.iam import CloudRunServiceAccount, LocalhostServiceAccount
-from components.migrations import create_migration_job
+from components.migrations import MigrationJob
 from components.networking import Network
 from components.registry import DockerRegistry
 from components.secrets import AppSecrets
@@ -71,21 +71,31 @@ gcp.secretmanager.SecretVersion(
 )
 
 # --- Layer 8a: Cloud Run service — wired after networking + db ---
-service, service_url = create_cloudrun_service(
-    cloudrun_sa.account, secrets, registry.url, network.vpc, network.subnet
+service = CloudRunService(
+    "backend",
+    sa=cloudrun_sa.account,
+    secrets=secrets,
+    registry_url=registry.url,
+    vpc=network.vpc,
+    subnet=network.subnet,
 )
 
 # --- Layer 9: Migration Job ---
 # Runs alembic upgrade head inside the VPC using the same image as the service.
 # Triggered via: make migrate (or gcloud run jobs execute in CI)
-migration_job = create_migration_job(
-    cloudrun_sa.account, secrets, registry.url, network.vpc, network.subnet
+migrations = MigrationJob(
+    "migrations",
+    sa=cloudrun_sa.account,
+    secrets=secrets,
+    registry_url=registry.url,
+    vpc=network.vpc,
+    subnet=network.subnet,
 )
 
 # --- Layer 8b: Frontend hosting ---
-# service is passed so the LB can create a Serverless NEG pointing at the
+# service.service is passed so the LB can create a Serverless NEG pointing at the
 # Cloud Run service — routing api.dekatha.com through the same LB as the frontend.
-frontend = create_frontend(service)
+frontend = create_frontend(service.service)
 
 # --- Layer 10: CI/CD (Workload Identity + github-actions-sa) ---
 ci = create_ci_resources(registry.repository, cloudrun_sa.account, frontend.bucket)
@@ -100,7 +110,7 @@ pulumi.export("secret_openai_api_key", secrets.openai_api_key.secret_id)
 pulumi.export("secret_fal_api_key", secrets.fal_api_key.secret_id)
 pulumi.export("secret_database_url", secrets.database_url.secret_id)
 pulumi.export("cloudrun_sa_email", cloudrun_sa.email)
-pulumi.export("service_url", service_url)
+pulumi.export("service_url", service.url)
 pulumi.export("vpc_name", network.vpc.name)
 pulumi.export("subnet_name", network.subnet.name)
 pulumi.export("db_instance_name", db.instance.name)
@@ -109,6 +119,6 @@ pulumi.export("frontend_bucket", frontend.bucket.name)
 pulumi.export("frontend_ip", frontend.ip_address)
 pulumi.export("frontend_url", frontend.url)
 pulumi.export("api_url", frontend.api_url)
-pulumi.export("migration_job_name", migration_job.name)
+pulumi.export("migration_job_name", migrations.name)
 pulumi.export("workload_identity_provider", ci.provider_name)
 pulumi.export("github_actions_sa_email", ci.sa_email)
