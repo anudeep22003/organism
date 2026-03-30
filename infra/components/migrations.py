@@ -37,9 +37,10 @@ Design decisions:
         but NOT safe to retry a partially-failed migration — fail fast instead.
         A failed migration should be investigated and fixed, not blindly retried.
 
-    - timeout=600s (10 minutes):
+    - timeout (default "600s" / 10 minutes):
         Generous headroom for future schema changes (e.g. adding indexes to large
         tables). Cloud Run Jobs default to 10 minutes anyway, explicit is better.
+        Override if your migrations routinely take longer (e.g. backfilling large tables).
 
     - Direct VPC Egress: Cloud SQL has a private IP (10.1.x.x) only reachable
       from inside the VPC. The job needs VPC egress to reach it.
@@ -79,6 +80,7 @@ class MigrationJob(pulumi.ComponentResource):
         registry_url: pulumi.Output[str],
         vpc: gcp.compute.Network,
         subnet: gcp.compute.Subnetwork,
+        timeout: str = "600s",
         opts: pulumi.ResourceOptions | None = None,
     ) -> None:
         super().__init__(f"{APP}:infra:MigrationJob", name, {}, opts)
@@ -96,8 +98,7 @@ class MigrationJob(pulumi.ComponentResource):
                     service_account=sa.email,
                     # Fail immediately on error — do not retry partial migrations.
                     max_retries=0,
-                    # 10 minutes — enough for index creation on large tables.
-                    timeout="600s",
+                    timeout=timeout,
                     containers=[
                         gcp.cloudrunv2.JobTemplateTemplateContainerArgs(
                             # Same image as the service, same git SHA.

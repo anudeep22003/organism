@@ -20,13 +20,19 @@ Attributes exposed:
     service (gcp.cloudrunv2.Service): the Cloud Run service resource
     url     (pulumi.Output[str]): the service URI (used for Serverless NEG in frontend)
 
+Constructor args (all optional, defaults are dev-appropriate):
+    min_instances  (int): Minimum running instances. Default 0 (scale-to-zero).
+                          Set to 1+ to eliminate cold starts in production.
+    max_instances  (int): Maximum running instances. Default 2 (dev cost cap).
+                          Increase for production traffic.
+    memory         (str): Container memory limit. Default "1Gi".
+                          Python + grpcio + pillow + sqlalchemy exceed 512MB default.
+    cpu            (str): Container CPU limit. Default "1".
+
 Design decisions:
     - Image tag is read from Pulumi stack config (image_tag).
       Set before every deploy: pulumi config set image_tag $(git rev-parse --short HEAD)
       Or use: make deploy-backend (sets it automatically)
-    - Scale-to-zero (min_instance_count=0): idle time costs nothing.
-    - Max 2 instances for dev — prevents surprise bills during development.
-    - 1Gi memory: Python runtime + grpcio + pillow + sqlalchemy exceed 512MB default.
     - Direct VPC Egress with PRIVATE_RANGES_ONLY: Cloud SQL (10.x) routes through
       VPC; Google API calls (Secret Manager, GCS) go direct via private_ip_google_access.
     - Plain env vars (non-sensitive config) injected directly — no Secret Manager.
@@ -78,6 +84,10 @@ class CloudRunService(pulumi.ComponentResource):
         registry_url: pulumi.Output[str],
         vpc: gcp.compute.Network,
         subnet: gcp.compute.Subnetwork,
+        min_instances: int = 0,
+        max_instances: int = 2,
+        memory: str = "1Gi",
+        cpu: str = "1",
         opts: pulumi.ResourceOptions | None = None,
     ) -> None:
         super().__init__(f"{APP}:infra:CloudRunService", name, {}, opts)
@@ -154,7 +164,7 @@ class CloudRunService(pulumi.ComponentResource):
             # Declaring them explicitly keeps Pulumi state in sync and prevents
             # spurious diffs on every preview.
             scaling=gcp.cloudrunv2.ServiceScalingArgs(
-                min_instance_count=0,
+                min_instance_count=min_instances,
             ),
             template=gcp.cloudrunv2.ServiceTemplateArgs(
                 # cloudrun-sa is the identity this container runs as.
@@ -164,11 +174,8 @@ class CloudRunService(pulumi.ComponentResource):
                     gcp.cloudrunv2.ServiceTemplateContainerArgs(
                         image=image,
                         envs=plain_env_vars + secret_env_vars,
-                        # 512MB default OOMs on startup — the Python runtime,
-                        # grpcio, pillow, and sqlalchemy together exceed it.
-                        # 1Gi gives comfortable headroom for dev.
                         resources=gcp.cloudrunv2.ServiceTemplateContainerResourcesArgs(
-                            limits={"memory": "1Gi", "cpu": "1"},
+                            limits={"memory": memory, "cpu": cpu},
                         ),
                         # Startup probe: Cloud Run calls GET /health before
                         # routing any traffic to this revision. If it fails
@@ -186,10 +193,8 @@ class CloudRunService(pulumi.ComponentResource):
                     )
                 ],
                 scaling=gcp.cloudrunv2.ServiceTemplateScalingArgs(
-                    # Scale to zero when idle — no traffic = no cost.
-                    min_instance_count=0,
-                    # Cap at 2 for dev — prevents surprise bills.
-                    max_instance_count=2,
+                    min_instance_count=min_instances,
+                    max_instance_count=max_instances,
                 ),
                 # Direct VPC Egress: attaches Cloud Run containers directly to
                 # our subnet, giving them a VPC IP. This allows them to reach

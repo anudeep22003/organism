@@ -30,6 +30,14 @@ Design decisions:
       infer this dependency from the SQL instance arguments alone.
     - reserved_range is internal to this component — nothing outside needs it.
 
+Constructor args (all optional):
+    subnet_cidr   (str): CIDR for the regional subnet. Default "10.0.0.0/20"
+                         (4096 addresses). Override if this range conflicts with
+                         a VPN or existing peered network.
+    services_cidr (str): CIDR reserved for Google-managed services (Cloud SQL,
+                         Memorystore etc). Default "10.1.0.0/16" (65536 addresses).
+                         Must not overlap with subnet_cidr or any peered networks.
+
 Dependency note:
     Pass network.peering_connection in depends_on when creating any resource
     that needs the private services network (Cloud SQL, Memorystore, etc.):
@@ -41,17 +49,6 @@ import pulumi
 import pulumi_gcp as gcp
 
 from components.config import APP, REGION, resource_name  # APP used in type identifier
-
-# Subnet CIDR for our resources (Cloud Run direct VPC egress, future VMs).
-# 10.0.0.0/20 = 4096 addresses. Plenty for dev.
-_SUBNET_CIDR = "10.0.0.0/20"
-
-# Reserved range for Google-managed services (Cloud SQL, Memorystore etc).
-# This block is allocated inside our VPC's address space but the actual
-# machines live in Google's network — peering stitches them together.
-# /16 = 65536 addresses, giving Google room to assign IPs to managed instances.
-_SERVICES_CIDR_BASE = "10.1.0.0"
-_SERVICES_CIDR_PREFIX = 16
 
 
 class Network(pulumi.ComponentResource):
@@ -81,9 +78,16 @@ class Network(pulumi.ComponentResource):
     def __init__(
         self,
         name: str,
+        subnet_cidr: str = "10.0.0.0/20",
+        services_cidr: str = "10.1.0.0/16",
         opts: pulumi.ResourceOptions | None = None,
     ) -> None:
         super().__init__(f"{APP}:infra:Network", name, {}, opts)
+
+        # Split the services CIDR string into base address and prefix length.
+        # e.g. "10.1.0.0/16" → address="10.1.0.0", prefix_length=16
+        _services_cidr_base, _services_cidr_prefix_str = services_cidr.split("/")
+        _services_cidr_prefix = int(_services_cidr_prefix_str)
 
         # VPC: the private network that owns all our resources.
         # Global — it spans all regions. auto_create_subnetworks disabled
@@ -102,7 +106,7 @@ class Network(pulumi.ComponentResource):
             f"{name}-subnet",
             name=resource_name("subnet"),
             region=REGION,
-            ip_cidr_range=_SUBNET_CIDR,
+            ip_cidr_range=subnet_cidr,
             network=self.vpc.id,
             # Allows Cloud Run (via VPC egress) to reach Google APIs privately
             # without a NAT gateway.
@@ -119,8 +123,8 @@ class Network(pulumi.ComponentResource):
             name=resource_name("private-services"),
             purpose="VPC_PEERING",
             address_type="INTERNAL",
-            prefix_length=_SERVICES_CIDR_PREFIX,
-            address=_SERVICES_CIDR_BASE,
+            prefix_length=_services_cidr_prefix,
+            address=_services_cidr_base,
             network=self.vpc.id,
             opts=pulumi.ResourceOptions(parent=self),
         )

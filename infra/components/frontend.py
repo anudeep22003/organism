@@ -18,6 +18,10 @@ Attributes exposed:
     url        (str): the frontend URL (https://<DOMAIN>)
     api_url    (str): the API URL (https://<API_DOMAIN>)
 
+Constructor args (all optional):
+    enable_cdn (bool): Enable Cloud CDN on the backend bucket. Default False.
+                       Set True in production for global edge caching of static assets.
+
 Architecture:
     browser → single Global Load Balancer (one IP, one SSL cert)
            ├─ host: DOMAIN     → Backend Bucket → GCS (static frontend)
@@ -108,6 +112,7 @@ class Frontend(pulumi.ComponentResource):
         self,
         name: str,
         service: gcp.cloudrunv2.Service,
+        enable_cdn: bool = False,
         opts: pulumi.ResourceOptions | None = None,
     ) -> None:
         super().__init__(f"{APP}:infra:Frontend", name, {}, opts)
@@ -172,7 +177,7 @@ class Frontend(pulumi.ComponentResource):
             f"{name}-backend-bucket",
             name=f"{name_prefix}-backend",
             bucket_name=self.bucket.name,
-            enable_cdn=False,
+            enable_cdn=enable_cdn,
             description="Serves static frontend assets from GCS",
             opts=pulumi.ResourceOptions(parent=self),
         )
