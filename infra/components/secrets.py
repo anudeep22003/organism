@@ -8,22 +8,25 @@ or git history.
 
 Usage:
     secrets = AppSecrets("secrets")
-    # Access individual secrets:
+    # Infrastructure secrets (always present):
+    secrets.database_url       # gcp.secretmanager.Secret
+    secrets.db_password        # gcp.secretmanager.Secret
+    # App secrets (StoryEngine-specific — replace with your own):
     secrets.anthropic_api_key  # gcp.secretmanager.Secret
     secrets.openai_api_key     # gcp.secretmanager.Secret
     secrets.fal_api_key        # gcp.secretmanager.Secret
-    secrets.database_url       # gcp.secretmanager.Secret
-    secrets.db_password        # gcp.secretmanager.Secret
 
 Attributes exposed:
+    database_url      (gcp.secretmanager.Secret): DATABASE_URL slot — value
+                      written by Pulumi after DB is created. Never populate
+                      manually via make populate-secrets.
+    db_password       (gcp.secretmanager.Secret): DB password slot — value
+                      written by Pulumi's random.RandomPassword in database.py.
+
+    # StoryEngine-specific — replace with your own in a new project:
     anthropic_api_key (gcp.secretmanager.Secret): Anthropic API key slot
     openai_api_key    (gcp.secretmanager.Secret): OpenAI API key slot
     fal_api_key       (gcp.secretmanager.Secret): Fal.ai API key slot
-    database_url      (gcp.secretmanager.Secret): DATABASE_URL slot (value
-                      written by Pulumi after DB is created — do not populate
-                      manually via make populate-secrets)
-    db_password       (gcp.secretmanager.Secret): DB password slot (value
-                      written by Pulumi's random.RandomPassword in database.py)
 
 Design decisions:
     - Replication is set to automatic — GCP manages redundancy across regions.
@@ -33,10 +36,15 @@ Design decisions:
     - DATABASE_URL and db_password are owned entirely by Pulumi — never
       manually populate them. See database.py for how values are written.
 
-To add a new secret:
-    1. Add a new _make_secret() call in __init__ below.
-    2. Grant cloudrun-sa access in iam.py (CloudRunServiceAccount).
-    3. Mount it in cloudrun.py (CloudRunService) via secret_env_vars.
+New project — replace the app secrets:
+    Delete the three StoryEngine secrets below and add your own.
+    For each secret you add here, also add in iam.py and cloudrun.py.
+    See AGENT.md for the full three-file pattern.
+
+To add a new secret to an existing project:
+    1. Add a new _make_secret() call in the app secrets section below.
+    2. Grant cloudrun-sa access in iam.py → CloudRunServiceAccount.
+    3. Mount it in cloudrun.py → CloudRunService via secret_env_vars.
     4. Run: make up && make populate-secrets
     See AGENT.md for the full step-by-step.
 """
@@ -105,6 +113,40 @@ class AppSecrets(pulumi.ComponentResource):
     ) -> None:
         super().__init__(f"{APP}:infra:AppSecrets", name, {}, opts)
 
+        # ── Infrastructure secrets — keep these, every project needs them ────────
+        # Values are written by Pulumi (never by populate-secrets.sh).
+        # Do not manually populate these — database.py owns both values.
+
+        self.database_url = _make_secret(
+            f"{name}-database-url",
+            f"{PREFIX}-database-url",
+            parent=self,
+        )
+        # db_password slot is written by database.py's RandomPassword.
+        # The app never reads this directly — it reads DATABASE_URL which
+        # embeds the password. Kept in Secret Manager so operators can
+        # retrieve it manually (e.g. make proxy for DB inspection).
+        self.db_password = _make_secret(
+            f"{name}-db-password",
+            f"{PREFIX}-db-password",
+            parent=self,
+        )
+
+        # ── App secrets — replace these with your own ─────────────────────────
+        # These three are StoryEngine-specific (Anthropic, OpenAI, Fal.ai).
+        # When starting a new project:
+        #   1. Delete these _make_secret() calls and add your own below.
+        #   2. Delete the corresponding accessors in iam.py → CloudRunServiceAccount.
+        #   3. Delete the corresponding env var mounts in cloudrun.py → CloudRunService.
+        #   4. Add your own equivalents in all three places.
+        #
+        # To add a new secret (full guide in AGENT.md):
+        #   self.my_secret = _make_secret(
+        #       f"{name}-my-secret",       ← Pulumi logical name
+        #       f"{PREFIX}-my-secret",     ← GCP Secret Manager secret_id
+        #       parent=self,
+        #   )
+
         self.anthropic_api_key = _make_secret(
             f"{name}-anthropic-api-key",
             f"{PREFIX}-anthropic-api-key",
@@ -120,27 +162,14 @@ class AppSecrets(pulumi.ComponentResource):
             f"{PREFIX}-fal-api-key",
             parent=self,
         )
-        self.database_url = _make_secret(
-            f"{name}-database-url",
-            f"{PREFIX}-database-url",
-            parent=self,
-        )
-        # db_password is managed entirely by Pulumi — generated randomly by
-        # database.py, stored here so it's retrievable via gcloud if needed
-        # (e.g. make migrate reads it). The app never reads this directly;
-        # it reads DATABASE_URL instead.
-        self.db_password = _make_secret(
-            f"{name}-db-password",
-            f"{PREFIX}-db-password",
-            parent=self,
-        )
 
         self.register_outputs(
             {
+                "database_url": self.database_url,
+                "db_password": self.db_password,
+                # app secrets
                 "anthropic_api_key": self.anthropic_api_key,
                 "openai_api_key": self.openai_api_key,
                 "fal_api_key": self.fal_api_key,
-                "database_url": self.database_url,
-                "db_password": self.db_password,
             }
         )
