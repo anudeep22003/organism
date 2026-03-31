@@ -21,6 +21,7 @@ from core.auth.dependencies import get_current_user_id
 
 from ...exceptions import NoStoryTextError, NotFoundError
 from ...models.image import ImageDiscriminatorKey
+from ...schemas.edit_event import EditEventResponseSchema
 from ...schemas.image import ImageResponseSchema
 from ...schemas.panel import (
     PanelGenerateRequest,
@@ -212,6 +213,42 @@ async def list_panel_renders(
         raise HTTPException(
             status_code=500,
             detail="An unexpected error occurred while listing panel renders",
+        )
+
+
+# ---------------------------------------------------------------------------
+# Story 80 — Panel edit history
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/project/{project_id}/story/{story_id}/panel/{panel_id}/history",
+    status_code=200,
+)
+async def get_panel_history(
+    project_id: uuid.UUID,
+    story_id: uuid.UUID,
+    panel_id: uuid.UUID,
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    service: Annotated[PanelService, Depends(get_panel_service)],
+    limit: int = 20,
+) -> list[EditEventResponseSchema]:
+    """Return the edit history for a panel — all GENERATE_PANEL and RENDER_PANEL events."""
+    try:
+        events = await service.get_panel_history(
+            project_id=project_id,
+            story_id=story_id,
+            panel_id=panel_id,
+            limit=limit,
+        )
+        return [EditEventResponseSchema.model_validate(e) for e in events]
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.exception(f"Unexpected error getting history for panel {panel_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while getting panel history",
         )
 
 

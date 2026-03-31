@@ -524,9 +524,21 @@ class PanelService:
     # -----------------------------------------------------------------------
 
     async def get_panel_history(
-        self, panel_id: uuid.UUID, limit: int = 20
+        self,
+        project_id: uuid.UUID,
+        story_id: uuid.UUID,
+        panel_id: uuid.UUID,
+        limit: int = 20,
     ) -> list[EditEvent]:
         """Return all edit events for a panel, ordered newest first."""
+        story = await self.repository_v2.story.get_story(project_id, story_id)
+        if story is None:
+            raise NotFoundError(f"Story {story_id} not found")
+
+        panel = await self.repository_v2.panel.get_panel(panel_id, story_id)
+        if panel is None:
+            raise NotFoundError(f"Panel {panel_id} not found in story {story_id}")
+
         return await self.repository_v2.edit_event.get_edit_events_for_target(
             target_type=EditEventTargetType.PANEL,
             target_id=panel_id,
