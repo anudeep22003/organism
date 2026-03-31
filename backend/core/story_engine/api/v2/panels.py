@@ -147,6 +147,45 @@ async def generate_panel(
 
 
 # ---------------------------------------------------------------------------
+# Story 60 — Render a panel image
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/project/{project_id}/story/{story_id}/panel/{panel_id}/render",
+    status_code=200,
+)
+async def render_panel(
+    project_id: uuid.UUID,
+    story_id: uuid.UUID,
+    panel_id: uuid.UUID,
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    service: Annotated[PanelService, Depends(get_panel_service)],
+) -> ImageResponseSchema:
+    """Render a panel image via fal and store in GCS.
+
+    Returns the created Image ORM object serialized as ImageResponseSchema.
+    The panel's updated canonical render is visible on subsequent GET /panel/{id} calls.
+    """
+    try:
+        image = await service.render_panel(
+            user_id=user_id,
+            project_id=project_id,
+            story_id=story_id,
+            panel_id=panel_id,
+        )
+        return ImageResponseSchema.model_validate(image)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.exception(f"Unexpected error rendering panel {panel_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while rendering the panel",
+        )
+
+
+# ---------------------------------------------------------------------------
 # Story 20 — Bulk panel generation
 # ---------------------------------------------------------------------------
 
