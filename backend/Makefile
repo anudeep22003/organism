@@ -10,7 +10,7 @@ typecheck:
 check: lint typecheck
 
 format:
-	uv run ruff format .
 	uv run ruff check --fix .
+	uv run ruff format .
 
 format-check: format check
