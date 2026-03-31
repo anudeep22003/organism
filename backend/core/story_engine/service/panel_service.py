@@ -3,27 +3,34 @@ PanelService — business logic for the panel pipeline.
 
 Currently implements:
   - generate_panels: bulk generate all panels for a story from story text
+  - generate_panel: single panel generate/regenerate
+  - render_panel: render a panel image via fal
 """
 
 import textwrap
 import uuid
+from io import BytesIO
 from typing import Any
 
+import httpx
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.services.intelligence import instructor_client
+from core.services.intelligence.media_generator import fal_async_client
 
-from ..exceptions import NoStoryTextError, NotFoundError
+from ..exceptions import FalResponseError, NoStoryTextError, NotFoundError
 from ..models import EditEvent, Panel
 from ..models.edit_event import (
     EditEventOperationType,
     EditEventStatus,
     EditEventTargetType,
 )
-from ..models.image import ImageDiscriminatorKey
+from ..models.image import Image as ImageModel
+from ..models.image import ImageContentType, ImageDiscriminatorKey
 from ..repository import RepositoryV2
 from ..schemas.panel import GeneratedPanelsResponse, PanelContent
+from .image_service import GCSUploadService
 
 
 class PanelService:
@@ -336,6 +343,160 @@ class PanelService:
             discriminator_key=ImageDiscriminatorKey.PANEL_RENDER,
         )
         return panel, render
+
+    # -----------------------------------------------------------------------
+    # render_panel (Story 60)
+    # -----------------------------------------------------------------------
+
+    async def render_panel(
+        self,
+        user_id: uuid.UUID,
+        project_id: uuid.UUID,
+        story_id: uuid.UUID,
+        panel_id: uuid.UUID,
+    ) -> ImageModel:
+        """Render a panel image via fal and store in GCS.
+
+        Flow (Decision 16):
+          1. Load the panel.
+          2. Resolve character_render URLs for each character in the panel.
+          3. Call fal with panel prompt + character image_urls.
+          4. Download fal output bytes, upload to GCS.
+          5. Create Image row (target_id=panel_id, discriminator_key=panel_render).
+          6. Create EditEvent(RENDER_PANEL, SUCCEEDED).
+          7. Return the Image ORM object.
+        """
+        story = await self.repository_v2.story.get_story(project_id, story_id)
+        if story is None:
+            raise NotFoundError(f"Story {story_id} not found")
+
+        panel = await self.repository_v2.panel.get_panel(panel_id, story_id)
+        if panel is None:
+            raise NotFoundError(f"Panel {panel_id} not found in story {story_id}")
+
+        # Capture attribute values before any commit
+        panel_attributes = dict(panel.attributes)
+
+        # TX1: create PENDING edit event
+        edit_event = EditEvent.create_edit_event(
+            project_id=project_id,
+            target_type=EditEventTargetType.PANEL,
+            target_id=panel_id,
+            operation_type=EditEventOperationType.RENDER_PANEL,
+            user_instruction="",
+            status=EditEventStatus.PENDING,
+        )
+        await self.repository_v2.edit_event.add_edit_event_to_db(edit_event)
+        await self.db.flush()
+        edit_event_id = edit_event.id
+        await self.db.commit()
+
+        try:
+            # Resolve character renders for image_urls (Decision 16)
+            character_ids = await self.repository_v2.panel.get_character_ids_for_panel(
+                panel_id
+            )
+            gcs_service = GCSUploadService()
+            image_urls: list[str] = []
+            for character_id in character_ids:
+                character_render = await self.repository_v2.image.get_canonical_render(
+                    target_id=character_id,
+                    discriminator_key=ImageDiscriminatorKey.CHARACTER_RENDER,
+                )
+                if character_render is None:
+                    logger.warning(
+                        f"Character {character_id} has no canonical render — "
+                        f"skipping for panel {panel_id} render"
+                    )
+                    continue
+                # Build a signed URL for the character render
+                signed_url, _ = gcs_service.generate_signed_url(
+                    character_render.object_key
+                )
+                image_urls.append(signed_url)
+
+            # Build fal prompt from panel attributes
+            prompt = self._build_panel_render_prompt(panel_attributes)
+
+            # Call fal
+            fal_response = await fal_async_client.subscribe(
+                arguments={"prompt": prompt, "image_urls": image_urls},
+                on_queue_update=lambda status: logger.debug(f"Fal status: {status}"),
+            )
+            fal_image_url = self._extract_fal_image_url(fal_response)
+
+            # Download fal bytes and upload to GCS
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(fal_image_url)
+                resp.raise_for_status()
+                image_bytes = BytesIO(resp.content)
+                content_length = len(resp.content)
+                raw_ct = (
+                    resp.headers.get("content-type", "image/jpeg").split(";")[0].strip()
+                )
+                valid_cts = {ct.value for ct in ImageContentType}
+                content_type = (
+                    ImageContentType(raw_ct)
+                    if raw_ct in valid_cts
+                    else ImageContentType.JPEG
+                )
+
+            object_key = f"{project_id}/panel/{panel_id}/renders/{edit_event_id}"
+            receipt = gcs_service.upload(object_key, image_bytes, content_type)
+
+            # Create Image row
+            image_model = ImageModel.create(
+                project_id=project_id,
+                user_id=user_id,
+                target_id=panel_id,
+                width=0,
+                height=0,
+                content_type=content_type,
+                object_key=receipt.object_key,
+                bucket=receipt.bucket,
+                size_bytes=content_length,
+                discriminator_key=ImageDiscriminatorKey.PANEL_RENDER,
+                meta={},
+            )
+            await self.repository_v2.image.create_image(image_model)
+            await self.db.flush()
+
+            # TX2: complete edit event
+            await self.repository_v2.edit_event.update_edit_event(
+                edit_event_id,
+                EditEventStatus.SUCCEEDED,
+                output_snapshot={"image_id": str(image_model.id)},
+            )
+            await self.db.commit()
+            await self.db.refresh(image_model)
+            return image_model
+
+        except Exception:
+            await self.repository_v2.edit_event.update_edit_event(
+                edit_event_id, EditEventStatus.FAILED
+            )
+            await self.db.commit()
+            raise
+
+    def _build_panel_render_prompt(self, panel_attributes: dict[str, Any]) -> str:
+        background = panel_attributes.get("background", "")
+        dialogue = panel_attributes.get("dialogue", "")
+        prompt = f"Comic book panel. Scene: {background}"
+        if dialogue:
+            prompt += f" Dialogue: {dialogue}"
+        prompt += (
+            " Style: modern comic book illustration, sharp line art, vibrant colors."
+        )
+        return prompt
+
+    def _extract_fal_image_url(self, response: dict) -> str:
+        try:
+            url = response.get("images", [])[0].get("url")
+            if not url:
+                raise FalResponseError("No image URL in fal response")
+            return str(url)
+        except (IndexError, KeyError) as e:
+            raise FalResponseError(f"Unexpected fal response shape: {response}") from e
 
     # -----------------------------------------------------------------------
     # get_panel_history (for Story 80)
