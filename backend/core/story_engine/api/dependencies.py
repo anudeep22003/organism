@@ -10,7 +10,13 @@ from core.services.database import get_async_db_session
 
 from ..models import Project
 from ..repository import RepositoryV2
-from ..service import CharacterService, ImageService, ProjectService, StoryService
+from ..service import (
+    CharacterService,
+    ImageService,
+    PanelService,
+    ProjectService,
+    StoryService,
+)
 
 
 async def verify_project_access(
@@ -56,3 +62,9 @@ async def get_image_service(
     db: Annotated[AsyncSession, Depends(get_async_db_session)],
 ) -> ImageService:
     return ImageService(db=db, repository_v2=RepositoryV2(db))
+
+
+async def get_panel_service(
+    db: Annotated[AsyncSession, Depends(get_async_db_session)],
+) -> PanelService:
+    return PanelService(db_session=db)
