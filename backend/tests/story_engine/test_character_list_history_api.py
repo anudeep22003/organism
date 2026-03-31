@@ -139,7 +139,9 @@ async def test_list_characters_response_shape(
 
     # Audit / relation fields
     assert "sourceEventId" in item
-    assert "renderUrl" in item
+    assert (
+        "canonicalRender" in item
+    )  # replaces renderUrl — canonical_render: ImageResponseSchema | None
     assert "createdAt" in item
     assert "updatedAt" in item
     assert "meta" in item

@@ -5,7 +5,9 @@ from .edit_event import (
     EditEventStatus,
     EditEventTargetType,
 )
-from .image import Image, ImageContentType
+from .image import Image, ImageContentType, ImageDiscriminatorKey
+from .panel import Panel
+from .panel_character import PanelCharacter
 from .project import Project
 from .story import Story
 
@@ -16,6 +18,9 @@ __all__ = [
     "Character",
     "Image",
     "ImageContentType",
+    "ImageDiscriminatorKey",
+    "Panel",
+    "PanelCharacter",
     "EditEventStatus",
     "EditEventOperationType",
     "EditEventTargetType",

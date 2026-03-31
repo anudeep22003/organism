@@ -17,6 +17,7 @@ from ...schemas.character import (
     CharacterRefineRequest,
     CharacterResponseSchema,
     CharacterUpdateSchema,
+    CharacterWithRenderSchema,
 )
 from ...schemas.edit_event import EditEventResponseSchema
 from ...schemas.image import ImageResponseSchema
@@ -26,16 +27,27 @@ from ..dependencies import get_character_service, get_image_service
 router = APIRouter(tags=["characters", "v2"])
 
 
+def _build_character_with_render(
+    character: object, image: object | None
+) -> CharacterWithRenderSchema:
+    """Assemble a CharacterWithRenderSchema from ORM objects (per Decision 12)."""
+    return CharacterWithRenderSchema(
+        **CharacterResponseSchema.model_validate(character).model_dump(),
+        canonical_render=ImageResponseSchema.model_validate(image) if image else None,
+    )
+
+
 @router.post("/project/{project_id}/story/{story_id}/characters", status_code=201)
 async def extract_characters_from_story(
     project_id: uuid.UUID,
     story_id: uuid.UUID,
     service: Annotated[CharacterService, Depends(get_character_service)],
-) -> list[CharacterResponseSchema]:
+) -> list[CharacterWithRenderSchema]:
     try:
         characters = await service.extract_characters_from_story(project_id, story_id)
         logger.info(f"Extracted {len(characters)} characters from story {story_id}")
-        return [CharacterResponseSchema.model_validate(c) for c in characters]
+        # Newly extracted characters have no render yet
+        return [_build_character_with_render(c, None) for c in characters]
     except CharacterExtractionError as e:
         raise HTTPException(status_code=500, detail=str(e))
     except NotFoundError as e:
@@ -56,10 +68,14 @@ async def get_characters_for_story(
     story_id: uuid.UUID,
     user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     service: Annotated[CharacterService, Depends(get_character_service)],
-) -> list[CharacterResponseSchema]:
+) -> list[CharacterWithRenderSchema]:
     try:
         characters = await service.get_story_characters(project_id, story_id)
-        return [CharacterResponseSchema.model_validate(c) for c in characters]
+        result = []
+        for character in characters:
+            render = await service.get_canonical_character_render(character.id)
+            result.append(_build_character_with_render(character, render))
+        return result
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
@@ -78,10 +94,11 @@ async def get_character(
     story_id: uuid.UUID,
     character_id: uuid.UUID,
     service: Annotated[CharacterService, Depends(get_character_service)],
-) -> CharacterResponseSchema:
+) -> CharacterWithRenderSchema:
     try:
         character = await service.get_character(project_id, story_id, character_id)
-        return CharacterResponseSchema.model_validate(character)
+        render = await service.get_canonical_character_render(character.id)
+        return _build_character_with_render(character, render)
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
@@ -101,13 +118,14 @@ async def update_character(
     character_id: uuid.UUID,
     body: CharacterUpdateSchema,
     service: Annotated[CharacterService, Depends(get_character_service)],
-) -> CharacterResponseSchema:
+) -> CharacterWithRenderSchema:
     try:
         updates = body.model_dump(exclude_none=True)
         character = await service.update_character(
             project_id, story_id, character_id, updates
         )
-        return CharacterResponseSchema.model_validate(character)
+        render = await service.get_canonical_character_render(character.id)
+        return _build_character_with_render(character, render)
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
@@ -128,12 +146,13 @@ async def refine_character(
     character_id: uuid.UUID,
     body: CharacterRefineRequest,
     service: Annotated[CharacterService, Depends(get_character_service)],
-) -> CharacterResponseSchema:
+) -> CharacterWithRenderSchema:
     try:
         character = await service.refine_character(
             project_id, story_id, character_id, body.instruction
         )
-        return CharacterResponseSchema.model_validate(character)
+        render = await service.get_canonical_character_render(character.id)
+        return _build_character_with_render(character, render)
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except CharacterRefinementError as e:
@@ -185,10 +204,25 @@ async def render_character(
     project_id: uuid.UUID,
     story_id: uuid.UUID,
     character_id: uuid.UUID,
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     service: Annotated[CharacterService, Depends(get_character_service)],
-) -> CharacterResponseSchema:
-    character = await service.render_character(project_id, story_id, character_id)
-    return CharacterResponseSchema.model_validate(character)
+) -> CharacterWithRenderSchema:
+    try:
+        character, image = await service.render_character(
+            user_id=user_id,
+            project_id=project_id,
+            story_id=story_id,
+            character_id=character_id,
+        )
+        return _build_character_with_render(character, image)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.exception(f"Unexpected error rendering character {character_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while rendering the character",
+        )
 
 
 @router.post(

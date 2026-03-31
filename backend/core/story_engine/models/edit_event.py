@@ -16,6 +16,7 @@ from core.common.utils import get_current_datetime_utc
 class EditEventTargetType(StrEnum):
     STORY = "story"
     CHARACTER = "character"
+    PANEL = "panel"
 
 
 class EditEventOperationType(StrEnum):
@@ -23,6 +24,9 @@ class EditEventOperationType(StrEnum):
     REFINE_STORY = "refine_story"
     REFINE_CHARACTER = "refine_character"
     UPLOAD_REFERENCE_IMAGE = "upload_reference_image"
+    RENDER_CHARACTER = "render_character"
+    GENERATE_PANEL = "generate_panel"
+    RENDER_PANEL = "render_panel"
 
 
 class EditEventStatus(StrEnum):

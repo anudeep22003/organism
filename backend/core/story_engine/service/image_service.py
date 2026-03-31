@@ -91,10 +91,10 @@ class ImageService:
                 processed_image.image_bytes,
                 processed_image.content_type,
             )
-            image_model = ImageModel.create_image_model(
+            image_model = ImageModel.create(
                 project_id=project_id,
                 user_id=user_id,
-                character_id=character_id,
+                target_id=character_id,
                 width=processed_image.width,
                 height=processed_image.height,
                 content_type=processed_image.content_type,
@@ -108,14 +108,16 @@ class ImageService:
 
         for image_model in image_models_to_create:
             await self.repository_v2.image.create_image(image_model)
+        await self.db.flush()
+        first_image = image_models_to_create[0]
         await self.repository_v2.edit_event.update_edit_event(
             edit_event_id=edit_event_id,
             status=EditEventStatus.SUCCEEDED,
-            output_snapshot=None,
+            output_snapshot={"image_id": str(first_image.id)},
         )
         await self.db.commit()
-        await self.db.refresh(image_models_to_create[0])
-        return image_models_to_create[0]
+        await self.db.refresh(first_image)
+        return first_image
 
     async def get_character_reference_images(
         self,
