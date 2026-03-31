@@ -12,6 +12,7 @@ from core.common import ORMBase
 if TYPE_CHECKING:
     from .character import Character
     from .edit_event import EditEvent
+    from .panel import Panel
     from .project import Project
 
 
@@ -40,4 +41,7 @@ class Story(ORMBase):
     )
     characters: Mapped[list[Character]] = relationship(
         "Character", back_populates="story"
+    )
+    panels: Mapped[list[Panel]] = relationship(
+        "Panel", back_populates="story", cascade="all, delete-orphan"
     )

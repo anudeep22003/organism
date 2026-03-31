@@ -24,6 +24,8 @@ class ImageContentType(StrEnum):
 
 class ImageDiscriminatorKey(StrEnum):
     CHARACTER_REFERENCE = "character_reference"
+    CHARACTER_RENDER = "character_render"
+    PANEL_RENDER = "panel_render"
 
 
 class Image(ORMBase):
@@ -41,9 +43,10 @@ class Image(ORMBase):
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
     )
-    character_id: Mapped[uuid.UUID] = mapped_column(
+    # Polymorphic reference — no FK constraint.
+    # Application layer enforces referential integrity via discriminator_key.
+    target_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("character.id", ondelete="CASCADE"),
         nullable=False,
     )
     width: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -58,11 +61,11 @@ class Image(ORMBase):
     meta: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
 
     @classmethod
-    def create_image_model(
+    def create(
         cls,
         project_id: uuid.UUID,
         user_id: uuid.UUID,
-        character_id: uuid.UUID,
+        target_id: uuid.UUID,
         width: int,
         height: int,
         content_type: ImageContentType,
@@ -70,12 +73,12 @@ class Image(ORMBase):
         bucket: str,
         size_bytes: int,
         discriminator_key: ImageDiscriminatorKey,
-        meta: dict[str, Any],
+        meta: dict[str, Any] | None = None,
     ) -> "Image":
         return cls(
             user_id=user_id,
             project_id=project_id,
-            character_id=character_id,
+            target_id=target_id,
             width=width,
             height=height,
             content_type=content_type,
@@ -83,5 +86,5 @@ class Image(ORMBase):
             bucket=bucket,
             size_bytes=size_bytes,
             discriminator_key=discriminator_key,
-            meta=meta,
+            meta=meta or {},
         )

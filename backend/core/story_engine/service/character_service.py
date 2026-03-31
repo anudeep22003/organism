@@ -2,8 +2,10 @@ import json
 import textwrap
 import time
 import uuid
+from io import BytesIO
 from typing import Any, Callable, cast
 
+import httpx
 from fal_client.client import Status
 from fastapi import UploadFile
 from loguru import logger
@@ -27,10 +29,11 @@ from ..models.edit_event import (
     EditEventStatus,
     EditEventTargetType,
 )
+from ..models.image import ImageContentType, ImageDiscriminatorKey
 from ..repository import NotFoundError as RepositoryNotFoundError
 from ..repository import RepositoryV2
 from ..state.character import CharacterBase as CharacterAttributes
-from .image_service import ImageService
+from .image_service import GCSUploadService, ImageService
 
 
 class CharacterService:
@@ -76,6 +79,15 @@ class CharacterService:
             target_type=EditEventTargetType.CHARACTER,
             target_id=character_id,
             limit=limit,
+        )
+
+    async def get_canonical_character_render(
+        self, character_id: uuid.UUID
+    ) -> ImageModel | None:
+        """Return the most recent character_render Image for a character, or None."""
+        return await self.repository_v2.image.get_canonical_render(
+            target_id=character_id,
+            discriminator_key=ImageDiscriminatorKey.CHARACTER_RENDER,
         )
 
     async def extract_characters_from_story(
@@ -349,8 +361,12 @@ class CharacterService:
             ) from e
 
     async def render_character(
-        self, project_id: uuid.UUID, story_id: uuid.UUID, character_id: uuid.UUID
-    ) -> Character:
+        self,
+        user_id: uuid.UUID,
+        project_id: uuid.UUID,
+        story_id: uuid.UUID,
+        character_id: uuid.UUID,
+    ) -> tuple[Character, ImageModel]:
         character = await self.repository_v2.character.get_character(
             character_id, story_id
         )
@@ -358,18 +374,98 @@ class CharacterService:
             raise NotFoundError(
                 f"Character {character_id} not found in story {story_id}"
             )
-        prompt = self._build_character_render_prompt(character.attributes)
-        render_response = await self._generate_image_render_response_and_time(prompt)
-        image_url = self._get_character_url_from_fal_client_response(render_response)
 
-        character_with_render_url = (
-            await self.repository_v2.character.update_character_render_url(
-                character_id, story_id, image_url
-            )
+        # Snapshot attributes before external work
+        character_attributes = dict(character.attributes)
+
+        # TX1: create edit event
+        edit_event = EditEvent.create_edit_event(
+            project_id=project_id,
+            target_type=EditEventTargetType.CHARACTER,
+            target_id=character_id,
+            operation_type=EditEventOperationType.RENDER_CHARACTER,
+            user_instruction="",
+            status=EditEventStatus.PENDING,
         )
+        await self.repository_v2.edit_event.add_edit_event_to_db(edit_event)
+        await self.db.flush()
+        edit_event_id = edit_event.id
         await self.db.commit()
-        await self.db.refresh(character_with_render_url)
-        return character_with_render_url
+
+        try:
+            prompt = self._build_character_render_prompt(character_attributes)
+            render_response = await self._generate_image_render_response_and_time(
+                prompt
+            )
+            fal_image_url = self._get_character_url_from_fal_client_response(
+                render_response
+            )
+
+            # Download fal output bytes — fal URLs expire, we store in GCS for durability
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(fal_image_url)
+                resp.raise_for_status()
+                image_bytes = BytesIO(resp.content)
+                content_length = len(resp.content)
+                # Detect content type from response header, default to JPEG
+                raw_content_type = (
+                    resp.headers.get("content-type", "image/jpeg").split(";")[0].strip()
+                )
+                valid_content_types = {ct.value for ct in ImageContentType}
+                content_type = (
+                    ImageContentType(raw_content_type)
+                    if raw_content_type in valid_content_types
+                    else ImageContentType.JPEG
+                )
+
+            # Upload to GCS
+            gcs_service = GCSUploadService()
+            object_key = (
+                f"{project_id}/character/{character_id}/renders/{edit_event_id}"
+            )
+            receipt = gcs_service.upload(object_key, image_bytes, content_type)
+
+            # Create Image row in the image table (Decision 5)
+            image_model = ImageModel.create(
+                project_id=project_id,
+                user_id=user_id,
+                target_id=character_id,
+                width=0,  # Width/height unknown without parsing image headers; store 0
+                height=0,
+                content_type=content_type,
+                object_key=receipt.object_key,
+                bucket=receipt.bucket,
+                size_bytes=content_length,
+                discriminator_key=ImageDiscriminatorKey.CHARACTER_RENDER,
+                meta={},
+            )
+            await self.repository_v2.image.create_image(image_model)
+            await self.db.flush()
+
+            # TX2: persist image row + complete edit event atomically
+            await self.repository_v2.edit_event.update_edit_event(
+                edit_event_id,
+                EditEventStatus.SUCCEEDED,
+                output_snapshot={"image_id": str(image_model.id)},
+            )
+            await self.db.commit()
+            await self.db.refresh(image_model)
+
+            refreshed_character = await self.repository_v2.character.get_character(
+                character_id, story_id
+            )
+            if refreshed_character is None:
+                raise NotFoundError(
+                    f"Character {character_id} not found in story {story_id}"
+                )
+            return refreshed_character, image_model
+
+        except Exception:
+            await self.repository_v2.edit_event.update_edit_event(
+                edit_event_id, EditEventStatus.FAILED
+            )
+            await self.db.commit()
+            raise
 
     async def upload_reference_image(
         self,

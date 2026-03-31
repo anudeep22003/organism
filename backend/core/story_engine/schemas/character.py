@@ -4,20 +4,28 @@ from typing import Any
 
 from core.common import AliasedBaseModel
 
+from .image import ImageResponseSchema
 
-class CharacterSchemaBase(AliasedBaseModel):
+
+class CharacterResponseSchema(AliasedBaseModel):
     id: uuid.UUID
     created_at: datetime
     updated_at: datetime
     source_event_id: uuid.UUID | None = None
-    render_url: str | None = None
-
-
-class CharacterResponseSchema(CharacterSchemaBase):
     name: str
     slug: str
     attributes: dict[str, Any]
     meta: dict[str, Any]
+
+
+class CharacterWithRenderSchema(CharacterResponseSchema):
+    """Character response including the canonical render image (if any).
+
+    Per Decision 12: composite schema embeds the latest character_render Image
+    so the client can display it without an extra round-trip.
+    """
+
+    canonical_render: ImageResponseSchema | None = None
 
 
 class CharacterUpdateSchema(AliasedBaseModel):

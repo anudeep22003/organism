@@ -107,7 +107,7 @@ async def test_upload_reference_image_via_service(
     result = await db_session.execute(
         select(ImageModel).where(
             ImageModel.project_id == project.id,
-            ImageModel.character_id == character.id,
+            ImageModel.target_id == character.id,
         )
     )
     images = list(result.scalars().all())
