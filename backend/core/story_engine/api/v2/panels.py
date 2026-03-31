@@ -68,6 +68,36 @@ async def list_panels(
 
 
 # ---------------------------------------------------------------------------
+# Story 40 — Get a single panel
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/project/{project_id}/story/{story_id}/panel/{panel_id}",
+    status_code=200,
+)
+async def get_panel(
+    project_id: uuid.UUID,
+    story_id: uuid.UUID,
+    panel_id: uuid.UUID,
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    service: Annotated[PanelService, Depends(get_panel_service)],
+) -> PanelWithRenderSchema:
+    """Return a single panel by ID, with canonical render."""
+    try:
+        panel, render = await service.get_panel(project_id, story_id, panel_id)
+        return _build_panel_with_render(panel, render)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.exception(f"Unexpected error getting panel {panel_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while getting the panel",
+        )
+
+
+# ---------------------------------------------------------------------------
 # Story 20 — Bulk panel generation
 # ---------------------------------------------------------------------------
 
