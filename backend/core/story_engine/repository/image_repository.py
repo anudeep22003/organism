@@ -45,3 +45,17 @@ class ImageRepository:
             .limit(1)
         )
         return result.scalars().first()
+
+    async def get_renders_for_target(
+        self, target_id: uuid.UUID, discriminator_key: ImageDiscriminatorKey
+    ) -> list[Image]:
+        """Return all Image rows for the given target and discriminator, newest first."""
+        result = await self.db.execute(
+            select(Image)
+            .where(
+                Image.target_id == target_id,
+                Image.discriminator_key == discriminator_key,
+            )
+            .order_by(Image.created_at.desc())
+        )
+        return list(result.scalars().all())

@@ -186,6 +186,36 @@ async def render_panel(
 
 
 # ---------------------------------------------------------------------------
+# Story 70 — List all render variations for a panel
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/project/{project_id}/story/{story_id}/panel/{panel_id}/renders",
+    status_code=200,
+)
+async def list_panel_renders(
+    project_id: uuid.UUID,
+    story_id: uuid.UUID,
+    panel_id: uuid.UUID,
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    service: Annotated[PanelService, Depends(get_panel_service)],
+) -> list[ImageResponseSchema]:
+    """Return all render variations for a panel, ordered newest first."""
+    try:
+        images = await service.get_panel_renders(project_id, story_id, panel_id)
+        return [ImageResponseSchema.model_validate(img) for img in images]
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.exception(f"Unexpected error listing renders for panel {panel_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while listing panel renders",
+        )
+
+
+# ---------------------------------------------------------------------------
 # Story 20 — Bulk panel generation
 # ---------------------------------------------------------------------------
 
