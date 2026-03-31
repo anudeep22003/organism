@@ -499,6 +499,27 @@ class PanelService:
             raise FalResponseError(f"Unexpected fal response shape: {response}") from e
 
     # -----------------------------------------------------------------------
+    # get_panel_renders (Story 70)
+    # -----------------------------------------------------------------------
+
+    async def get_panel_renders(
+        self, project_id: uuid.UUID, story_id: uuid.UUID, panel_id: uuid.UUID
+    ) -> list[ImageModel]:
+        """Return all render Image rows for a panel, newest first."""
+        story = await self.repository_v2.story.get_story(project_id, story_id)
+        if story is None:
+            raise NotFoundError(f"Story {story_id} not found")
+
+        panel = await self.repository_v2.panel.get_panel(panel_id, story_id)
+        if panel is None:
+            raise NotFoundError(f"Panel {panel_id} not found in story {story_id}")
+
+        return await self.repository_v2.image.get_renders_for_target(
+            target_id=panel_id,
+            discriminator_key=ImageDiscriminatorKey.PANEL_RENDER,
+        )
+
+    # -----------------------------------------------------------------------
     # get_panel_history (for Story 80)
     # -----------------------------------------------------------------------
 
