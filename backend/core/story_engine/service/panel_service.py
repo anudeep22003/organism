@@ -23,7 +23,7 @@ from ..models.edit_event import (
 )
 from ..models.image import ImageDiscriminatorKey
 from ..repository import RepositoryV2
-from ..schemas.panel import GeneratedPanelsResponse
+from ..schemas.panel import GeneratedPanelsResponse, PanelContent
 
 
 class PanelService:
@@ -115,6 +115,143 @@ class PanelService:
             await self.db.refresh(panel)
 
         return panels
+
+    # -----------------------------------------------------------------------
+    # generate_panel (single panel — Story 50)
+    # -----------------------------------------------------------------------
+
+    async def generate_panel(
+        self,
+        project_id: uuid.UUID,
+        story_id: uuid.UUID,
+        panel_id: uuid.UUID,
+        instruction: str | None,
+    ) -> Panel:
+        """Generate or regenerate content for a single panel (Decision 8).
+
+        First call (empty attributes): generates from story context.
+        Subsequent calls (populated attributes): refines using instruction.
+        Operation type is always GENERATE_PANEL regardless.
+        """
+        story = await self.repository_v2.story.get_story(project_id, story_id)
+        if story is None:
+            raise NotFoundError(f"Story {story_id} not found")
+
+        panel = await self.repository_v2.panel.get_panel(panel_id, story_id)
+        if panel is None:
+            raise NotFoundError(f"Panel {panel_id} not found in story {story_id}")
+
+        # Snapshot all ORM attribute values before any commit (ORM objects expire after commit)
+        input_attrs = dict(panel.attributes)
+        panel_order_index = panel.order_index
+        story_text = story.story_text
+
+        # TX1: create PENDING edit event
+        edit_event = EditEvent.create_edit_event(
+            project_id=project_id,
+            target_type=EditEventTargetType.PANEL,
+            target_id=panel_id,
+            operation_type=EditEventOperationType.GENERATE_PANEL,
+            user_instruction=instruction or "",
+            status=EditEventStatus.PENDING,
+            input_snapshot=input_attrs,
+        )
+        await self.repository_v2.edit_event.add_edit_event_to_db(edit_event)
+        await self.db.flush()
+        edit_event_id = edit_event.id
+        await self.db.commit()
+
+        try:
+            is_first_generation = not input_attrs
+            if is_first_generation:
+                panel_content = await self._generate_panel_first_time(
+                    story_text=story_text,
+                    order_index=panel_order_index,
+                )
+            else:
+                panel_content = await self._regenerate_panel(
+                    existing_attributes=input_attrs,
+                    instruction=instruction or "Regenerate this panel.",
+                )
+
+            new_attributes = {
+                "background": panel_content.background,
+                "dialogue": panel_content.dialogue,
+                "characters": panel_content.characters,
+            }
+
+            # TX2: update panel attributes + mark event SUCCEEDED
+            panel.attributes = new_attributes
+            panel.source_event_id = edit_event_id
+            await self.repository_v2.edit_event.update_edit_event(
+                edit_event_id,
+                EditEventStatus.SUCCEEDED,
+                output_snapshot=new_attributes,
+            )
+            await self.db.commit()
+            await self.db.refresh(panel)
+            return panel
+
+        except Exception:
+            await self.repository_v2.edit_event.update_edit_event(
+                edit_event_id, EditEventStatus.FAILED
+            )
+            await self.db.commit()
+            raise
+
+    async def _generate_panel_first_time(
+        self, story_text: str, order_index: int
+    ) -> PanelContent:
+        """LLM call for first-time single panel generation."""
+        prompt = textwrap.dedent(f"""
+            You are a comic book artist. Generate a single comic panel for panel #{order_index + 1}.
+
+            Story:
+            {story_text}
+
+            Return a single panel with background description, dialogue, and character slugs.
+        """).strip()
+
+        return await instructor_client.chat.completions.create(
+            model="gpt-4o",
+            response_model=PanelContent,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Generate a single comic panel from story context.",
+                },
+                {"role": "user", "content": prompt},
+            ],
+        )
+
+    async def _regenerate_panel(
+        self, existing_attributes: dict[str, Any], instruction: str
+    ) -> PanelContent:
+        """LLM call for panel regeneration using existing attributes and instruction."""
+        import json
+
+        prompt = textwrap.dedent(f"""
+            You are a comic book artist. Refine this panel based on the instruction.
+
+            Current panel:
+            {json.dumps(existing_attributes, indent=2)}
+
+            Instruction: {instruction}
+
+            Return the updated panel.
+        """).strip()
+
+        return await instructor_client.chat.completions.create(
+            model="gpt-4o",
+            response_model=PanelContent,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Refine a comic panel based on an instruction.",
+                },
+                {"role": "user", "content": prompt},
+            ],
+        )
 
     async def _extract_panels_from_story(
         self, story_text: str
