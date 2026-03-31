@@ -52,3 +52,12 @@ class PanelWithRenderSchema(PanelResponseSchema):
     """
 
     canonical_render: ImageResponseSchema | None = None
+
+
+class PanelGenerateRequest(AliasedBaseModel):
+    """Request body for the single-panel generate/regenerate endpoint.
+
+    instruction is optional — absent on first generation, present on regeneration.
+    """
+
+    instruction: str | None = None

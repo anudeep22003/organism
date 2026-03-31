@@ -20,8 +20,13 @@ from loguru import logger
 from core.auth.dependencies import get_current_user_id
 
 from ...exceptions import NoStoryTextError, NotFoundError
+from ...models.image import ImageDiscriminatorKey
 from ...schemas.image import ImageResponseSchema
-from ...schemas.panel import PanelResponseSchema, PanelWithRenderSchema
+from ...schemas.panel import (
+    PanelGenerateRequest,
+    PanelResponseSchema,
+    PanelWithRenderSchema,
+)
 from ...service import PanelService
 from ..dependencies import get_panel_service
 
@@ -94,6 +99,50 @@ async def get_panel(
         raise HTTPException(
             status_code=500,
             detail="An unexpected error occurred while getting the panel",
+        )
+
+
+# ---------------------------------------------------------------------------
+# Story 50 — Single panel generate / regenerate
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/project/{project_id}/story/{story_id}/panel/{panel_id}/generate",
+    status_code=200,
+)
+async def generate_panel(
+    project_id: uuid.UUID,
+    story_id: uuid.UUID,
+    panel_id: uuid.UUID,
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    service: Annotated[PanelService, Depends(get_panel_service)],
+    body: PanelGenerateRequest | None = None,
+) -> PanelWithRenderSchema:
+    """Generate or regenerate content for a single panel (Decision 8).
+
+    First call (empty attributes): generates from story context.
+    Subsequent calls: refines using the optional instruction.
+    """
+    try:
+        panel = await service.generate_panel(
+            project_id=project_id,
+            story_id=story_id,
+            panel_id=panel_id,
+            instruction=body.instruction if body is not None else None,
+        )
+        render = await service.repository_v2.image.get_canonical_render(
+            target_id=panel_id,
+            discriminator_key=ImageDiscriminatorKey.PANEL_RENDER,
+        )
+        return _build_panel_with_render(panel, render)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.exception(f"Unexpected error generating panel {panel_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while generating the panel",
         )
 
 
