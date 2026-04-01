@@ -19,7 +19,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.services.intelligence import instructor_client
 from core.services.intelligence.media_generator import fal_async_client
 
-from ..exceptions import FalResponseError, NoStoryTextError, NotFoundError
+from ..exceptions import (
+    FalResponseError,
+    NoCharactersError,
+    NoStoryTextError,
+    NotFoundError,
+)
 from ..models import EditEvent, Panel
 from ..models.edit_event import (
     EditEventOperationType,
@@ -29,7 +34,7 @@ from ..models.edit_event import (
 from ..models.image import Image as ImageModel
 from ..models.image import ImageContentType, ImageDiscriminatorKey
 from ..repository import RepositoryV2
-from ..schemas.panel import GeneratedPanelsResponse, PanelContent
+from ..schemas.panel import GeneratedPanelsResponse, PanelContent, PanelContentBase
 from .image_service import GCSUploadService
 
 
@@ -68,8 +73,15 @@ class PanelService:
         )
         slug_to_id: dict[str, uuid.UUID] = {c.slug: c.id for c in characters}
 
+        if not slug_to_id:
+            raise NoCharactersError(
+                f"Story {story_id} has no characters — extract characters before generating panels"
+            )
+
         # Call LLM to get structured panel content
-        generated = await self._extract_panels_from_story(story_text)
+        generated = await self._extract_panels_from_story(
+            story_text, list(slug_to_id.keys())
+        )
 
         panels: list[Panel] = []
         for order_index, panel_content in enumerate(generated.panels):
@@ -148,6 +160,16 @@ class PanelService:
         if panel is None:
             raise NotFoundError(f"Panel {panel_id} not found in story {story_id}")
 
+        # Load characters to build slug list for constrained LLM extraction
+        characters = await self.repository_v2.character.get_all_characters_for_a_story(
+            story_id
+        )
+        character_slugs = [c.slug for c in characters]
+        if not character_slugs:
+            raise NoCharactersError(
+                f"Story {story_id} has no characters — extract characters before generating panels"
+            )
+
         # Snapshot all ORM attribute values before any commit (ORM objects expire after commit)
         input_attrs = dict(panel.attributes)
         panel_order_index = panel.order_index
@@ -174,11 +196,13 @@ class PanelService:
                 panel_content = await self._generate_panel_first_time(
                     story_text=story_text,
                     order_index=panel_order_index,
+                    character_slugs=character_slugs,
                 )
             else:
                 panel_content = await self._regenerate_panel(
                     existing_attributes=input_attrs,
                     instruction=instruction or "Regenerate this panel.",
+                    character_slugs=character_slugs,
                 )
 
             new_attributes = {
@@ -207,21 +231,35 @@ class PanelService:
             raise
 
     async def _generate_panel_first_time(
-        self, story_text: str, order_index: int
+        self, story_text: str, order_index: int, character_slugs: list[str]
     ) -> PanelContent:
         """LLM call for first-time single panel generation."""
+        from typing import Literal
+
+        from pydantic import create_model
+
+        CharacterSlug = Literal[tuple(character_slugs)]  # type: ignore[valid-type]
+        ConstrainedPanelContent = create_model(
+            "PanelContent",
+            __base__=PanelContentBase,
+            characters=(list[CharacterSlug], ...),  # type: ignore[valid-type]
+        )
+
+        slug_list = ", ".join(character_slugs)
         prompt = textwrap.dedent(f"""
             You are a comic book artist. Generate a single comic panel for panel #{order_index + 1}.
 
             Story:
             {story_text}
 
+            Characters in this story (use exactly these slugs): {slug_list}
+
             Return a single panel with background description, dialogue, and character slugs.
         """).strip()
 
         return await instructor_client.chat.completions.create(
             model="gpt-4o",
-            response_model=PanelContent,
+            response_model=ConstrainedPanelContent,  # type: ignore[arg-type]
             messages=[
                 {
                     "role": "system",
@@ -232,11 +270,25 @@ class PanelService:
         )
 
     async def _regenerate_panel(
-        self, existing_attributes: dict[str, Any], instruction: str
+        self,
+        existing_attributes: dict[str, Any],
+        instruction: str,
+        character_slugs: list[str],
     ) -> PanelContent:
         """LLM call for panel regeneration using existing attributes and instruction."""
         import json
+        from typing import Literal
 
+        from pydantic import create_model
+
+        CharacterSlug = Literal[tuple(character_slugs)]  # type: ignore[valid-type]
+        ConstrainedPanelContent = create_model(
+            "PanelContent",
+            __base__=PanelContentBase,
+            characters=(list[CharacterSlug], ...),  # type: ignore[valid-type]
+        )
+
+        slug_list = ", ".join(character_slugs)
         prompt = textwrap.dedent(f"""
             You are a comic book artist. Refine this panel based on the instruction.
 
@@ -245,12 +297,14 @@ class PanelService:
 
             Instruction: {instruction}
 
+            Characters in this story (use exactly these slugs): {slug_list}
+
             Return the updated panel.
         """).strip()
 
         return await instructor_client.chat.completions.create(
             model="gpt-4o",
-            response_model=PanelContent,
+            response_model=ConstrainedPanelContent,  # type: ignore[arg-type]
             messages=[
                 {
                     "role": "system",
@@ -261,16 +315,36 @@ class PanelService:
         )
 
     async def _extract_panels_from_story(
-        self, story_text: str
+        self, story_text: str, character_slugs: list[str]
     ) -> GeneratedPanelsResponse:
-        """Call instructor to extract structured panel content from story text."""
+        """Call instructor to extract structured panel content from story text.
+
+        Builds a runtime-constrained Pydantic model so the LLM can only emit
+        slugs that exist in the DB — prevents silent join-row mismatches.
+        """
+        from typing import Literal
+
+        from pydantic import create_model
+
+        CharacterSlug = Literal[tuple(character_slugs)]  # type: ignore[valid-type]
+        ConstrainedPanelContent = create_model(
+            "PanelContent",
+            __base__=PanelContentBase,
+            characters=(list[CharacterSlug], ...),  # type: ignore[valid-type]
+        )
+        ConstrainedResponse = create_model(
+            "GeneratedPanelsResponse",
+            panels=(list[ConstrainedPanelContent], ...),  # type: ignore[valid-type]
+        )
+
+        slug_list = ", ".join(character_slugs)
         prompt = textwrap.dedent(f"""
             You are a comic book artist and writer.
             Extract a list of comic book panels from the following story.
             For each panel provide:
               - background: a brief visual description of the setting/scene
               - dialogue: key spoken or thought dialogue in the panel (empty string if none)
-              - characters: list of character slugs (lowercase-hyphenated names) who appear
+              - characters: list of character slugs who appear — choose only from: {slug_list}
 
             Story:
             {story_text}
@@ -278,7 +352,7 @@ class PanelService:
 
         return await instructor_client.chat.completions.create(
             model="gpt-4o",
-            response_model=GeneratedPanelsResponse,
+            response_model=ConstrainedResponse,  # type: ignore[arg-type]
             messages=[
                 {
                     "role": "system",

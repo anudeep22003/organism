@@ -16,15 +16,29 @@ from core.common import AliasedBaseModel
 from .image import ImageResponseSchema
 
 
-class PanelContent(AliasedBaseModel):
-    """Single panel as produced by the LLM structured extraction.
+class PanelContentBase(AliasedBaseModel):
+    """Stable panel fields shared across all panel content models.
 
-    characters contains character slugs — resolved to UUIDs at insert time.
+    Does not include `characters` — that field is injected at runtime with a
+    Literal constraint built from the story's actual character slugs, so the
+    LLM is forced to pick from the exact slugs stored in the DB.
+
+    Used as __base__ in create_model(...) calls inside PanelService.
     """
 
     background: str
-    characters: list[str]  # slugs
     dialogue: str
+
+
+class PanelContent(PanelContentBase):
+    """Concrete panel schema with unconstrained characters.
+
+    Used as the return type annotation from LLM helper methods and as the
+    response_model for _regenerate_panel (where existing slugs are already
+    correct and the constraint is less critical).
+    """
+
+    characters: list[str]  # slugs
 
 
 class GeneratedPanelsResponse(AliasedBaseModel):

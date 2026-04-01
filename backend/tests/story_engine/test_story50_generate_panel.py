@@ -21,7 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.auth.managers.jwt import JWTTokenManager
 from core.auth.models.user import User
-from core.story_engine.models import Panel, Project, Story
+from core.story_engine.models import Character, Panel, Project, Story
 from core.story_engine.models.edit_event import (
     EditEvent,
     EditEventOperationType,
@@ -53,6 +53,7 @@ async def test_generate_panel_first_call_populates_attributes(
     user: User,
     project: Project,
     story: Story,
+    character: Character,
 ) -> None:
     """First call with empty attributes populates panel.attributes."""
     panel = Panel.create(story_id=story.id, order_index=0, attributes={})
@@ -84,6 +85,7 @@ async def test_generate_panel_first_call_creates_edit_event_succeeded(
     user: User,
     project: Project,
     story: Story,
+    character: Character,
 ) -> None:
     """First call creates EditEvent(GENERATE_PANEL, SUCCEEDED)."""
     panel = Panel.create(story_id=story.id, order_index=0, attributes={})
@@ -121,6 +123,7 @@ async def test_generate_panel_first_call_sets_source_event_id(
     user: User,
     project: Project,
     story: Story,
+    character: Character,
 ) -> None:
     """First call sets panel.source_event_id to the new EditEvent's ID."""
     panel = Panel.create(story_id=story.id, order_index=0, attributes={})
@@ -156,6 +159,7 @@ async def test_generate_panel_input_snapshot_contains_before_attributes(
     user: User,
     project: Project,
     story: Story,
+    character: Character,
 ) -> None:
     """input_snapshot on EditEvent captures attributes before the change."""
     initial_attrs = {"background": "Forest", "dialogue": "Hello", "characters": []}
@@ -193,6 +197,7 @@ async def test_generate_panel_output_snapshot_contains_new_attributes(
     user: User,
     project: Project,
     story: Story,
+    character: Character,
 ) -> None:
     """output_snapshot on EditEvent captures the new attributes."""
     panel = Panel.create(story_id=story.id, order_index=0, attributes={})
@@ -245,6 +250,7 @@ async def test_generate_panel_edit_event_marked_failed_on_llm_error(
     user: User,
     project: Project,
     story: Story,
+    character: Character,
 ) -> None:
     """EditEvent is marked FAILED when the LLM call raises an exception."""
     panel = Panel.create(story_id=story.id, order_index=0, attributes={})

@@ -19,7 +19,7 @@ from loguru import logger
 
 from core.auth.dependencies import get_current_user_id
 
-from ...exceptions import NoStoryTextError, NotFoundError
+from ...exceptions import NoCharactersError, NoStoryTextError, NotFoundError
 from ...models.image import ImageDiscriminatorKey
 from ...schemas.edit_event import EditEventResponseSchema
 from ...schemas.image import ImageResponseSchema
@@ -139,6 +139,8 @@ async def generate_panel(
         return _build_panel_with_render(panel, render)
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except NoCharactersError as e:
+        raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
         logger.exception(f"Unexpected error generating panel {panel_id}: {e}")
         raise HTTPException(
@@ -279,6 +281,8 @@ async def generate_panels(
         raise HTTPException(status_code=404, detail=str(e))
     except NoStoryTextError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except NoCharactersError as e:
+        raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
         logger.exception(
             f"Unexpected error generating panels for story {story_id}: {e}"
