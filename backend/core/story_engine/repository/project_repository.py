@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -33,27 +33,18 @@ class ProjectRepository:
         return project
 
     async def delete_project(self, project_id: uuid.UUID, user_id: uuid.UUID) -> None:
-        """Delete a project row. Cascades to stories, characters, images, edit_events.
-
-        Uses a bulk DELETE statement (not db.delete()) to bypass SQLAlchemy's
-        ORM-level cascade. The ORM cascade on Project.stories would load and
-        delete Story rows one-by-one, and without a matching cascade on
-        Story.characters the ORM would try to SET NULL on character.story_id,
-        violating the NOT NULL constraint. The DB schema has ON DELETE CASCADE
-        on all child FKs so the DB handles cleanup correctly.
+        """Delete a project and all its children (stories → characters, panels, images).
 
         Raises NotFoundError if the project does not exist or does not belong
         to the given user.
         """
-        # Verify ownership first
         result = await self.db.execute(
             select(Project).where(Project.id == project_id, Project.user_id == user_id)
         )
         project = result.scalar_one_or_none()
         if project is None:
             raise NotFoundError(f"Project {project_id} not found")
-        # Bypass ORM cascade — let the DB ON DELETE CASCADE fire
-        await self.db.execute(delete(Project).where(Project.id == project_id))
+        await self.db.delete(project)
 
     async def rename_project(
         self, project_id: uuid.UUID, user_id: uuid.UUID, name: str

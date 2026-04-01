@@ -40,7 +40,7 @@ class Story(ORMBase):
         "EditEvent", foreign_keys=[source_event_id]
     )
     characters: Mapped[list[Character]] = relationship(
-        "Character", back_populates="story"
+        "Character", back_populates="story", cascade="all, delete-orphan"
     )
     panels: Mapped[list[Panel]] = relationship(
         "Panel", back_populates="story", cascade="all, delete-orphan"
