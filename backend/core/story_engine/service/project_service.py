@@ -32,6 +32,20 @@ class ProjectService:
         await self.db.refresh(project)
         return project
 
+    async def rename_project(
+        self, project_id: uuid.UUID, user_id: uuid.UUID, name: str
+    ) -> Project:
+        """Rename a project. Raises NotFoundError if not found or not owned."""
+        try:
+            project = await self.repository_v2.project.rename_project(
+                project_id, user_id, name
+            )
+        except RepoNotFoundError as e:
+            raise NotFoundError(str(e)) from e
+        await self.db.commit()
+        await self.db.refresh(project)
+        return project
+
     async def get_project_details(
         self, user_id: uuid.UUID, project_id: uuid.UUID
     ) -> Project | None:

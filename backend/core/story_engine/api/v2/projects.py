@@ -10,6 +10,7 @@ from ...schemas import (
     ProjectCreateSchema,
     ProjectListResponseSchema,
     ProjectRelationalStateSchema,
+    ProjectRenameSchema,
     ProjectResponseSchema,
     StoryCreateSchema,
     StoryResponseSchema,
@@ -60,6 +61,23 @@ async def get_project(
             status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
         )
     return ProjectRelationalStateSchema.model_validate(project)
+
+
+@router.patch("/projects/{project_id}", status_code=200)
+async def rename_project(
+    project_id: uuid.UUID,
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    body: ProjectRenameSchema,
+    service: Annotated[ProjectService, Depends(get_project_service)],
+) -> ProjectResponseSchema:
+    """Rename a project. Only `name` is mutable in v2."""
+    try:
+        project = await service.rename_project(project_id, user_id, body.name)
+        return ProjectResponseSchema.model_validate(project)
+    except NotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
+        )
 
 
 @router.post("/projects/{project_id}/story")

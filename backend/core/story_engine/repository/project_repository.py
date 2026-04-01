@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from ..models import Project, Story
+from .exception import NotFoundError
 
 
 class ProjectRepository:
@@ -29,6 +30,23 @@ class ProjectRepository:
     ) -> Project:
         project = Project(user_id=user_id, name=name)
         self.db.add(project)
+        return project
+
+    async def rename_project(
+        self, project_id: uuid.UUID, user_id: uuid.UUID, name: str
+    ) -> Project:
+        """Update project.name and return the updated Project.
+
+        Raises NotFoundError if the project does not exist or does not belong
+        to the given user.
+        """
+        result = await self.db.execute(
+            select(Project).where(Project.id == project_id, Project.user_id == user_id)
+        )
+        project = result.scalar_one_or_none()
+        if project is None:
+            raise NotFoundError(f"Project {project_id} not found")
+        project.name = name
         return project
 
     async def get_project_details(

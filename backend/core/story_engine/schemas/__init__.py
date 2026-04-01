@@ -4,6 +4,7 @@ from .project import (
     ProjectCreateSchema,
     ProjectListResponseSchema,
     ProjectRelationalStateSchema,
+    ProjectRenameSchema,
     ProjectResponseSchema,
     ProjectUpdateSchema,
 )
@@ -18,6 +19,7 @@ __all__ = [
     "ImageResponseSchema",
     "ImageSignedUrlResponseSchema",
     "ProjectCreateSchema",
+    "ProjectRenameSchema",
     "ProjectUpdateSchema",
     "ProjectResponseSchema",
     "ProjectListResponseSchema",
