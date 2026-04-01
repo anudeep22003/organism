@@ -101,8 +101,20 @@ async def user(db_session: AsyncSession) -> AsyncGenerator[User, None]:
 
     yield u
 
-    await db_session.execute(text('DELETE FROM "user" WHERE id = :id'), {"id": u.id})
-    await db_session.commit()
+    # Teardown uses a fresh engine + session, never the test's db_session.
+    # If the test left db_session in an aborted transaction state, the DELETE
+    # would silently fail on that connection — leaving the user row (and all
+    # its cascaded children) permanently in the DB. A dedicated session is
+    # immune to whatever state the test session is in.
+    teardown_engine = create_async_engine(settings.database_url, echo=False)
+    try:
+        async with async_sessionmaker(teardown_engine)() as teardown_session:
+            await teardown_session.execute(
+                text('DELETE FROM "user" WHERE id = :id'), {"id": u.id}
+            )
+            await teardown_session.commit()
+    finally:
+        await teardown_engine.dispose()
 
 
 @pytest_asyncio.fixture
