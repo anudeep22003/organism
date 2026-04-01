@@ -91,6 +91,12 @@ class NoStoryTextError(BaseError):
     pass
 
 
+class NoCharactersError(BaseError):
+    """No characters extracted for story — extract characters before generating panels."""
+
+    pass
+
+
 class CharacterExtractionError(BaseError):
     """Error extracting characters from story."""
 
