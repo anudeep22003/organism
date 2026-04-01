@@ -51,6 +51,7 @@ dev = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+addopts = "-m 'not manual and not integration'"
 markers = [
     "manual: opt-in tests that hit existing rows or external services",
     "integration: opt-in tests that hit external services",
