@@ -34,6 +34,23 @@ IMAGE_CONTENT_TYPE = ImageContentType.JPEG
 SIGNED_URL_EXPIRY_MINUTES = 15
 
 
+def extract_image_dimensions(image_bytes: BytesIO) -> tuple[int, int]:
+    """Read width and height from image bytes using PIL header parsing.
+
+    Only the image header is read (lazy open) — no full pixel decode.
+    Resets the stream position to 0 after reading so the caller can
+    pass the same BytesIO straight to GCS upload.
+
+    Raises PIL.UnidentifiedImageError (or similar) if the bytes are not
+    a valid image — callers should let this propagate so the edit event
+    is marked FAILED rather than storing 0×0 dimensions silently.
+    """
+    img = PILImage.open(image_bytes)
+    width, height = img.width, img.height
+    image_bytes.seek(0)
+    return width, height
+
+
 @dataclass(slots=True)
 class StorageReceipt:
     object_key: str

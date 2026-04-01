@@ -35,7 +35,7 @@ from ..models.image import Image as ImageModel
 from ..models.image import ImageContentType, ImageDiscriminatorKey
 from ..repository import RepositoryV2
 from ..schemas.panel import GeneratedPanelsResponse, PanelContent, PanelContentBase
-from .image_service import GCSUploadService
+from .image_service import GCSUploadService, extract_image_dimensions
 
 
 class PanelService:
@@ -515,6 +515,10 @@ class PanelService:
                     else ImageContentType.JPEG
                 )
 
+            # Parse dimensions from the image header (PIL lazy-open, < 1ms).
+            # Raises if fal returned malformed bytes — propagates to FAILED edit event.
+            width, height = extract_image_dimensions(image_bytes)  # resets seek to 0
+
             object_key = f"{project_id}/panel/{panel_id}/renders/{edit_event_id}"
             receipt = gcs_service.upload(object_key, image_bytes, content_type)
 
@@ -523,8 +527,8 @@ class PanelService:
                 project_id=project_id,
                 user_id=user_id,
                 target_id=panel_id,
-                width=0,
-                height=0,
+                width=width,
+                height=height,
                 content_type=content_type,
                 object_key=receipt.object_key,
                 bucket=receipt.bucket,

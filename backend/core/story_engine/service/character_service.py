@@ -33,7 +33,7 @@ from ..models.image import ImageContentType, ImageDiscriminatorKey
 from ..repository import NotFoundError as RepositoryNotFoundError
 from ..repository import RepositoryV2
 from ..state.character import CharacterBase as CharacterAttributes
-from .image_service import GCSUploadService, ImageService
+from .image_service import GCSUploadService, ImageService, extract_image_dimensions
 
 
 class CharacterService:
@@ -443,6 +443,10 @@ class CharacterService:
                     else ImageContentType.JPEG
                 )
 
+            # Parse dimensions from the image header (PIL lazy-open, < 1ms).
+            # Raises if fal returned malformed bytes — propagates to FAILED edit event.
+            width, height = extract_image_dimensions(image_bytes)  # resets seek to 0
+
             # Upload to GCS
             gcs_service = GCSUploadService()
             object_key = (
@@ -455,8 +459,8 @@ class CharacterService:
                 project_id=project_id,
                 user_id=user_id,
                 target_id=character_id,
-                width=0,  # Width/height unknown without parsing image headers; store 0
-                height=0,
+                width=width,
+                height=height,
                 content_type=content_type,
                 object_key=receipt.object_key,
                 bucket=receipt.bucket,
