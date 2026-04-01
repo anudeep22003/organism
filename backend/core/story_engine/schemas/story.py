@@ -15,7 +15,7 @@ class StorySchemaBase(AliasedBaseModel):
 
 
 class StoryCreateSchema(StorySchemaBase):
-    project_id: uuid.UUID
+    pass
 
 
 class StoryResponseSchema(StorySchemaBase):
