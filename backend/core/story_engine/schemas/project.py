@@ -20,6 +20,10 @@ class ProjectCreateSchema(ProjectSchemaBase):
     name: str | None = None
 
 
+class ProjectRenameSchema(ProjectSchemaBase):
+    name: str
+
+
 class ProjectUpdateSchema(ProjectSchemaBase):
     name: str | None = None
     state: ConsolidatedComicState
