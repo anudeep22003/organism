@@ -14,9 +14,11 @@ Test invariants:
 """
 
 import uuid
+from io import BytesIO
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from httpx import AsyncClient
+from PIL import Image as PILImage
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -41,13 +43,20 @@ def _auth_headers(user_id: uuid.UUID) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
+def _minimal_jpeg_bytes() -> bytes:
+    """Return a valid 1×1 JPEG so PIL can parse real dimensions in render paths."""
+    buf = BytesIO()
+    PILImage.new("RGB", (1, 1), color=(255, 0, 0)).save(buf, format="JPEG")
+    return buf.getvalue()
+
+
 def _mock_fal_response(url: str = "https://fal.ai/render/test-image.jpg") -> dict:
     return {"images": [{"url": url}]}
 
 
-def _make_mock_httpx(fake_bytes: bytes = b"\xff\xd8\xff" + b"\x00" * 100) -> AsyncMock:
+def _make_mock_httpx(fake_bytes: bytes | None = None) -> AsyncMock:
     mock_resp = MagicMock()
-    mock_resp.content = fake_bytes
+    mock_resp.content = fake_bytes if fake_bytes is not None else _minimal_jpeg_bytes()
     mock_resp.headers = {"content-type": "image/jpeg"}
     mock_resp.raise_for_status = MagicMock()
     mock_httpx_ctx = AsyncMock()

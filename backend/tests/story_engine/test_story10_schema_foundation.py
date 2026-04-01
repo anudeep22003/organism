@@ -165,7 +165,7 @@ async def test_render_character_creates_image_row_with_character_render_discrimi
         object_key=f"{project.id}/character/{character.id}/renders/test-key",
         bucket="test-bucket",
     )
-    fake_image_bytes = b"\xff\xd8\xff" + b"\x00" * 100  # fake JPEG bytes
+    fake_image_bytes = _make_minimal_jpeg().read()
 
     with (
         patch(
@@ -224,7 +224,7 @@ async def test_render_character_does_not_update_render_url(
         object_key=f"{project.id}/character/{character.id}/renders/test-key",
         bucket="test-bucket",
     )
-    fake_image_bytes = b"\xff\xd8\xff" + b"\x00" * 100
+    fake_image_bytes = _make_minimal_jpeg().read()
 
     with (
         patch(
@@ -275,7 +275,7 @@ async def test_render_character_twice_creates_two_image_rows(
         object_key=f"{project.id}/character/{character.id}/renders/test-key",
         bucket="test-bucket",
     )
-    fake_image_bytes = b"\xff\xd8\xff" + b"\x00" * 100
+    fake_image_bytes = _make_minimal_jpeg().read()
 
     def _make_mock_httpx() -> AsyncMock:
         mock_resp = MagicMock()
