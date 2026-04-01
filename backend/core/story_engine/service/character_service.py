@@ -81,6 +81,31 @@ class CharacterService:
             limit=limit,
         )
 
+    async def get_character_renders(
+        self,
+        project_id: uuid.UUID,
+        story_id: uuid.UUID,
+        character_id: uuid.UUID,
+    ) -> list[ImageModel]:
+        """Return all character_render Image rows for a character, newest first.
+
+        Raises NotFoundError if the character does not exist in the story.
+        project_id is included in the signature for consistency with other
+        character service methods, though the character → story → project
+        ownership is validated via story_id.
+        """
+        character = await self.repository_v2.character.get_character(
+            character_id, story_id
+        )
+        if character is None:
+            raise NotFoundError(
+                f"Character {character_id} not found in story {story_id}"
+            )
+        return await self.repository_v2.image.get_renders_for_target(
+            target_id=character_id,
+            discriminator_key=ImageDiscriminatorKey.CHARACTER_RENDER,
+        )
+
     async def get_canonical_character_render(
         self, character_id: uuid.UUID
     ) -> ImageModel | None:
