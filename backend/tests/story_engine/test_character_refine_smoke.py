@@ -86,6 +86,7 @@ async def test_get_existing_character_edit_history(
     possible_operation_types = [
         EditEventOperationType.REFINE_CHARACTER,
         EditEventOperationType.UPLOAD_REFERENCE_IMAGE,
+        EditEventOperationType.RENDER_CHARACTER,
     ]
 
     response = await api_client.get(
