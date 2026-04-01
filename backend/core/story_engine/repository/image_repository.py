@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import Image
@@ -45,6 +45,17 @@ class ImageRepository:
             .limit(1)
         )
         return result.scalars().first()
+
+    async def delete_images_for_target(
+        self, target_id: uuid.UUID, discriminator_key: ImageDiscriminatorKey
+    ) -> None:
+        """Delete all Image rows for the given target and discriminator key."""
+        await self.db.execute(
+            delete(Image).where(
+                Image.target_id == target_id,
+                Image.discriminator_key == discriminator_key,
+            )
+        )
 
     async def get_renders_for_target(
         self, target_id: uuid.UUID, discriminator_key: ImageDiscriminatorKey
