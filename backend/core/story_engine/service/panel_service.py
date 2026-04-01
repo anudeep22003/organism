@@ -573,6 +573,42 @@ class PanelService:
             raise FalResponseError(f"Unexpected fal response shape: {response}") from e
 
     # -----------------------------------------------------------------------
+    # delete_panel (Story 110)
+    # -----------------------------------------------------------------------
+
+    async def delete_panel(
+        self,
+        project_id: uuid.UUID,
+        story_id: uuid.UUID,
+        panel_id: uuid.UUID,
+    ) -> None:
+        """Hard-delete a single panel.
+
+        Steps:
+        1. Verify the panel exists and belongs to the given story.
+        2. Delete orphaned Image rows (discriminator_key=panel_render) — these
+           use a polymorphic target_id with no DB FK so they are not cascade-
+           deleted automatically (per raise_to_architect in Story 110).
+        3. Delete the panel row — cascades panel_character rows via DB FK.
+        """
+        story = await self.repository_v2.story.get_story(project_id, story_id)
+        if story is None:
+            raise NotFoundError(f"Story {story_id} not found")
+
+        panel = await self.repository_v2.panel.get_panel(panel_id, story_id)
+        if panel is None:
+            raise NotFoundError(f"Panel {panel_id} not found in story {story_id}")
+
+        # Explicit cleanup of polymorphic image rows (no DB FK cascade)
+        await self.repository_v2.image.delete_images_for_target(
+            target_id=panel_id,
+            discriminator_key=ImageDiscriminatorKey.PANEL_RENDER,
+        )
+
+        await self.repository_v2.panel.delete_panel(panel_id, story_id)
+        await self.db.commit()
+
+    # -----------------------------------------------------------------------
     # get_panel_renders (Story 70)
     # -----------------------------------------------------------------------
 
