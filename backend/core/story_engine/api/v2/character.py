@@ -257,6 +257,36 @@ async def upload_reference_image(
 
 
 @router.get(
+    "/project/{project_id}/story/{story_id}/character/{character_id}/renders",
+    status_code=200,
+)
+async def get_character_renders(
+    project_id: uuid.UUID,
+    story_id: uuid.UUID,
+    character_id: uuid.UUID,
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    service: Annotated[CharacterService, Depends(get_character_service)],
+) -> list[ImageResponseSchema]:
+    """Return all render variations for a character, ordered newest first.
+
+    Returns an empty list (not 404) when the character exists but has no renders.
+    """
+    try:
+        images = await service.get_character_renders(project_id, story_id, character_id)
+        return [ImageResponseSchema.model_validate(img) for img in images]
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.exception(
+            f"Unexpected error fetching renders for character {character_id}: {e}"
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while fetching character renders",
+        )
+
+
+@router.get(
     "/project/{project_id}/story/{story_id}/character/{character_id}/reference-images",
     status_code=200,
 )
