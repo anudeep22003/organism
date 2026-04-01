@@ -36,8 +36,27 @@ DEFAULT_IMAGE_GENERATION_MODEL = nano_banana
 
 class ConcurrentMediaGenerator:
     def __init__(self) -> None:
-        self._semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
-        self._client = fal_client.AsyncClient(key=settings.fal_api_key)
+        self._semaphore: asyncio.Semaphore | None = None
+        self._client: fal_client.AsyncClient | None = None
+        self._loop: asyncio.AbstractEventLoop | None = None
+
+    def _get_loop_bound_state(
+        self,
+    ) -> tuple[asyncio.Semaphore, fal_client.AsyncClient]:
+        """Return (semaphore, client) bound to the current running loop.
+
+        A module-level singleton outlives any single event loop. In production
+        there is exactly one loop for the lifetime of the process, so this
+        creates once and reuses. In tests (per-function loops), it recreates on
+        each new loop — no closed-loop errors, no leaked state.
+        """
+        loop = asyncio.get_running_loop()
+        if self._loop is not loop:
+            self._semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
+            self._client = fal_client.AsyncClient(key=settings.fal_api_key)
+            self._loop = loop
+        assert self._semaphore is not None and self._client is not None
+        return self._semaphore, self._client
 
     async def subscribe(
         self,
@@ -46,8 +65,9 @@ class ConcurrentMediaGenerator:
         model: ImageGenerationModel = DEFAULT_IMAGE_GENERATION_MODEL,
     ) -> AnyJSON:
         model_name, arguments = self._get_model_and_arguments(arguments, model)
-        async with self._semaphore:
-            return await self._client.subscribe(
+        semaphore, client = self._get_loop_bound_state()
+        async with semaphore:
+            return await client.subscribe(
                 model_name, arguments=arguments, on_queue_update=on_queue_update
             )
 
