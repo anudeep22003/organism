@@ -63,6 +63,21 @@ async def get_project(
     return ProjectRelationalStateSchema.model_validate(project)
 
 
+@router.delete("/projects/{project_id}", status_code=204)
+async def delete_project(
+    project_id: uuid.UUID,
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    service: Annotated[ProjectService, Depends(get_project_service)],
+) -> None:
+    """Hard-delete a project and all its children (cascade in DB)."""
+    try:
+        await service.delete_project(project_id, user_id)
+    except NotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
+        )
+
+
 @router.patch("/projects/{project_id}", status_code=200)
 async def rename_project(
     project_id: uuid.UUID,

@@ -32,6 +32,14 @@ class ProjectService:
         await self.db.refresh(project)
         return project
 
+    async def delete_project(self, project_id: uuid.UUID, user_id: uuid.UUID) -> None:
+        """Hard-delete a project. Raises NotFoundError if not found or not owned."""
+        try:
+            await self.repository_v2.project.delete_project(project_id, user_id)
+        except RepoNotFoundError as e:
+            raise NotFoundError(str(e)) from e
+        await self.db.commit()
+
     async def rename_project(
         self, project_id: uuid.UUID, user_id: uuid.UUID, name: str
     ) -> Project:
