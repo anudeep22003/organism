@@ -1,8 +1,9 @@
-import os
 from functools import lru_cache
 from typing import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+from core.config import settings
 
 
 @lru_cache(maxsize=1)
@@ -18,8 +19,7 @@ def _get_session_maker() -> "async_sessionmaker[AsyncSession]":
     trigger core.config imports, which means alembic can safely import app models
     (which transitively import this module) without needing API keys.
     """
-    database_url = os.environ["DATABASE_URL"]
-    engine = create_async_engine(database_url, echo=False)
+    engine = create_async_engine(settings.database_url, echo=False)
     return async_sessionmaker(bind=engine)
 
 
