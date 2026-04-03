@@ -1,7 +1,7 @@
 import type { RouteObject } from "react-router";
-import ProjectHome from "./Projects/ProjectHome";
-import ProjectList from "./Projects/ProjectList";
-import StoryWorkspace from "./StoryPhase/StoryWorkspace";
+import ProjectHome from "./projects/ui/ProjectHome";
+import ProjectList from "./projects/ui/ProjectList";
+import StoryWorkspace from "./phases/story-phase/ui/StoryWorkspace";
 
 const ROOT_PATH = "/story";
 

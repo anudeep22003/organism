@@ -1,12 +1,13 @@
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Link, useParams } from "react-router";
 import { StoryCard } from "./components/StoryCard";
-import { useAddStory } from "./hooks/useAddStory";
-import { useProjectHome } from "./hooks/useProjectHome";
+import { useAddStory } from "../hooks/useAddStory";
+import { projectHomeOptions } from "../projects.queries";
 
 const ProjectHome = () => {
   const { projectId } = useParams();
-  const { data: projectHome } = useProjectHome(projectId ?? "");
+  const { data: projectHome } = useQuery(projectHomeOptions(projectId ?? ""));
   const addStoryMutation = useAddStory(projectId ?? "");
 
   if (!projectHome) {
@@ -17,7 +18,6 @@ const ProjectHome = () => {
     <div className="p-6">
       <Link
         to="/story"
-
         className="text-sm text-muted-foreground hover:text-foreground mb-4 inline-block"
       >
         &larr; All Projects

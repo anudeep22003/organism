@@ -1,6 +1,6 @@
 import { IconCheck, IconX } from "@tabler/icons-react";
 import { Card, CardHeader } from "@/components/ui/card";
-import type { EditEventType } from "../StoryPhase/types";
+import type { EditEventType } from "../phases/story-phase/story-phase.types";
 import ContentCard from "./ContentCard";
 
 function formatRelativeTime(dateString: string): string {

@@ -5,7 +5,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Link } from "react-router";
-import type { ProjectListEntryType } from "../types";
+import type { ProjectListEntryType } from "../../../shared/story.types";
 
 const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString(undefined, {

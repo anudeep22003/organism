@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from "react";
 import { IconX } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
-import type { EditEventType } from "../StoryPhase/types";
+import type { EditEventType } from "../phases/story-phase/story-phase.types";
 import HistoryCard from "./HistoryCard";
 
 type HistoryOverlayProps = {

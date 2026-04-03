@@ -7,8 +7,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Link } from "react-router";
-import { useDeleteStory } from "../hooks/useDeleteStory";
-import type { StoryListEntryType } from "../types";
+import { useDeleteStory } from "../../hooks/useDeleteStory";
+import type { StoryListEntryType } from "../../../shared/story.types";
 
 export const StoryCard = ({
   story,
