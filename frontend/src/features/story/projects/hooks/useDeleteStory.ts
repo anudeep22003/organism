@@ -1,8 +1,7 @@
 import { httpClient } from "@/lib/httpClient";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { projectHomeKeys } from "./useProjectHome";
-
-const PROJECT_ENDPOINT = "/api/comic-builder/v2/projects" as const;
+import { STORY_API_BASE } from "../../shared/story.constants";
+import { projectHomeOptions } from "../projects.queries";
 
 export const useDeleteStory = (projectId: string, storyId: string) => {
   const queryClient = useQueryClient();
@@ -10,11 +9,11 @@ export const useDeleteStory = (projectId: string, storyId: string) => {
   return useMutation({
     mutationFn: () =>
       httpClient.delete(
-        `${PROJECT_ENDPOINT}/${projectId}/story/${storyId}`,
+        `${STORY_API_BASE}/projects/${projectId}/story/${storyId}`,
       ),
     onSuccess: () =>
       queryClient.invalidateQueries({
-        queryKey: projectHomeKeys.details(projectId),
+        queryKey: projectHomeOptions(projectId).queryKey,
       }),
   });
 };

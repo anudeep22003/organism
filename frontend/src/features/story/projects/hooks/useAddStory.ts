@@ -1,9 +1,8 @@
 import { httpClient } from "@/lib/httpClient";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type { StoryResponseType } from "../types";
-import { projectHomeKeys } from "./useProjectHome";
-
-const PROJECT_ENDPOINT = "/api/comic-builder/v2/projects" as const;
+import { STORY_API_BASE } from "../../shared/story.constants";
+import type { StoryResponseType } from "../projects.types";
+import { projectHomeOptions } from "../projects.queries";
 
 export const useAddStory = (projectId: string) => {
   const queryClient = useQueryClient();
@@ -11,12 +10,12 @@ export const useAddStory = (projectId: string) => {
   return useMutation({
     mutationFn: () =>
       httpClient.post<StoryResponseType>(
-        `${PROJECT_ENDPOINT}/${projectId}/story`,
+        `${STORY_API_BASE}/projects/${projectId}/story`,
         { projectId },
       ),
     onSuccess: () =>
       queryClient.invalidateQueries({
-        queryKey: projectHomeKeys.details(projectId),
+        queryKey: projectHomeOptions(projectId).queryKey,
       }),
   });
 };

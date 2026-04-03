@@ -1,13 +1,14 @@
 import { useCallback, useState } from "react";
 import { Link, useParams } from "react-router";
 import { IconHistory } from "@tabler/icons-react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { ArtifactCard } from "../components/ArtifactCard";
-import type { RefinePayload } from "../components/ArtifactCard";
-import HistoryOverlay from "../components/HistoryOverlay";
-import StoryContent from "../components/StoryContent";
-import { useStoryPhase } from "./hooks/useStoryPhase";
-import { useStoryHistory } from "./hooks/useStoryHistory";
+import { ArtifactCard } from "../../../components/ArtifactCard";
+import type { RefinePayload } from "../../../components/ArtifactCard";
+import HistoryOverlay from "../../../components/HistoryOverlay";
+import StoryContent from "../../../components/StoryContent";
+import { useStoryPhase } from "../hooks/useStoryPhase";
+import { storyHistoryOptions } from "../story-phase.queries";
 
 function StoryWorkspace() {
   const { projectId, storyId } = useParams();
@@ -16,7 +17,7 @@ function StoryWorkspace() {
 
   const { storyText, userInputText, error, isGenerating, submitPrompt } =
     useStoryPhase(pid, sid);
-  const { data: historyEvents } = useStoryHistory(pid, sid);
+  const { data: historyEvents } = useQuery(storyHistoryOptions(pid, sid));
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   const handleStoryRefine = useCallback(
