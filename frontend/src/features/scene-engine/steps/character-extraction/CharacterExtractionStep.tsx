@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ModalShell } from "../../components/ModalShell";
 import PromptInput from "../../components/PromptInput";
 import { Skeleton } from "../../components/Skeleton";
 import { useSceneEngine } from "../../context";
 import { CharacterAttributes } from "./CharacterAttributes";
+import { imageSignedUrlOptions } from "./character-extraction.queries";
 import type { CharacterBundle, ImageRecord } from "./character-extraction.types";
 import { useCharacterExtraction } from "./hooks/useCharacterExtraction";
 
@@ -42,6 +44,40 @@ function EmptyState({
   );
 }
 
+function RefImageThumbnail({
+  img,
+  isLast,
+}: {
+  img: ImageRecord;
+  isLast: boolean;
+}) {
+  const queryClient = useQueryClient();
+  const { data } = useQuery(imageSignedUrlOptions(img.id));
+
+  return (
+    <div
+      className={`relative aspect-square w-full shrink-0 cursor-pointer bg-muted/20 hover:bg-muted/40 ${
+        !isLast ? "border-b border-border" : ""
+      }`}
+    >
+      {data?.url ? (
+        <img
+          src={data.url}
+          alt=""
+          className="h-full w-full object-cover"
+          onError={() =>
+            void queryClient.invalidateQueries({
+              queryKey: imageSignedUrlOptions(img.id).queryKey,
+            })
+          }
+        />
+      ) : (
+        <Skeleton className="h-full w-full" />
+      )}
+    </div>
+  );
+}
+
 function RefImageTray({
   images,
   variant,
@@ -57,11 +93,10 @@ function RefImageTray({
   return (
     <div className={`flex w-16 shrink-0 self-end flex-col overflow-y-auto ${outerClass}`}>
       {images.map((img, i) => (
-        <div
+        <RefImageThumbnail
           key={img.id}
-          className={`aspect-square w-full shrink-0 bg-muted/20 hover:bg-muted/40 cursor-pointer ${
-            i < images.length - 1 ? "border-b border-border" : ""
-          }`}
+          img={img}
+          isLast={i === images.length - 1}
         />
       ))}
     </div>
