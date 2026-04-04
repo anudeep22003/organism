@@ -1,9 +1,7 @@
 import Block from "../../components/Block";
 import PromptInput from "../../components/PromptInput";
+import { useSceneEngine } from "../../context";
 import { useStoryPhase } from "./hooks/useStoryPhase";
-
-const PROJECT_ID = "9c10291d-4b0a-4c2f-8deb-417d36a12d7b";
-const STORY_ID = "e446a444-2480-4e38-9560-3aa90d806494";
 
 function StoryCanvas({
   storyText,
@@ -61,9 +59,10 @@ function ChatPanel({ onSend }: { onSend: (value: string) => void }) {
 }
 
 export default function StoryStep() {
+  const { projectId, storyId } = useSceneEngine();
   const { storyText, isGenerating, error, submitPrompt } = useStoryPhase(
-    PROJECT_ID,
-    STORY_ID,
+    projectId,
+    storyId,
   );
 
   return (
