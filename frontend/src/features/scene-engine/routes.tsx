@@ -1,9 +1,15 @@
 import type { RouteObject } from "react-router";
+import SceneEngineLayout from "./Layout";
 import SceneEngine from ".";
 
 export const sceneEngineRoutes: RouteObject[] = [
   {
-    path: "/scene",
-    element: <SceneEngine />,
+    element: <SceneEngineLayout />,
+    children: [
+      {
+        path: "/scene",
+        element: <SceneEngine />,
+      },
+    ],
   },
 ];
