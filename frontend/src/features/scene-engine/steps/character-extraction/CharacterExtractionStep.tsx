@@ -1,4 +1,5 @@
 import { useSceneEngine } from "../../context";
+import { CharacterAttributes } from "./CharacterAttributes";
 import { useCharacterExtraction } from "./hooks/useCharacterExtraction";
 
 function EmptyState({
@@ -41,9 +42,7 @@ function CharacterList({ characters }: { characters: Record<string, unknown>[] }
     <div className="flex h-full w-full flex-col gap-2 overflow-y-auto p-4">
       {characters.map((character, i) => (
         <div key={(character.id as string) ?? i} className="border border-border bg-muted/20 p-3">
-          <pre className="whitespace-pre-wrap text-[10px] text-muted-foreground">
-            {JSON.stringify(character, null, 2)}
-          </pre>
+          <CharacterAttributes character={character} />
         </div>
       ))}
     </div>
