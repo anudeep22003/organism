@@ -38,6 +38,23 @@ export function useCharacterExtraction(projectId: string, storyId: string) {
     },
   });
 
+  const { mutate: refineCharacter, isPending: isRefining } = useMutation({
+    mutationFn: ({
+      characterId,
+      instruction,
+    }: {
+      characterId: string;
+      instruction: string;
+    }) =>
+      httpClient.post<Record<string, unknown>>(
+        `${STORY_API_BASE}/project/${projectId}/story/${storyId}/character/${characterId}/refine`,
+        { instruction },
+      ),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey });
+    },
+  });
+
   return {
     characters,
     isLoading,
@@ -46,5 +63,7 @@ export function useCharacterExtraction(projectId: string, storyId: string) {
     extractError: rawExtractError
       ? extractionErrorMessage(rawExtractError)
       : null,
+    refineCharacter,
+    isRefining,
   };
 }
