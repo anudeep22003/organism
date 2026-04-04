@@ -4,6 +4,7 @@ import PromptInput from "../../components/PromptInput";
 import { Skeleton } from "../../components/Skeleton";
 import { useSceneEngine } from "../../context";
 import { CharacterAttributes } from "./CharacterAttributes";
+import type { CharacterBundle, ImageRecord } from "./character-extraction.types";
 import { useCharacterExtraction } from "./hooks/useCharacterExtraction";
 
 function EmptyState({
@@ -41,30 +42,54 @@ function EmptyState({
   );
 }
 
+function RefImageTray({ images }: { images: ImageRecord[] }) {
+  return (
+    <div
+      className={`flex w-16 shrink-0 flex-col justify-end overflow-y-auto border-l ${
+        images.length > 0 ? "border-border" : "border-transparent"
+      }`}
+    >
+      {images.map((img) => (
+        <div
+          key={img.id}
+          className="aspect-square w-full shrink-0 border-b border-border bg-muted/20 hover:bg-muted/40 cursor-pointer"
+        />
+      ))}
+    </div>
+  );
+}
+
 function CharacterModal({
-  character,
+  bundle,
   onDismiss,
   onRefine,
   isRefining,
+  onUpload,
+  isUploading,
 }: {
-  character: Record<string, unknown>;
+  bundle: CharacterBundle;
   onDismiss: () => void;
   onRefine: (instruction: string) => void;
   isRefining: boolean;
+  onUpload: (file: File) => void;
+  isUploading: boolean;
 }) {
-  const name = (character.name as string) ?? "Character";
-
   return (
-    <ModalShell header={name} onDismiss={onDismiss}>
-      <div className="min-h-0 flex-1 overflow-y-auto p-3">
-        <CharacterAttributes character={character} />
+    <ModalShell header={bundle.character.name} onDismiss={onDismiss}>
+      <div className="flex min-h-0 flex-1">
+        <div className="min-h-0 flex-1 overflow-y-auto p-3">
+          <CharacterAttributes character={bundle.character} />
+        </div>
+        <RefImageTray images={bundle.referenceImages} />
       </div>
       <div className="shrink-0 border-t border-border">
         <PromptInput
           onSend={onRefine}
-          showUpload={false}
+          onUpload={(files) => files.forEach(onUpload)}
+          showUpload={true}
+          acceptedFileTypes="image/*"
           placeholder="Refine this character…"
-          disabled={isRefining}
+          disabled={isRefining || isUploading}
         />
       </div>
     </ModalShell>
@@ -72,18 +97,21 @@ function CharacterModal({
 }
 
 function CharacterCard({
-  character,
+  bundle,
   onActivate,
 }: {
-  character: Record<string, unknown>;
+  bundle: CharacterBundle;
   onActivate: () => void;
 }) {
   return (
     <div
-      className="border border-border bg-muted/20 p-3 hover:bg-muted/40 cursor-pointer"
+      className="flex border border-border bg-muted/20 hover:bg-muted/40 cursor-pointer"
       onClick={onActivate}
     >
-      <CharacterAttributes character={character} />
+      <div className="min-w-0 flex-1 p-3">
+        <CharacterAttributes character={bundle.character} />
+      </div>
+      <RefImageTray images={bundle.referenceImages} />
     </div>
   );
 }
@@ -92,43 +120,48 @@ function CharacterList({
   characters,
   refineCharacter,
   isRefining,
+  uploadReferenceImage,
+  isUploading,
 }: {
-  characters: Record<string, unknown>[];
+  characters: CharacterBundle[];
   refineCharacter: (args: { characterId: string; instruction: string }) => void;
   isRefining: boolean;
+  uploadReferenceImage: (args: { characterId: string; file: File }) => void;
+  isUploading: boolean;
 }) {
   const [activeId, setActiveId] = useState<string | null>(null);
 
-  const activeCharacter = activeId
-    ? characters.find((c) => (c.id as string) === activeId)
+  const activeBundle = activeId
+    ? characters.find((b) => b.character.id === activeId)
     : null;
 
   return (
     <div className="relative flex h-full w-full flex-col gap-2 overflow-y-auto p-4">
-      {activeCharacter && (
+      {activeBundle && (
         <>
           <div className="absolute inset-0 z-10 backdrop-blur-sm pointer-events-none" />
           <CharacterModal
-            character={activeCharacter}
+            bundle={activeBundle}
             onDismiss={() => setActiveId(null)}
             onRefine={(instruction) =>
               refineCharacter({ characterId: activeId!, instruction })
             }
             isRefining={isRefining}
+            onUpload={(file) =>
+              uploadReferenceImage({ characterId: activeId!, file })
+            }
+            isUploading={isUploading}
           />
         </>
       )}
 
-      {characters.map((character, i) => {
-        const id = (character.id as string) ?? String(i);
-        return (
-          <CharacterCard
-            key={id}
-            character={character}
-            onActivate={() => setActiveId(id)}
-          />
-        );
-      })}
+      {characters.map((bundle) => (
+        <CharacterCard
+          key={bundle.character.id}
+          bundle={bundle}
+          onActivate={() => setActiveId(bundle.character.id)}
+        />
+      ))}
     </div>
   );
 }
@@ -143,6 +176,8 @@ export default function CharacterExtractionStep() {
     extractError,
     refineCharacter,
     isRefining,
+    uploadReferenceImage,
+    isUploading,
   } = useCharacterExtraction(projectId, storyId);
 
   if (isLoading) {
@@ -162,6 +197,8 @@ export default function CharacterExtractionStep() {
           characters={characters}
           refineCharacter={refineCharacter}
           isRefining={isRefining}
+          uploadReferenceImage={uploadReferenceImage}
+          isUploading={isUploading}
         />
       ) : (
         <EmptyState
