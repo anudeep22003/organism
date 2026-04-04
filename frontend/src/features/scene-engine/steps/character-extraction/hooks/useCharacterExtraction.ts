@@ -83,6 +83,31 @@ export function useCharacterExtraction(projectId: string, storyId: string) {
     },
   });
 
+  const { mutate: deleteReferenceImage, isPending: isDeleting } = useMutation({
+    mutationFn: ({
+      characterId,
+      imageId,
+    }: {
+      characterId: string;
+      imageId: string;
+    }) =>
+      httpClient.delete(
+        `${STORY_API_BASE}/project/${projectId}/story/${storyId}/character/${characterId}/reference-image/${imageId}`,
+      ),
+    onSuccess: (_, { characterId, imageId }) => {
+      queryClient.setQueryData(queryKey, (prev: CharacterBundle[] | undefined) =>
+        prev?.map((b) =>
+          b.character.id === characterId
+            ? {
+                ...b,
+                referenceImages: b.referenceImages.filter((r) => r.id !== imageId),
+              }
+            : b,
+        ),
+      );
+    },
+  });
+
   return {
     characters,
     isLoading,
@@ -95,5 +120,7 @@ export function useCharacterExtraction(projectId: string, storyId: string) {
     isRefining,
     uploadReferenceImage,
     isUploading,
+    deleteReferenceImage,
+    isDeleting,
   };
 }

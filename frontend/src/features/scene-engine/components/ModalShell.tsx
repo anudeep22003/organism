@@ -42,7 +42,7 @@ export function ModalShell({
             </div>
           </div>
 
-          <div className="flex flex-col">{children}</div>
+          <div className="relative flex flex-col">{children}</div>
         </div>
       </div>
     </>
