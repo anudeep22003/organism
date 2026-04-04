@@ -42,17 +42,26 @@ function EmptyState({
   );
 }
 
-function RefImageTray({ images }: { images: ImageRecord[] }) {
+function RefImageTray({
+  images,
+  variant,
+}: {
+  images: ImageRecord[];
+  variant: "card" | "modal";
+}) {
+  const outerClass =
+    variant === "card"
+      ? `border border-l-0 ${images.length > 0 ? "border-border" : "border-transparent"}`
+      : "";
+
   return (
-    <div
-      className={`flex w-16 shrink-0 flex-col justify-end overflow-y-auto border-l ${
-        images.length > 0 ? "border-border" : "border-transparent"
-      }`}
-    >
-      {images.map((img) => (
+    <div className={`flex w-16 shrink-0 self-end flex-col overflow-y-auto ${outerClass}`}>
+      {images.map((img, i) => (
         <div
           key={img.id}
-          className="aspect-square w-full shrink-0 border-b border-border bg-muted/20 hover:bg-muted/40 cursor-pointer"
+          className={`aspect-square w-full shrink-0 bg-muted/20 hover:bg-muted/40 cursor-pointer ${
+            i < images.length - 1 ? "border-b border-border" : ""
+          }`}
         />
       ))}
     </div>
@@ -80,7 +89,7 @@ function CharacterModal({
         <div className="min-h-0 flex-1 overflow-y-auto p-3">
           <CharacterAttributes character={bundle.character} />
         </div>
-        <RefImageTray images={bundle.referenceImages} />
+        <RefImageTray images={bundle.referenceImages} variant="modal" />
       </div>
       <div className="shrink-0 border-t border-border">
         <PromptInput
@@ -104,14 +113,11 @@ function CharacterCard({
   onActivate: () => void;
 }) {
   return (
-    <div
-      className="flex border border-border bg-muted/20 hover:bg-muted/40 cursor-pointer"
-      onClick={onActivate}
-    >
-      <div className="min-w-0 flex-1 p-3">
+    <div className="flex" onClick={onActivate}>
+      <div className="min-w-0 flex-1 cursor-pointer border border-border bg-muted/20 p-3 hover:bg-muted/40">
         <CharacterAttributes character={bundle.character} />
       </div>
-      <RefImageTray images={bundle.referenceImages} />
+      <RefImageTray images={bundle.referenceImages} variant="card" />
     </div>
   );
 }
