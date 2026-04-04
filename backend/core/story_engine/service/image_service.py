@@ -6,6 +6,7 @@ from typing import BinaryIO
 
 from coolname.impl import generate_slug
 from google.cloud.storage import Client  # type: ignore[import-untyped]
+from google.oauth2 import service_account
 from loguru import logger
 from PIL import Image as PILImage
 from PIL import ImageOps
@@ -207,7 +208,19 @@ class ImageProcessor:
 
 class GCSUploadService:
     def __init__(self) -> None:
-        self.client = Client(project=settings.gcp_project_id, credentials=None)
+        # Locally, load credentials explicitly from the service account key file so
+        # generate_signed_url (which requires a private key) works. On Cloud Run
+        # google_application_credentials is unset so credentials=None is passed,
+        # letting the GCS client fall back to ADC via Workload Identity (also has a
+        # private key and can sign).
+        credentials = (
+            service_account.Credentials.from_service_account_file(
+                settings.google_application_credentials
+            )
+            if settings.google_application_credentials
+            else None
+        )
+        self.client = Client(project=settings.gcp_project_id, credentials=credentials)
         self.bucket = self.client.bucket(settings.gcp_storage_bucket)
 
     def upload(
