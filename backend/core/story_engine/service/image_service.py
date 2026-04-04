@@ -31,7 +31,7 @@ from ..repository import RepositoryV2
 ORIGINAL_QUALITY = 90
 IMAGE_FORMAT = "jpeg"
 IMAGE_CONTENT_TYPE = ImageContentType.JPEG
-SIGNED_URL_EXPIRY_MINUTES = 15
+SIGNED_URL_EXPIRY_MINUTES = 60
 
 
 def extract_image_dimensions(image_bytes: BytesIO) -> tuple[int, int]:
