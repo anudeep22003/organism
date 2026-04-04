@@ -58,9 +58,9 @@ export default function CharacterExtractionStep() {
   if (isLoading) {
     return (
       <div className="flex h-full w-full flex-col gap-2 p-4">
-        <Skeleton className="flex-1 w-full" />
-        <Skeleton className="flex-1 w-full" />
-        <Skeleton className="flex-1 w-full" />
+        <Skeleton className="min-h-0 flex-1 w-full" />
+        <Skeleton className="min-h-0 flex-1 w-full" />
+        <Skeleton className="min-h-0 flex-1 w-full" />
       </div>
     );
   }
