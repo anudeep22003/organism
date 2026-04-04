@@ -11,6 +11,9 @@
     "type-check": "tsc -b --noEmit"
   },
   "dependencies": {
+    "@fontsource-variable/figtree": "^5.2.10",
+    "@hugeicons/core-free-icons": "^4.1.1",
+    "@hugeicons/react": "^1.1.6",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
