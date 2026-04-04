@@ -15,7 +15,7 @@ export default function StepperControls() {
       <button
         onClick={goBack}
         disabled={!canGoBack}
-        className="border border-border px-3 py-1.5 text-[10px] text-muted-foreground hover:bg-muted/40 disabled:pointer-events-none disabled:opacity-30"
+        className="border border-foreground/30 px-3 py-1.5 text-[10px] text-foreground hover:bg-muted/40 disabled:pointer-events-none disabled:opacity-30"
       >
         Back
       </button>
