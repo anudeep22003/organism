@@ -130,7 +130,7 @@ export default function PromptInput({
         <button
           onClick={handleSend}
           disabled={disabled}
-          className="flex items-center justify-center bg-black p-1.5 text-white hover:bg-black/80 disabled:opacity-50"
+          className="flex items-center justify-center bg-foreground p-1.5 text-background hover:bg-foreground/80 disabled:opacity-50"
         >
           <HugeiconsIcon icon={ArrowUp01Icon} size={14} />
         </button>

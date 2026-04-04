@@ -22,12 +22,12 @@ export default function StepperControls() {
       {canGoNext ? (
         <button
           onClick={goNext}
-          className="bg-black px-3 py-1.5 text-[10px] text-white hover:bg-black/80"
+          className="bg-foreground px-3 py-1.5 text-[10px] text-background hover:bg-foreground/80"
         >
           Next
         </button>
       ) : (
-        <button className="bg-black px-3 py-1.5 text-[10px] text-white hover:bg-black/80">
+        <button className="bg-foreground px-3 py-1.5 text-[10px] text-background hover:bg-foreground/80">
           Done
         </button>
       )}
