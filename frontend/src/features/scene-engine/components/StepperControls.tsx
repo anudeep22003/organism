@@ -7,27 +7,29 @@ const lastStepId = SCENE_STEPS[SCENE_STEPS.length - 1].id;
 export default function StepperControls() {
   const { currentStep, goBack, goNext } = useSceneEngine();
 
+  const canGoBack = currentStep > firstStepId;
+  const canGoNext = currentStep < lastStepId;
+
   return (
     <div className="flex items-center justify-between border-t border-border px-4 py-2">
-      {currentStep > firstStepId ? (
-        <button
-          onClick={goBack}
-          className="text-[10px] text-muted-foreground hover:text-foreground"
-        >
-          ← Back
-        </button>
-      ) : (
-        <span />
-      )}
-      {currentStep < lastStepId ? (
+      <button
+        onClick={goBack}
+        disabled={!canGoBack}
+        className="border border-border px-3 py-1.5 text-[10px] text-muted-foreground hover:bg-muted/40 disabled:pointer-events-none disabled:opacity-30"
+      >
+        Back
+      </button>
+      {canGoNext ? (
         <button
           onClick={goNext}
-          className="text-[10px] text-muted-foreground hover:text-foreground"
+          className="bg-black px-3 py-1.5 text-[10px] text-white hover:bg-black/80"
         >
-          Next →
+          Next
         </button>
       ) : (
-        <span />
+        <button className="bg-black px-3 py-1.5 text-[10px] text-white hover:bg-black/80">
+          Done
+        </button>
       )}
     </div>
   );
