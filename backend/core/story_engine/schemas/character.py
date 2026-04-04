@@ -18,12 +18,14 @@ class CharacterResponseSchema(AliasedBaseModel):
     meta: dict[str, Any]
 
 
-class CharacterRenderReferencesSchema(CharacterResponseSchema):
+class CharacterRenderReferencesSchema(AliasedBaseModel):
     """Complete character payload: attributes, canonical render, and all reference images.
 
-    Per Decision 12: embeds related images so the client needs no extra round-trips.
+    Per Decision 12: composes CharacterResponseSchema with image fields so the
+    client receives everything in a single response with clear separation of concerns.
     """
 
+    character: CharacterResponseSchema
     canonical_render: ImageResponseSchema | None = None
     reference_images: list[ImageResponseSchema] = []
 

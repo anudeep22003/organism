@@ -118,7 +118,7 @@ async def test_list_characters_contains_fixture_character(
         headers=_auth_headers(user.id),
     )
 
-    ids = [c["id"] for c in response.json()]
+    ids = [c["character"]["id"] for c in response.json()]
     assert str(character.id) in ids
 
 
@@ -139,23 +139,24 @@ async def test_list_characters_response_shape(
     )
 
     assert response.status_code == 200
-    item = next(c for c in response.json() if c["id"] == str(character.id))
+    item = next(c for c in response.json() if c["character"]["id"] == str(character.id))
 
-    # Core identity fields
-    assert "id" in item
-    assert "name" in item
-    assert "slug" in item
-    assert "attributes" in item
-    assert isinstance(item["attributes"], dict)
+    # character sub-object fields
+    char = item["character"]
+    assert "id" in char
+    assert "name" in char
+    assert "slug" in char
+    assert "attributes" in char
+    assert isinstance(char["attributes"], dict)
+    assert "sourceEventId" in char
+    assert "createdAt" in char
+    assert "updatedAt" in char
+    assert "meta" in char
 
-    # Audit / relation fields
-    assert "sourceEventId" in item
+    # top-level image fields
     assert "canonicalRender" in item
     assert "referenceImages" in item
     assert isinstance(item["referenceImages"], list)
-    assert "createdAt" in item
-    assert "updatedAt" in item
-    assert "meta" in item
 
 
 async def test_list_characters_attributes_content(
@@ -171,8 +172,8 @@ async def test_list_characters_attributes_content(
         headers=_auth_headers(user.id),
     )
 
-    item = next(c for c in response.json() if c["id"] == str(character.id))
-    attrs = item["attributes"]
+    item = next(c for c in response.json() if c["character"]["id"] == str(character.id))
+    attrs = item["character"]["attributes"]
 
     assert attrs["name"] == "Aragorn"
     assert attrs["character_type"] == "protagonist"
@@ -237,7 +238,7 @@ async def test_list_characters_multiple_characters(
     )
 
     assert response.status_code == 200
-    ids = {c["id"] for c in response.json()}
+    ids = {c["character"]["id"] for c in response.json()}
     assert str(character.id) in ids
     assert str(second.id) in ids
 
@@ -304,7 +305,7 @@ async def test_list_characters_embeds_reference_images(
     )
 
     assert response.status_code == 200
-    item = next(c for c in response.json() if c["id"] == str(character.id))
+    item = next(c for c in response.json() if c["character"]["id"] == str(character.id))
     assert len(item["referenceImages"]) == 1
     assert item["referenceImages"][0]["id"] == str(ref.id)
 
@@ -339,6 +340,7 @@ async def test_get_character_embeds_reference_images(
 
     assert response.status_code == 200
     body = response.json()
+    assert "character" in body
     assert "referenceImages" in body
     assert len(body["referenceImages"]) == 1
     assert body["referenceImages"][0]["id"] == str(ref.id)
