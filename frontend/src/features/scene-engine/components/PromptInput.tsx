@@ -71,7 +71,7 @@ export default function PromptInput({
   const isTranscribing = recordingState === "transcribing";
 
   return (
-    <div className="relative border-t border-border">
+    <div className="relative">
       {showUpload && (
         <input
           ref={fileInputRef}
