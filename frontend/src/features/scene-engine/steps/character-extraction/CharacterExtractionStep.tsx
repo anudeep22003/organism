@@ -1,3 +1,4 @@
+import { Skeleton } from "../../components/Skeleton";
 import { useSceneEngine } from "../../context";
 import { CharacterAttributes } from "./CharacterAttributes";
 import { useCharacterExtraction } from "./hooks/useCharacterExtraction";
@@ -54,7 +55,15 @@ export default function CharacterExtractionStep() {
   const { characters, isLoading, extractCharacters, isExtracting, extractError } =
     useCharacterExtraction(projectId, storyId);
 
-  if (isLoading) return <div className="flex h-full w-full" />;
+  if (isLoading) {
+    return (
+      <div className="flex h-full w-full flex-col gap-2 p-4">
+        <Skeleton className="flex-1 w-full" />
+        <Skeleton className="flex-1 w-full" />
+        <Skeleton className="flex-1 w-full" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full w-full flex-col">
