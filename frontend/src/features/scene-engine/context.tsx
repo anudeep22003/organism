@@ -1,9 +1,15 @@
-import { createContext, useCallback, useContext, useState } from "react";
 import type { ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useState,
+} from "react";
 import { SCENE_STEPS } from "./steps";
 
 const TEST_PROJECT_ID = "9c10291d-4b0a-4c2f-8deb-417d36a12d7b";
-const TEST_STORY_ID = "e446a444-2480-4e38-9560-3aa90d806494";
+// const TEST_STORY_ID = "e446a444-2480-4e38-9560-3aa90d806494";
+const TEST_STORY_ID = "f4ca0d39-4801-4e6c-b932-889f27048b09";
 
 type SceneEngineContextValue = {
   currentStep: number;
@@ -16,9 +22,14 @@ type SceneEngineContextValue = {
   setStoryId: (id: string) => void;
 };
 
-const SceneEngineContext = createContext<SceneEngineContextValue | null>(null);
+const SceneEngineContext =
+  createContext<SceneEngineContextValue | null>(null);
 
-export function SceneEngineProvider({ children }: { children: ReactNode }) {
+export function SceneEngineProvider({
+  children,
+}: {
+  children: ReactNode;
+}) {
   const [currentStep, setCurrentStep] = useState(1);
   const [projectId, setProjectId] = useState(TEST_PROJECT_ID);
   const [storyId, setStoryId] = useState(TEST_STORY_ID);
@@ -42,7 +53,16 @@ export function SceneEngineProvider({ children }: { children: ReactNode }) {
 
   return (
     <SceneEngineContext.Provider
-      value={{ currentStep, goTo, goNext, goBack, projectId, storyId, setProjectId, setStoryId }}
+      value={{
+        currentStep,
+        goTo,
+        goNext,
+        goBack,
+        projectId,
+        storyId,
+        setProjectId,
+        setStoryId,
+      }}
     >
       {children}
     </SceneEngineContext.Provider>
@@ -51,6 +71,9 @@ export function SceneEngineProvider({ children }: { children: ReactNode }) {
 
 export function useSceneEngine() {
   const ctx = useContext(SceneEngineContext);
-  if (!ctx) throw new Error("useSceneEngine must be used within SceneEngineProvider");
+  if (!ctx)
+    throw new Error(
+      "useSceneEngine must be used within SceneEngineProvider",
+    );
   return ctx;
 }
