@@ -1,11 +1,11 @@
-import PromptInput from "./components/PromptInput";
+import { useSceneEngine } from "./context";
+import { SCENE_STEPS } from "./steps";
 
 export default function SceneEngine() {
-  return (
-    <div className="flex h-full items-center justify-center">
-      <div className="w-full max-w-xl border border-border">
-        <PromptInput onSend={(value) => console.log(value)} />
-      </div>
-    </div>
-  );
+  const { currentStep } = useSceneEngine();
+  const step = SCENE_STEPS.find((s) => s.id === currentStep);
+
+  if (!step) return null;
+
+  return <step.component />;
 }

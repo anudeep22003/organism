@@ -1,10 +1,15 @@
 import { useTheme } from "@/context/ThemeContext";
 import { Outlet } from "react-router";
 import { useAuth } from "../auth/model/auth.context";
+import { SceneEngineProvider, useSceneEngine } from "./context";
+import { SCENE_STEPS } from "./steps";
+import Stepper from "./components/Stepper";
+import StepperControls from "./components/StepperControls";
 
-export default function SceneEngineLayout() {
+function SceneEngineShell() {
   const { signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { currentStep, goTo } = useSceneEngine();
   const isDark = theme === "dark";
 
   return (
@@ -37,9 +42,24 @@ export default function SceneEngineLayout() {
           </button>
         </div>
       </div>
+
+      <div className="shrink-0 border-b border-border px-4 py-2">
+        <Stepper steps={SCENE_STEPS} current={currentStep} onStepClick={goTo} />
+      </div>
+
       <div className="flex flex-1 flex-col overflow-hidden">
         <Outlet />
       </div>
+
+      <StepperControls />
     </div>
+  );
+}
+
+export default function SceneEngineLayout() {
+  return (
+    <SceneEngineProvider>
+      <SceneEngineShell />
+    </SceneEngineProvider>
   );
 }
