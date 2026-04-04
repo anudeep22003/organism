@@ -12,6 +12,10 @@ export default function SceneEngineLayout() {
       <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-1.5">
         <div className="flex items-center gap-3">
           <span className="text-xs text-muted-foreground">Organism</span>
+          <div className="h-2.5 w-px bg-border" />
+          <button className="text-[10px] text-muted-foreground hover:text-foreground">
+            Stories
+          </button>
         </div>
         <div className="flex items-center gap-2">
           <button
