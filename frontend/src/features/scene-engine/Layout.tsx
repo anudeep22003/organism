@@ -43,7 +43,7 @@ function SceneEngineShell() {
         </div>
       </div>
 
-      <div className="shrink-0 border-b border-border px-4 py-2">
+      <div className="shrink-0 px-4 py-2">
         <Stepper steps={SCENE_STEPS} current={currentStep} onStepClick={goTo} />
       </div>
 

@@ -11,7 +11,7 @@ export default function StepperControls() {
   const canGoNext = currentStep < lastStepId;
 
   return (
-    <div className="flex items-center justify-between border-t border-border px-4 py-2">
+    <div className="flex items-center justify-between px-4 py-2">
       <button
         onClick={goBack}
         disabled={!canGoBack}
