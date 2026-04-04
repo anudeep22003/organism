@@ -7,6 +7,6 @@ type SkeletonProps = {
 
 export function Skeleton({ className = "", style }: SkeletonProps) {
   return (
-    <div className={`animate-pulse bg-muted/40 ${className}`} style={style} />
+    <div className={`animate-pulse bg-muted ${className}`} style={style} />
   );
 }
