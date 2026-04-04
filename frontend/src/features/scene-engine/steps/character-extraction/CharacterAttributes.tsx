@@ -1,11 +1,13 @@
+import type { CharacterRecord } from "./character-extraction.types";
+
 type CharacterAttributesProps = {
-  character: Record<string, unknown>;
+  character: CharacterRecord;
 };
 
 export function CharacterAttributes({ character }: CharacterAttributesProps) {
   return (
     <pre className="whitespace-pre-wrap text-[10px] text-muted-foreground">
-      {JSON.stringify(character, null, 2)}
+      {JSON.stringify(character.attributes, null, 2)}
     </pre>
   );
 }
