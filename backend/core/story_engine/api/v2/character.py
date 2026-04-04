@@ -312,3 +312,35 @@ async def get_character_reference_images(
             status_code=500,
             detail="An unexpected error occurred while fetching reference images",
         )
+
+
+@router.delete(
+    "/project/{project_id}/story/{story_id}/character/{character_id}/reference-image/{image_id}",
+    status_code=204,
+)
+async def delete_character_reference_image(
+    project_id: uuid.UUID,
+    story_id: uuid.UUID,
+    character_id: uuid.UUID,
+    image_id: uuid.UUID,
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    service: Annotated[CharacterService, Depends(get_character_service)],
+) -> None:
+    try:
+        await service.delete_reference_image(
+            user_id=user_id,
+            project_id=project_id,
+            story_id=story_id,
+            character_id=character_id,
+            image_id=image_id,
+        )
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.exception(
+            f"Unexpected error deleting reference image {image_id} for character {character_id}: {e}"
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while deleting the reference image",
+        )

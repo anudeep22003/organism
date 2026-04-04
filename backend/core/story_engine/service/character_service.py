@@ -511,3 +511,29 @@ class CharacterService:
             character_id=character_id,
             image_byte_stream=image.file,
         )
+
+    async def delete_reference_image(
+        self,
+        user_id: uuid.UUID,
+        project_id: uuid.UUID,
+        story_id: uuid.UUID,
+        character_id: uuid.UUID,
+        image_id: uuid.UUID,
+    ) -> None:
+        character = await self.repository_v2.character.get_character_for_user_in_project_and_story(
+            user_id=user_id,
+            project_id=project_id,
+            story_id=story_id,
+            character_id=character_id,
+        )
+        if character is None:
+            raise NotFoundError(
+                f"Character {character_id} not found for user {user_id} in project {project_id}"
+            )
+        try:
+            await self.repository_v2.image.delete_reference_image(
+                image_id, character_id
+            )
+            await self.db.commit()
+        except RepositoryNotFoundError as e:
+            raise NotFoundError(str(e)) from e

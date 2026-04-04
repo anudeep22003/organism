@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import Image
 from ..models.image import ImageDiscriminatorKey
+from .exception import NotFoundError
 
 
 class ImageRepository:
@@ -70,3 +71,18 @@ class ImageRepository:
             .order_by(Image.created_at.desc())
         )
         return list(result.scalars().all())
+
+    async def delete_reference_image(
+        self, image_id: uuid.UUID, character_id: uuid.UUID
+    ) -> None:
+        """Delete a single CHARACTER_REFERENCE image, verifying it belongs to the character."""
+        image = await self.get_image(image_id)
+        if (
+            image is None
+            or image.target_id != character_id
+            or image.discriminator_key != ImageDiscriminatorKey.CHARACTER_REFERENCE
+        ):
+            raise NotFoundError(
+                f"Reference image {image_id} not found for character {character_id}"
+            )
+        await self.db.delete(image)
