@@ -60,20 +60,21 @@ async def test_get_character_200(
 
     assert response.status_code == 200
     body = response.json()
+    char = body["character"]
 
     # IDs and core fields
-    assert body["id"] == str(character.id)
-    assert body["name"] == character.name
-    assert body["slug"] == character.slug
-    assert body["sourceEventId"] is None
+    assert char["id"] == str(character.id)
+    assert char["name"] == character.name
+    assert char["slug"] == character.slug
+    assert char["sourceEventId"] is None
 
     # AliasedBaseModel serialises to camelCase
-    assert "createdAt" in body
-    assert "updatedAt" in body
+    assert "createdAt" in char
+    assert "updatedAt" in char
 
     # Attributes are returned as-is
-    assert body["attributes"]["name"] == "Aragorn"
-    assert body["attributes"]["character_type"] == "protagonist"
+    assert char["attributes"]["name"] == "Aragorn"
+    assert char["attributes"]["character_type"] == "protagonist"
 
 
 async def test_get_character_404_bad_character(
@@ -119,8 +120,8 @@ async def test_patch_character_200_name(
 
     assert response.status_code == 200
     body = response.json()
-    assert body["name"] == "Strider"
-    assert body["attributes"]["name"] == "Strider"
+    assert body["character"]["name"] == "Strider"
+    assert body["character"]["attributes"]["name"] == "Strider"
 
 
 async def test_patch_character_only_updates_provided_fields(
@@ -136,15 +137,15 @@ async def test_patch_character_only_updates_provided_fields(
     )
 
     assert response.status_code == 200
-    body = response.json()
+    attrs = response.json()["character"]["attributes"]
 
     # Updated field
-    assert body["attributes"]["role"] == "King"
+    assert attrs["role"] == "King"
 
     # All other fields must be unchanged
-    assert body["attributes"]["name"] == "Aragorn"
-    assert body["attributes"]["character_type"] == "protagonist"
-    assert body["attributes"]["demeanor"] == "Stoic and resolute"
+    assert attrs["name"] == "Aragorn"
+    assert attrs["character_type"] == "protagonist"
+    assert attrs["demeanor"] == "Stoic and resolute"
 
 
 async def test_patch_character_404_bad_character(

@@ -35,7 +35,7 @@ def _build_character_full(
 ) -> CharacterRenderReferencesSchema:
     """Assemble a CharacterRenderReferencesSchema from ORM objects (per Decision 12)."""
     return CharacterRenderReferencesSchema(
-        **CharacterResponseSchema.model_validate(character).model_dump(),
+        character=CharacterResponseSchema.model_validate(character),
         canonical_render=ImageResponseSchema.model_validate(image) if image else None,
         reference_images=[
             ImageResponseSchema.model_validate(r) for r in (reference_images or [])
