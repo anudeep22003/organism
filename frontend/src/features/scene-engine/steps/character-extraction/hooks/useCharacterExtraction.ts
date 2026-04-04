@@ -33,8 +33,8 @@ export function useCharacterExtraction(projectId: string, storyId: string) {
       httpClient.post<Record<string, unknown>[]>(
         `${STORY_API_BASE}/project/${projectId}/story/${storyId}/characters`,
       ),
-    onSuccess: (data) => {
-      queryClient.setQueryData(queryKey, data);
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey });
     },
   });
 

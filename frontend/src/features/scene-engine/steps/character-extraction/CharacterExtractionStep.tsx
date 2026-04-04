@@ -51,14 +51,14 @@ function CharacterList({ characters }: { characters: Record<string, unknown>[] }
 
 export default function CharacterExtractionStep() {
   const { projectId, storyId } = useSceneEngine();
-  const { characters, extractCharacters, isExtracting, extractError } =
+  const { characters, isLoading, extractCharacters, isExtracting, extractError } =
     useCharacterExtraction(projectId, storyId);
 
-  const hasCharacters = !!characters?.length;
+  if (isLoading) return <div className="flex h-full w-full" />;
 
   return (
     <div className="flex h-full w-full flex-col">
-      {hasCharacters ? (
+      {characters && characters.length > 0 ? (
         <CharacterList characters={characters} />
       ) : (
         <EmptyState
