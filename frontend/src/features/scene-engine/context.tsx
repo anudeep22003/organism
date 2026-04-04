@@ -2,17 +2,26 @@ import { createContext, useCallback, useContext, useState } from "react";
 import type { ReactNode } from "react";
 import { SCENE_STEPS } from "./steps";
 
+const TEST_PROJECT_ID = "9c10291d-4b0a-4c2f-8deb-417d36a12d7b";
+const TEST_STORY_ID = "e446a444-2480-4e38-9560-3aa90d806494";
+
 type SceneEngineContextValue = {
   currentStep: number;
   goTo: (id: number) => void;
   goNext: () => void;
   goBack: () => void;
+  projectId: string;
+  storyId: string;
+  setProjectId: (id: string) => void;
+  setStoryId: (id: string) => void;
 };
 
 const SceneEngineContext = createContext<SceneEngineContextValue | null>(null);
 
 export function SceneEngineProvider({ children }: { children: ReactNode }) {
   const [currentStep, setCurrentStep] = useState(1);
+  const [projectId, setProjectId] = useState(TEST_PROJECT_ID);
+  const [storyId, setStoryId] = useState(TEST_STORY_ID);
 
   const goTo = useCallback((id: number) => {
     const valid = SCENE_STEPS.find((s) => s.id === id);
@@ -32,7 +41,9 @@ export function SceneEngineProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <SceneEngineContext.Provider value={{ currentStep, goTo, goNext, goBack }}>
+    <SceneEngineContext.Provider
+      value={{ currentStep, goTo, goNext, goBack, projectId, storyId, setProjectId, setStoryId }}
+    >
       {children}
     </SceneEngineContext.Provider>
   );
