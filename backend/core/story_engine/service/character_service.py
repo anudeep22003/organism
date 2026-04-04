@@ -115,6 +115,18 @@ class CharacterService:
             discriminator_key=ImageDiscriminatorKey.CHARACTER_RENDER,
         )
 
+    async def get_character_reference_images(
+        self, character_id: uuid.UUID
+    ) -> list[ImageModel]:
+        """Return all reference images for a character, newest first.
+
+        No ownership check — callers are responsible for verifying character
+        access before calling this method.
+        """
+        return await self.repository_v2.image.get_character_reference_images(
+            character_id
+        )
+
     async def extract_characters_from_story(
         self, project_id: uuid.UUID, story_id: uuid.UUID
     ) -> list[Character]:

@@ -1,4 +1,5 @@
 import uuid
+from collections.abc import Sequence
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
@@ -15,9 +16,9 @@ from ...exceptions import (
 )
 from ...schemas.character import (
     CharacterRefineRequest,
+    CharacterRenderReferencesSchema,
     CharacterResponseSchema,
     CharacterUpdateSchema,
-    CharacterWithRenderSchema,
 )
 from ...schemas.edit_event import EditEventResponseSchema
 from ...schemas.image import ImageResponseSchema
@@ -27,13 +28,18 @@ from ..dependencies import get_character_service, get_image_service
 router = APIRouter(tags=["characters", "v2"])
 
 
-def _build_character_with_render(
-    character: object, image: object | None
-) -> CharacterWithRenderSchema:
-    """Assemble a CharacterWithRenderSchema from ORM objects (per Decision 12)."""
-    return CharacterWithRenderSchema(
+def _build_character_full(
+    character: object,
+    image: object | None,
+    reference_images: Sequence[object] | None = None,
+) -> CharacterRenderReferencesSchema:
+    """Assemble a CharacterRenderReferencesSchema from ORM objects (per Decision 12)."""
+    return CharacterRenderReferencesSchema(
         **CharacterResponseSchema.model_validate(character).model_dump(),
         canonical_render=ImageResponseSchema.model_validate(image) if image else None,
+        reference_images=[
+            ImageResponseSchema.model_validate(r) for r in (reference_images or [])
+        ],
     )
 
 
@@ -42,12 +48,12 @@ async def extract_characters_from_story(
     project_id: uuid.UUID,
     story_id: uuid.UUID,
     service: Annotated[CharacterService, Depends(get_character_service)],
-) -> list[CharacterWithRenderSchema]:
+) -> list[CharacterRenderReferencesSchema]:
     try:
         characters = await service.extract_characters_from_story(project_id, story_id)
         logger.info(f"Extracted {len(characters)} characters from story {story_id}")
-        # Newly extracted characters have no render yet
-        return [_build_character_with_render(c, None) for c in characters]
+        # Newly extracted characters have no renders or reference images yet
+        return [_build_character_full(c, None) for c in characters]
     except CharacterExtractionError as e:
         raise HTTPException(status_code=500, detail=str(e))
     except NotFoundError as e:
@@ -68,13 +74,14 @@ async def get_characters_for_story(
     story_id: uuid.UUID,
     user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     service: Annotated[CharacterService, Depends(get_character_service)],
-) -> list[CharacterWithRenderSchema]:
+) -> list[CharacterRenderReferencesSchema]:
     try:
         characters = await service.get_story_characters(project_id, story_id)
         result = []
         for character in characters:
             render = await service.get_canonical_character_render(character.id)
-            result.append(_build_character_with_render(character, render))
+            refs = await service.get_character_reference_images(character.id)
+            result.append(_build_character_full(character, render, refs))
         return result
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -94,11 +101,12 @@ async def get_character(
     story_id: uuid.UUID,
     character_id: uuid.UUID,
     service: Annotated[CharacterService, Depends(get_character_service)],
-) -> CharacterWithRenderSchema:
+) -> CharacterRenderReferencesSchema:
     try:
         character = await service.get_character(project_id, story_id, character_id)
         render = await service.get_canonical_character_render(character.id)
-        return _build_character_with_render(character, render)
+        refs = await service.get_character_reference_images(character.id)
+        return _build_character_full(character, render, refs)
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
@@ -118,14 +126,15 @@ async def update_character(
     character_id: uuid.UUID,
     body: CharacterUpdateSchema,
     service: Annotated[CharacterService, Depends(get_character_service)],
-) -> CharacterWithRenderSchema:
+) -> CharacterRenderReferencesSchema:
     try:
         updates = body.model_dump(exclude_none=True)
         character = await service.update_character(
             project_id, story_id, character_id, updates
         )
         render = await service.get_canonical_character_render(character.id)
-        return _build_character_with_render(character, render)
+        refs = await service.get_character_reference_images(character.id)
+        return _build_character_full(character, render, refs)
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
@@ -146,13 +155,14 @@ async def refine_character(
     character_id: uuid.UUID,
     body: CharacterRefineRequest,
     service: Annotated[CharacterService, Depends(get_character_service)],
-) -> CharacterWithRenderSchema:
+) -> CharacterRenderReferencesSchema:
     try:
         character = await service.refine_character(
             project_id, story_id, character_id, body.instruction
         )
         render = await service.get_canonical_character_render(character.id)
-        return _build_character_with_render(character, render)
+        refs = await service.get_character_reference_images(character.id)
+        return _build_character_full(character, render, refs)
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except CharacterRefinementError as e:
@@ -206,7 +216,7 @@ async def render_character(
     character_id: uuid.UUID,
     user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     service: Annotated[CharacterService, Depends(get_character_service)],
-) -> CharacterWithRenderSchema:
+) -> CharacterRenderReferencesSchema:
     try:
         character, image = await service.render_character(
             user_id=user_id,
@@ -214,7 +224,8 @@ async def render_character(
             story_id=story_id,
             character_id=character_id,
         )
-        return _build_character_with_render(character, image)
+        refs = await service.get_character_reference_images(character.id)
+        return _build_character_full(character, image, refs)
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
@@ -236,12 +247,15 @@ async def upload_reference_image(
     service: Annotated[CharacterService, Depends(get_character_service)],
     user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     image: UploadFile = File(...),
-) -> ImageResponseSchema:
+) -> CharacterRenderReferencesSchema:
     try:
-        image_model = await service.upload_reference_image(
+        await service.upload_reference_image(
             user_id, project_id, story_id, character_id, image
         )
-        return ImageResponseSchema.model_validate(image_model)
+        character = await service.get_character(project_id, story_id, character_id)
+        render = await service.get_canonical_character_render(character.id)
+        refs = await service.get_character_reference_images(character.id)
+        return _build_character_full(character, render, refs)
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except UploadImageError as e:
