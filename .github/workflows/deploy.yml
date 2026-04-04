@@ -46,21 +46,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version-file: frontend/.nvmrc
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          bun-version: latest
 
       - name: Install dependencies
-        run: npm ci
+        run: bun install --frozen-lockfile
 
       - name: Type check
-        run: npm run type-check
+        run: bun run type-check
 
       - name: Build
-        run: npm run build
+        run: bun run build
 
   # ── Deploy ────────────────────────────────────────────────────────────────────
   # Runs only after both CI jobs pass. Any failure in the steps below marks
@@ -164,22 +162,20 @@ jobs:
             --project ${{ env.PROJECT }} \
             --wait
 
-      # Node.js is installed here (not at the top) so the earlier steps don't
-      # carry unnecessary tooling. npm cache is keyed on the lockfile.
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      # Bun is installed here (not at the top) so the earlier steps don't
+      # carry unnecessary tooling. Bun caches via setup-bun action.
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version-file: frontend/.nvmrc
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          bun-version: latest
 
       - name: Build frontend
         working-directory: frontend
         env:
           VITE_BACKEND_URL: ${{ env.SERVICE_URL }}
         run: |
-          npm ci
-          npm run build
+          bun install --frozen-lockfile
+          bun run build
 
       # Delete files in the bucket that are no longer in dist/ (--delete-unmatched)
       # so stale assets don't accumulate. The rsync is idempotent — re-running
