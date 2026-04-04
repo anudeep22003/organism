@@ -31,6 +31,8 @@ from core.story_engine.models.edit_event import (
     EditEventStatus,
     EditEventTargetType,
 )
+from core.story_engine.models.image import Image as ImageModel
+from core.story_engine.models.image import ImageContentType, ImageDiscriminatorKey
 
 _jwt = JWTTokenManager()
 
@@ -46,6 +48,15 @@ def _auth_headers(user_id: uuid.UUID) -> dict[str, str]:
 
 def _characters_url(project_id: uuid.UUID, story_id: uuid.UUID) -> str:
     return f"/api/comic-builder/v2/project/{project_id}/story/{story_id}/characters"
+
+
+def _character_url(
+    project_id: uuid.UUID, story_id: uuid.UUID, character_id: uuid.UUID
+) -> str:
+    return (
+        f"/api/comic-builder/v2/project/{project_id}"
+        f"/story/{story_id}/character/{character_id}"
+    )
 
 
 def _character_history_url(
@@ -139,9 +150,9 @@ async def test_list_characters_response_shape(
 
     # Audit / relation fields
     assert "sourceEventId" in item
-    assert (
-        "canonicalRender" in item
-    )  # replaces renderUrl — canonical_render: ImageResponseSchema | None
+    assert "canonicalRender" in item
+    assert "referenceImages" in item
+    assert isinstance(item["referenceImages"], list)
     assert "createdAt" in item
     assert "updatedAt" in item
     assert "meta" in item
@@ -261,6 +272,76 @@ async def test_list_characters_requires_auth(
     """GET characters without a token returns 401."""
     response = await api_client.get(_characters_url(project.id, story.id))
     assert response.status_code == 401
+
+
+async def test_list_characters_embeds_reference_images(
+    api_client: AsyncClient,
+    db_session: AsyncSession,
+    user: User,
+    project: Project,
+    story: Story,
+    character: Character,
+) -> None:
+    """Reference images seeded for a character appear in referenceImages on the list response."""
+    ref = ImageModel.create(
+        project_id=project.id,
+        user_id=user.id,
+        target_id=character.id,
+        width=800,
+        height=600,
+        content_type=ImageContentType.JPEG,
+        object_key="char/ref-list.jpg",
+        bucket="test-bucket",
+        size_bytes=2048,
+        discriminator_key=ImageDiscriminatorKey.CHARACTER_REFERENCE,
+    )
+    db_session.add(ref)
+    await db_session.commit()
+
+    response = await api_client.get(
+        _characters_url(project.id, story.id),
+        headers=_auth_headers(user.id),
+    )
+
+    assert response.status_code == 200
+    item = next(c for c in response.json() if c["id"] == str(character.id))
+    assert len(item["referenceImages"]) == 1
+    assert item["referenceImages"][0]["id"] == str(ref.id)
+
+
+async def test_get_character_embeds_reference_images(
+    api_client: AsyncClient,
+    db_session: AsyncSession,
+    user: User,
+    project: Project,
+    story: Story,
+    character: Character,
+) -> None:
+    """Reference images seeded for a character appear in referenceImages on the single GET response."""
+    ref = ImageModel.create(
+        project_id=project.id,
+        user_id=user.id,
+        target_id=character.id,
+        width=512,
+        height=512,
+        content_type=ImageContentType.JPEG,
+        object_key="char/ref-single.jpg",
+        bucket="test-bucket",
+        size_bytes=1024,
+        discriminator_key=ImageDiscriminatorKey.CHARACTER_REFERENCE,
+    )
+    db_session.add(ref)
+    await db_session.commit()
+
+    response = await api_client.get(
+        _character_url(project.id, story.id, character.id),
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert "referenceImages" in body
+    assert len(body["referenceImages"]) == 1
+    assert body["referenceImages"][0]["id"] == str(ref.id)
 
 
 # ---------------------------------------------------------------------------
