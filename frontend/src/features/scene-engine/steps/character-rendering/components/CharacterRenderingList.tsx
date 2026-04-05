@@ -5,10 +5,11 @@ import { imageSignedUrlOptions } from "../../character-extraction/character-extr
 import type { CharacterBundle, ImageRecord } from "../../character-extraction/character-extraction.types";
 import { useCharacterRendering } from "../hooks/useCharacterRendering";
 
-type CharacterBlockProps = {
+type CharacterRenderBlockProps = {
   bundle: CharacterBundle;
   onRender: () => void;
   isRendering: boolean;
+  errorMessage: string | null;
 };
 
 function RenderedImage({ render }: { render: ImageRecord }) {
@@ -35,7 +36,7 @@ function RenderedImage({ render }: { render: ImageRecord }) {
   );
 }
 
-function CharacterBlock({ bundle, onRender, isRendering }: CharacterBlockProps) {
+function CharacterRenderBlock({ bundle, onRender, isRendering, errorMessage }: CharacterRenderBlockProps) {
   const hasRender = bundle.canonicalRender !== null;
 
   return (
@@ -59,12 +60,19 @@ function CharacterBlock({ bundle, onRender, isRendering }: CharacterBlockProps) 
                 {bundle.character.name}
               </span>
             )}
-            <button
-              onClick={onRender}
-              className="absolute bottom-3 right-3 bg-foreground px-3 py-1.5 text-[10px] text-background hover:bg-foreground/80"
-            >
-              Render
-            </button>
+            <div className="absolute bottom-3 right-3 flex items-center gap-2">
+              {errorMessage && (
+                <span className="bg-background px-2 py-1 text-[10px] text-destructive">
+                  {errorMessage}
+                </span>
+              )}
+              <button
+                onClick={onRender}
+                className="bg-foreground px-3 py-1.5 text-[10px] text-background hover:bg-foreground/80"
+              >
+                Render
+              </button>
+            </div>
           </>
         )}
       </div>
@@ -74,16 +82,17 @@ function CharacterBlock({ bundle, onRender, isRendering }: CharacterBlockProps) 
 
 export function CharacterRenderingList({ characters }: { characters: CharacterBundle[] }) {
   const { projectId, storyId } = useSceneEngine();
-  const { triggerRender, renderingIds } = useCharacterRendering(projectId, storyId);
+  const { triggerRender, renderingIds, errorIds } = useCharacterRendering(projectId, storyId);
 
   return (
     <div className="flex h-full w-full flex-col items-center gap-2 overflow-y-auto p-4">
       {characters.map((bundle) => (
-        <CharacterBlock
+        <CharacterRenderBlock
           key={bundle.character.id}
           bundle={bundle}
           onRender={() => triggerRender({ characterId: bundle.character.id })}
           isRendering={renderingIds.has(bundle.character.id)}
+          errorMessage={errorIds.get(bundle.character.id) ?? null}
         />
       ))}
     </div>

@@ -1,16 +1,27 @@
 import { httpClient } from "@/lib/httpClient";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { isAxiosError } from "axios";
 import { useState } from "react";
 import { charactersOptions } from "../../character-extraction/character-extraction.queries";
 import type { CharacterBundle } from "../../character-extraction/character-extraction.types";
 
 const STORY_API_BASE = "/api/comic-builder/v2" as const;
 
+function renderErrorMessage(error: unknown): string {
+  if (isAxiosError(error)) {
+    const status = error.response?.status;
+    if (status === 401) return "Session expired. Please sign in again.";
+    if (status === 404) return "Character not found. Try refreshing.";
+  }
+  return "Render failed. Try again.";
+}
+
 export function useCharacterRendering(projectId: string, storyId: string) {
   const queryClient = useQueryClient();
   const queryKey = charactersOptions(projectId, storyId).queryKey;
 
   const [renderingIds, setRenderingIds] = useState<Set<string>>(new Set());
+  const [errorIds, setErrorIds] = useState<Map<string, string>>(new Map());
 
   const { mutate: triggerRender } = useMutation({
     mutationFn: ({ characterId }: { characterId: string }) =>
@@ -19,6 +30,11 @@ export function useCharacterRendering(projectId: string, storyId: string) {
       ),
     onMutate: ({ characterId }) => {
       setRenderingIds((prev) => new Set(prev).add(characterId));
+      setErrorIds((prev) => {
+        const next = new Map(prev);
+        next.delete(characterId);
+        return next;
+      });
     },
     onSettled: (_, __, { characterId }) => {
       setRenderingIds((prev) => {
@@ -36,7 +52,14 @@ export function useCharacterRendering(projectId: string, storyId: string) {
           ),
       );
     },
+    onError: (error, { characterId }) => {
+      setErrorIds((prev) => {
+        const next = new Map(prev);
+        next.set(characterId, renderErrorMessage(error));
+        return next;
+      });
+    },
   });
 
-  return { triggerRender, renderingIds };
+  return { triggerRender, renderingIds, errorIds };
 }
