@@ -1,50 +1,12 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { ModalShell } from "../../../components/ModalShell";
 import PromptInput from "../../../components/PromptInput";
 import { Skeleton } from "../../../components/Skeleton";
 import { useSceneEngine } from "../../../context";
-import { imageSignedUrlOptions } from "../../character-extraction/character-extraction.queries";
 import type { CharacterBundle } from "../../character-extraction/character-extraction.types";
-
-type CanonicalRenderViewProps = {
-  bundle: CharacterBundle;
-};
-
-function CanonicalRenderView({ bundle }: CanonicalRenderViewProps) {
-  const queryClient = useQueryClient();
-  const render = bundle.canonicalRender;
-
-  const { data } = useQuery(
-    imageSignedUrlOptions(render?.id ?? ""),
-  );
-
-  if (!render) {
-    return (
-      <div className="flex min-h-0 flex-1 items-center justify-center bg-muted/20">
-        <span className="text-xs text-muted-foreground">No renders yet</span>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex min-h-0 flex-1 items-center justify-center bg-muted/20">
-      {data?.url ? (
-        <img
-          src={data.url}
-          alt=""
-          className="h-full w-full object-contain"
-          onError={() =>
-            void queryClient.invalidateQueries({
-              queryKey: imageSignedUrlOptions(render.id).queryKey,
-            })
-          }
-        />
-      ) : (
-        <Skeleton className="h-full w-full" />
-      )}
-    </div>
-  );
-}
+import { characterRendersOptions } from "../character-rendering.queries";
+import { Carousel } from "./Carousel";
 
 type CharacterRenderModalProps = {
   bundle: CharacterBundle;
@@ -53,8 +15,13 @@ type CharacterRenderModalProps = {
 
 export function CharacterRenderModal({ bundle, onDismiss }: CharacterRenderModalProps) {
   const { projectId, storyId } = useSceneEngine();
-  void projectId;
-  void storyId;
+  const characterId = bundle.character.id;
+
+  const { data: renders, isLoading } = useQuery(
+    characterRendersOptions(projectId, storyId, characterId),
+  );
+
+  const [selectedIndex, setSelectedIndex] = useState(0);
 
   const isCanonical = false;
 
@@ -71,13 +38,35 @@ export function CharacterRenderModal({ bundle, onDismiss }: CharacterRenderModal
     </button>
   );
 
+  const renderBody = () => {
+    if (isLoading) {
+      return <Skeleton className="min-h-0 flex-1 w-full" />;
+    }
+    if (!renders || renders.length === 0) {
+      return (
+        <div className="flex min-h-0 flex-1 items-center justify-center bg-muted/20">
+          <span className="text-xs text-muted-foreground">No renders yet</span>
+        </div>
+      );
+    }
+    return (
+      <Carousel
+        items={renders}
+        onIndexChange={setSelectedIndex}
+        initialIndex={0}
+      />
+    );
+  };
+
+  void selectedIndex;
+
   return (
     <ModalShell
       header={bundle.character.name}
       onDismiss={onDismiss}
       headerActions={headerActions}
     >
-      <CanonicalRenderView bundle={bundle} />
+      {renderBody()}
       <div className="shrink-0 border-t border-border">
         <PromptInput
           onSend={() => {}}
