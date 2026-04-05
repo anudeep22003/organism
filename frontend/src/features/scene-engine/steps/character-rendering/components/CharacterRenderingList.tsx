@@ -56,7 +56,7 @@ function CharacterRenderBlock({ bundle, onRender, isRendering, errorMessage }: C
               </span>
             )}
             {hasRender && (
-              <span className="absolute bottom-3 left-3 text-xs text-background">
+              <span className="absolute bottom-3 left-3 bg-background px-2 py-1 text-xs text-foreground">
                 {bundle.character.name}
               </span>
             )}
