@@ -50,8 +50,11 @@ export function CharacterRenderModal({ bundle, onDismiss }: CharacterRenderModal
   );
 
   const renderBody = () => {
-    if (isLoading || isEditing) {
+    if (isLoading) {
       return <Skeleton className="min-h-0 flex-1 w-full" />;
+    }
+    if (isEditing) {
+      return <Skeleton className="min-h-0 flex-1 w-full" label="Editing" showTimer />;
     }
     if (!renders || renders.length === 0) {
       return (
