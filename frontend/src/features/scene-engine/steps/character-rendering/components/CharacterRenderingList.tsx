@@ -41,24 +41,32 @@ function CharacterBlock({ bundle, onRender, isRendering }: CharacterBlockProps) 
   return (
     <div className={bundle.canonicalRender ? "aspect-square w-full max-w-lg shrink-0" : "h-48 w-full max-w-lg shrink-0"}>
       <div className="relative flex h-full w-full items-center justify-center border border-border bg-muted/20 hover:bg-muted/40">
-        {hasRender && <RenderedImage render={bundle.canonicalRender!} />}
-        {!hasRender && (
-          <span className="text-xs text-muted-foreground">
-            {bundle.character.name}
-          </span>
+        {isRendering ? (
+          <>
+            <Skeleton className="absolute inset-0" />
+            <span className="relative text-xs text-muted-foreground">Rendering…</span>
+          </>
+        ) : (
+          <>
+            {hasRender && <RenderedImage render={bundle.canonicalRender!} />}
+            {!hasRender && (
+              <span className="text-xs text-muted-foreground">
+                {bundle.character.name}
+              </span>
+            )}
+            {hasRender && (
+              <span className="absolute bottom-3 left-3 text-xs text-background">
+                {bundle.character.name}
+              </span>
+            )}
+            <button
+              onClick={onRender}
+              className="absolute bottom-3 right-3 bg-foreground px-3 py-1.5 text-[10px] text-background hover:bg-foreground/80"
+            >
+              Render
+            </button>
+          </>
         )}
-        {hasRender && (
-          <span className="absolute bottom-3 left-3 text-xs text-background">
-            {bundle.character.name}
-          </span>
-        )}
-        <button
-          onClick={onRender}
-          disabled={isRendering}
-          className="absolute bottom-3 right-3 bg-foreground px-3 py-1.5 text-[10px] text-background hover:bg-foreground/80 disabled:opacity-50"
-        >
-          {isRendering ? "Rendering…" : "Render"}
-        </button>
       </div>
     </div>
   );
