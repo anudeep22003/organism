@@ -17,12 +17,12 @@ export function ModalShell({
 }: ModalShellProps) {
   return (
     <>
-      <div className="fixed inset-0 z-10 backdrop-blur-sm pointer-events-none" />
+      <div className="absolute inset-0 z-10 backdrop-blur-sm pointer-events-none" />
 
       <div
-        className={`fixed inset-0 ${zClass} flex items-center justify-center p-4`}
+        className={`absolute inset-0 ${zClass} flex items-center justify-center p-4`}
       >
-        <div className="flex w-full max-w-2xl h-[90vh] flex-col border border-border bg-background">
+        <div className="flex w-full max-w-2xl h-full flex-col border border-border bg-background">
           <div className="flex shrink-0 items-center justify-between border-b border-border px-3 py-2">
             <div className="min-w-0 flex-1">
               {typeof header === "string" ? (

@@ -1,11 +1,9 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
 import { Skeleton } from "../../../components/Skeleton";
 import { useSceneEngine } from "../../../context";
 import { imageSignedUrlOptions } from "../../character-extraction/character-extraction.queries";
 import type { CharacterBundle, ImageRecord } from "../../character-extraction/character-extraction.types";
 import { useCharacterRendering } from "../hooks/useCharacterRendering";
-import { CharacterRenderModal } from "./CharacterRenderModal";
 
 type CharacterRenderBlockProps = {
   bundle: CharacterBundle;
@@ -86,26 +84,22 @@ function CharacterRenderBlock({ bundle, onActivate, onRender, isRendering, error
   );
 }
 
-export function CharacterRenderingList({ characters }: { characters: CharacterBundle[] }) {
+type CharacterRenderingListProps = {
+  characters: CharacterBundle[];
+  onActivate: (characterId: string) => void;
+};
+
+export function CharacterRenderingList({ characters, onActivate }: CharacterRenderingListProps) {
   const { projectId, storyId } = useSceneEngine();
   const { triggerRender, renderingIds, errorIds } = useCharacterRendering(projectId, storyId);
 
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const activeBundle = activeId ? characters.find((b) => b.character.id === activeId) : null;
-
   return (
-    <div className="relative flex h-full w-full flex-col items-center gap-2 overflow-y-auto p-4">
-      {activeBundle && (
-        <CharacterRenderModal
-          bundle={activeBundle}
-          onDismiss={() => setActiveId(null)}
-        />
-      )}
+    <div className="flex h-full w-full flex-col items-center gap-2 overflow-y-auto p-4">
       {characters.map((bundle) => (
         <CharacterRenderBlock
           key={bundle.character.id}
           bundle={bundle}
-          onActivate={() => setActiveId(bundle.character.id)}
+          onActivate={() => onActivate(bundle.character.id)}
           onRender={() => triggerRender({ characterId: bundle.character.id })}
           isRendering={renderingIds.has(bundle.character.id)}
           errorMessage={errorIds.get(bundle.character.id) ?? null}
