@@ -39,7 +39,7 @@ function CharacterBlock({ bundle, onRender, isRendering }: CharacterBlockProps) 
   const hasRender = bundle.canonicalRender !== null;
 
   return (
-    <div className={bundle.canonicalRender ? "aspect-square w-full shrink-0" : "h-48 w-full shrink-0"}>
+    <div className={bundle.canonicalRender ? "aspect-square w-full max-w-lg shrink-0" : "h-48 w-full max-w-lg shrink-0"}>
       <div className="relative flex h-full w-full items-center justify-center border border-border bg-muted/20 hover:bg-muted/40">
         {hasRender && <RenderedImage render={bundle.canonicalRender!} />}
         {!hasRender && (
@@ -69,7 +69,7 @@ export function CharacterRenderingList({ characters }: { characters: CharacterBu
   const { triggerRender, renderingIds } = useCharacterRendering(projectId, storyId);
 
   return (
-    <div className="flex h-full w-full flex-col gap-2 overflow-y-auto p-4">
+    <div className="flex h-full w-full flex-col items-center gap-2 overflow-y-auto p-4">
       {characters.map((bundle) => (
         <CharacterBlock
           key={bundle.character.id}
