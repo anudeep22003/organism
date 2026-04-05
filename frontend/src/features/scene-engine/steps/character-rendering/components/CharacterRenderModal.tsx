@@ -80,8 +80,8 @@ export function CharacterRenderModal({ bundle, onDismiss }: CharacterRenderModal
         <PromptInput
           onSend={handleSend}
           showUpload={false}
-          placeholder="Describe an edit…"
-          disabled={isEditing || isLoading || !renders || renders.length === 0}
+          placeholder={selectedIndex === 0 ? "Describe an edit…" : "Only the most recent render can be edited"}
+          disabled={isEditing || isLoading || !renders || renders.length === 0 || selectedIndex !== 0}
         />
       </div>
     </ModalShell>

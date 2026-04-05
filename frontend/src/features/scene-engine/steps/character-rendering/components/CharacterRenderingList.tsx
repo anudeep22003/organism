@@ -71,10 +71,13 @@ function CharacterRenderBlock({ bundle, onActivate, onRender, isRendering, error
                 </span>
               )}
               <button
-                onClick={(e) => { e.stopPropagation(); onRender(); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (hasRender) { onActivate(); } else { onRender(); }
+                }}
                 className="bg-foreground px-3 py-1.5 text-[10px] text-background hover:bg-foreground/80"
               >
-                Render
+                {hasRender ? "Edit" : "Render"}
               </button>
             </div>
           </>
