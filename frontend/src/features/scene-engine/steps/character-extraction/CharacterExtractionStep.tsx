@@ -1,7 +1,10 @@
+import { useState } from "react";
 import { Skeleton } from "../../components/Skeleton";
 import { useSceneEngine } from "../../context";
 import { useCharacterExtraction } from "./hooks/useCharacterExtraction";
 import { CharacterList } from "./components/CharacterList";
+import { CharacterModal } from "./components/CharacterModal";
+import { ReferenceImageViewer } from "./components/ReferenceImageViewer";
 
 function EmptyState({
   onExtract,
@@ -40,8 +43,30 @@ function EmptyState({
 
 export default function CharacterExtractionStep() {
   const { projectId, storyId } = useSceneEngine();
-  const { characters, isLoading, extractCharacters, isExtracting, extractError } =
-    useCharacterExtraction(projectId, storyId);
+  const {
+    characters, isLoading,
+    extractCharacters, isExtracting, extractError,
+    deleteReferenceImage, isDeleting,
+  } = useCharacterExtraction(projectId, storyId);
+
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [viewingImageId, setViewingImageId] = useState<string | null>(null);
+
+  const activeBundle = activeId
+    ? characters?.find((b) => b.character.id === activeId)
+    : null;
+
+  const viewingImage = activeBundle && viewingImageId
+    ? activeBundle.referenceImages.find((r) => r.id === viewingImageId)
+    : null;
+
+  const handleDelete = () => {
+    if (!activeId || !viewingImageId) return;
+    deleteReferenceImage(
+      { characterId: activeId, imageId: viewingImageId },
+      { onSuccess: () => setViewingImageId(null) },
+    );
+  };
 
   if (isLoading) {
     return (
@@ -54,9 +79,24 @@ export default function CharacterExtractionStep() {
   }
 
   return (
-    <div className="flex h-full w-full flex-col">
+    <div className="relative flex h-full w-full flex-col">
+      {activeBundle && (
+        <CharacterModal
+          bundle={activeBundle}
+          onDismiss={() => { setActiveId(null); setViewingImageId(null); }}
+          onImageClick={setViewingImageId}
+        />
+      )}
+      {viewingImage && (
+        <ReferenceImageViewer
+          img={viewingImage}
+          onBack={() => setViewingImageId(null)}
+          onDelete={handleDelete}
+          isDeleting={isDeleting}
+        />
+      )}
       {characters && characters.length > 0 ? (
-        <CharacterList characters={characters} />
+        <CharacterList characters={characters} onActivate={setActiveId} />
       ) : (
         <EmptyState
           onExtract={extractCharacters}
