@@ -33,7 +33,11 @@ from ..models.image import ImageContentType, ImageDiscriminatorKey
 from ..repository import NotFoundError as RepositoryNotFoundError
 from ..repository import RepositoryV2
 from ..state.character import CharacterBase as CharacterAttributes
-from .image_service import GCSUploadService, ImageService, extract_image_dimensions
+from .image_service import (
+    ImageService,
+    extract_image_dimensions,
+    get_gcs_upload_service,
+)
 
 
 class CharacterService:
@@ -460,7 +464,7 @@ class CharacterService:
             width, height = extract_image_dimensions(image_bytes)  # resets seek to 0
 
             # Upload to GCS
-            gcs_service = GCSUploadService()
+            gcs_service = get_gcs_upload_service()
             object_key = (
                 f"{project_id}/character/{character_id}/renders/{edit_event_id}"
             )
@@ -557,7 +561,7 @@ class CharacterService:
                 f"Source image {source_image_id} not found for character {character_id}"
             )
 
-        gcs_service = GCSUploadService()
+        gcs_service = get_gcs_upload_service()
         signed_url, _ = gcs_service.generate_signed_url(source_image.object_key)
 
         edit_event = EditEvent.create_edit_event(

@@ -1,6 +1,7 @@
 import datetime
 import uuid
 from dataclasses import dataclass
+from functools import lru_cache
 from io import BytesIO
 from typing import BinaryIO
 
@@ -71,7 +72,7 @@ class ImageService:
     def __init__(self, db: AsyncSession, repository_v2: RepositoryV2):
         self.db = db
         self.repository_v2 = repository_v2
-        self.gcs_upload_service = GCSUploadService()
+        self.gcs_upload_service = get_gcs_upload_service()
         self.image_processor = ImageProcessor()
 
     async def upload_reference_image(
@@ -248,3 +249,14 @@ class GCSUploadService:
         )
         expires_at = datetime.datetime.now(datetime.timezone.utc) + expiry
         return url, expires_at
+
+
+@lru_cache(maxsize=1)
+def get_gcs_upload_service() -> GCSUploadService:
+    """Return the process-wide GCSUploadService singleton.
+
+    @lru_cache(maxsize=1) ensures the GCS client and its HTTP connection pool
+    are created exactly once regardless of how many times this is called.
+    Consistent with the _get_session_maker pattern in core/services/database.py.
+    """
+    return GCSUploadService()

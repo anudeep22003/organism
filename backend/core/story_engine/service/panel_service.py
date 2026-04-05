@@ -35,7 +35,10 @@ from ..models.image import Image as ImageModel
 from ..models.image import ImageContentType, ImageDiscriminatorKey
 from ..repository import RepositoryV2
 from ..schemas.panel import GeneratedPanelsResponse, PanelContent, PanelContentBase
-from .image_service import GCSUploadService, extract_image_dimensions
+from .image_service import (
+    extract_image_dimensions,
+    get_gcs_upload_service,
+)
 
 
 class PanelService:
@@ -470,7 +473,7 @@ class PanelService:
             character_ids = await self.repository_v2.panel.get_character_ids_for_panel(
                 panel_id
             )
-            gcs_service = GCSUploadService()
+            gcs_service = get_gcs_upload_service()
             image_urls: list[str] = []
             for character_id in character_ids:
                 character_render = await self.repository_v2.image.get_canonical_render(
@@ -585,7 +588,7 @@ class PanelService:
                 f"Source image {source_image_id} not found for panel {panel_id}"
             )
 
-        gcs_service = GCSUploadService()
+        gcs_service = get_gcs_upload_service()
         signed_url, _ = gcs_service.generate_signed_url(source_image.object_key)
 
         edit_event = EditEvent.create_edit_event(
