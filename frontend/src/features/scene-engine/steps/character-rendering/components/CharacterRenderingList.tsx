@@ -1,12 +1,15 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { Skeleton } from "../../../components/Skeleton";
 import { useSceneEngine } from "../../../context";
 import { imageSignedUrlOptions } from "../../character-extraction/character-extraction.queries";
 import type { CharacterBundle, ImageRecord } from "../../character-extraction/character-extraction.types";
 import { useCharacterRendering } from "../hooks/useCharacterRendering";
+import { CharacterRenderModal } from "./CharacterRenderModal";
 
 type CharacterRenderBlockProps = {
   bundle: CharacterBundle;
+  onActivate: () => void;
   onRender: () => void;
   isRendering: boolean;
   errorMessage: string | null;
@@ -36,12 +39,15 @@ function RenderedImage({ render }: { render: ImageRecord }) {
   );
 }
 
-function CharacterRenderBlock({ bundle, onRender, isRendering, errorMessage }: CharacterRenderBlockProps) {
+function CharacterRenderBlock({ bundle, onActivate, onRender, isRendering, errorMessage }: CharacterRenderBlockProps) {
   const hasRender = bundle.canonicalRender !== null;
 
   return (
-    <div className={bundle.canonicalRender ? "aspect-square w-full max-w-lg shrink-0" : "h-48 w-full max-w-lg shrink-0"}>
-      <div className="relative flex h-full w-full items-center justify-center border border-border bg-muted/20 hover:bg-muted/40">
+    <div
+      className={bundle.canonicalRender ? "aspect-square w-full max-w-lg shrink-0" : "h-48 w-full max-w-lg shrink-0"}
+      onClick={onActivate}
+    >
+      <div className="relative flex h-full w-full cursor-pointer items-center justify-center border border-border bg-muted/20 hover:bg-muted/40">
         {isRendering ? (
           <>
             <Skeleton className="absolute inset-0" />
@@ -67,7 +73,7 @@ function CharacterRenderBlock({ bundle, onRender, isRendering, errorMessage }: C
                 </span>
               )}
               <button
-                onClick={onRender}
+                onClick={(e) => { e.stopPropagation(); onRender(); }}
                 className="bg-foreground px-3 py-1.5 text-[10px] text-background hover:bg-foreground/80"
               >
                 Render
@@ -84,12 +90,22 @@ export function CharacterRenderingList({ characters }: { characters: CharacterBu
   const { projectId, storyId } = useSceneEngine();
   const { triggerRender, renderingIds, errorIds } = useCharacterRendering(projectId, storyId);
 
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const activeBundle = activeId ? characters.find((b) => b.character.id === activeId) : null;
+
   return (
-    <div className="flex h-full w-full flex-col items-center gap-2 overflow-y-auto p-4">
+    <div className="relative flex h-full w-full flex-col items-center gap-2 overflow-y-auto p-4">
+      {activeBundle && (
+        <CharacterRenderModal
+          bundle={activeBundle}
+          onDismiss={() => setActiveId(null)}
+        />
+      )}
       {characters.map((bundle) => (
         <CharacterRenderBlock
           key={bundle.character.id}
           bundle={bundle}
+          onActivate={() => setActiveId(bundle.character.id)}
           onRender={() => triggerRender({ characterId: bundle.character.id })}
           isRendering={renderingIds.has(bundle.character.id)}
           errorMessage={errorIds.get(bundle.character.id) ?? null}
