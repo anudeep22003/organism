@@ -39,7 +39,7 @@ function CharacterBlock({ bundle, onRender, isRendering }: CharacterBlockProps) 
   const hasRender = bundle.canonicalRender !== null;
 
   return (
-    <div className="aspect-square w-full shrink-0">
+    <div className={bundle.canonicalRender ? "aspect-square w-full shrink-0" : "h-48 w-full shrink-0"}>
       <div className="relative flex h-full w-full items-center justify-center border border-border bg-muted/20 hover:bg-muted/40">
         {hasRender && <RenderedImage render={bundle.canonicalRender!} />}
         {!hasRender && (
