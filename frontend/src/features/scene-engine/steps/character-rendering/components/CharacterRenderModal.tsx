@@ -6,6 +6,7 @@ import { Skeleton } from "../../../components/Skeleton";
 import { useSceneEngine } from "../../../context";
 import type { CharacterBundle } from "../../character-extraction/character-extraction.types";
 import { characterRendersOptions } from "../character-rendering.queries";
+import { useCharacterRendering } from "../hooks/useCharacterRendering";
 import { Carousel } from "./Carousel";
 
 type CharacterRenderModalProps = {
@@ -17,6 +18,9 @@ export function CharacterRenderModal({ bundle, onDismiss }: CharacterRenderModal
   const { projectId, storyId } = useSceneEngine();
   const characterId = bundle.character.id;
 
+  const { editRender, editingIds } = useCharacterRendering(projectId, storyId);
+  const isEditing = editingIds.has(characterId);
+
   const { data: renders, isLoading } = useQuery(
     characterRendersOptions(projectId, storyId, characterId),
   );
@@ -24,6 +28,13 @@ export function CharacterRenderModal({ bundle, onDismiss }: CharacterRenderModal
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   const isCanonical = false;
+
+  const handleSend = (instruction: string) => {
+    if (!renders || renders.length === 0) return;
+    const sourceImage = renders[selectedIndex];
+    if (!sourceImage) return;
+    editRender({ characterId, imageId: sourceImage.id, instruction });
+  };
 
   const headerActions = (
     <button
@@ -39,7 +50,7 @@ export function CharacterRenderModal({ bundle, onDismiss }: CharacterRenderModal
   );
 
   const renderBody = () => {
-    if (isLoading) {
+    if (isLoading || isEditing) {
       return <Skeleton className="min-h-0 flex-1 w-full" />;
     }
     if (!renders || renders.length === 0) {
@@ -58,8 +69,6 @@ export function CharacterRenderModal({ bundle, onDismiss }: CharacterRenderModal
     );
   };
 
-  void selectedIndex;
-
   return (
     <ModalShell
       header={bundle.character.name}
@@ -69,10 +78,10 @@ export function CharacterRenderModal({ bundle, onDismiss }: CharacterRenderModal
       {renderBody()}
       <div className="shrink-0 border-t border-border">
         <PromptInput
-          onSend={() => {}}
+          onSend={handleSend}
           showUpload={false}
-          placeholder="Describe a new render…"
-          disabled
+          placeholder="Describe an edit…"
+          disabled={isEditing || isLoading || !renders || renders.length === 0}
         />
       </div>
     </ModalShell>
