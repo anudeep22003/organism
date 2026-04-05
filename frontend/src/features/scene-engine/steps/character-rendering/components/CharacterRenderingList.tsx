@@ -21,7 +21,7 @@ function RenderedImage({ render }: { render: ImageRecord }) {
         <img
           src={data.url}
           alt=""
-          className="h-full w-full object-cover"
+          className="h-full w-full object-contain"
           onError={() =>
             void queryClient.invalidateQueries({
               queryKey: imageSignedUrlOptions(render.id).queryKey,
@@ -39,8 +39,8 @@ function CharacterBlock({ bundle, onRender, isRendering }: CharacterBlockProps) 
   const hasRender = bundle.canonicalRender !== null;
 
   return (
-    <div className="flex min-h-0 flex-1">
-      <div className="relative flex w-full items-center justify-center border border-border bg-muted/20 hover:bg-muted/40">
+    <div className="aspect-square w-full shrink-0">
+      <div className="relative flex h-full w-full items-center justify-center border border-border bg-muted/20 hover:bg-muted/40">
         {hasRender && <RenderedImage render={bundle.canonicalRender!} />}
         {!hasRender && (
           <span className="text-xs text-muted-foreground">
@@ -69,7 +69,7 @@ export function CharacterRenderingList({ characters }: { characters: CharacterBu
   const { triggerRender, renderingIds } = useCharacterRendering(projectId, storyId);
 
   return (
-    <div className="flex h-full w-full flex-col gap-2 p-4">
+    <div className="flex h-full w-full flex-col gap-2 overflow-y-auto p-4">
       {characters.map((bundle) => (
         <CharacterBlock
           key={bundle.character.id}
