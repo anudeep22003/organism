@@ -45,3 +45,8 @@ class CharacterUpdateSchema(AliasedBaseModel):
 
 class CharacterRefineRequest(AliasedBaseModel):
     instruction: str
+
+
+class CharacterRenderEditRequest(AliasedBaseModel):
+    instruction: str
+    source_image_id: uuid.UUID

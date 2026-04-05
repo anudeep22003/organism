@@ -25,6 +25,7 @@ from ...schemas.edit_event import EditEventResponseSchema
 from ...schemas.image import ImageResponseSchema
 from ...schemas.panel import (
     PanelGenerateRequest,
+    PanelRenderEditRequest,
     PanelResponseSchema,
     PanelWithRenderSchema,
 )
@@ -319,4 +320,36 @@ async def generate_panels(
         raise HTTPException(
             status_code=500,
             detail="An unexpected error occurred while generating panels",
+        )
+
+
+@router.post(
+    "/project/{project_id}/story/{story_id}/panel/{panel_id}/render/edit",
+    status_code=201,
+)
+async def render_panel_edit(
+    project_id: uuid.UUID,
+    story_id: uuid.UUID,
+    panel_id: uuid.UUID,
+    body: PanelRenderEditRequest,
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    service: Annotated[PanelService, Depends(get_panel_service)],
+) -> ImageResponseSchema:
+    try:
+        image = await service.render_panel_edit(
+            user_id=user_id,
+            project_id=project_id,
+            story_id=story_id,
+            panel_id=panel_id,
+            instruction=body.instruction,
+            source_image_id=body.source_image_id,
+        )
+        return ImageResponseSchema.model_validate(image)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.exception(f"Unexpected error editing render for panel {panel_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while editing the panel render",
         )

@@ -75,3 +75,10 @@ class PanelGenerateRequest(AliasedBaseModel):
     """
 
     instruction: str | None = None
+
+
+class PanelRenderEditRequest(AliasedBaseModel):
+    """Request body for editing an existing panel render via fal image-edit model."""
+
+    instruction: str
+    source_image_id: uuid.UUID

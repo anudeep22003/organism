@@ -16,6 +16,7 @@ from ...exceptions import (
 )
 from ...schemas.character import (
     CharacterRefineRequest,
+    CharacterRenderEditRequest,
     CharacterRenderReferencesSchema,
     CharacterResponseSchema,
     CharacterUpdateSchema,
@@ -357,4 +358,38 @@ async def delete_character_reference_image(
         raise HTTPException(
             status_code=500,
             detail="An unexpected error occurred while deleting the reference image",
+        )
+
+
+@router.post(
+    "/project/{project_id}/story/{story_id}/character/{character_id}/render/edit",
+    status_code=201,
+)
+async def render_character_edit(
+    project_id: uuid.UUID,
+    story_id: uuid.UUID,
+    character_id: uuid.UUID,
+    body: CharacterRenderEditRequest,
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    service: Annotated[CharacterService, Depends(get_character_service)],
+) -> ImageResponseSchema:
+    try:
+        image = await service.render_character_edit(
+            user_id=user_id,
+            project_id=project_id,
+            story_id=story_id,
+            character_id=character_id,
+            instruction=body.instruction,
+            source_image_id=body.source_image_id,
+        )
+        return ImageResponseSchema.model_validate(image)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.exception(
+            f"Unexpected error editing render for character {character_id}: {e}"
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while editing the character render",
         )

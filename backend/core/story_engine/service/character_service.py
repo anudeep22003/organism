@@ -524,6 +524,119 @@ class CharacterService:
             image_byte_stream=image.file,
         )
 
+    async def render_character_edit(
+        self,
+        user_id: uuid.UUID,
+        project_id: uuid.UUID,
+        story_id: uuid.UUID,
+        character_id: uuid.UUID,
+        instruction: str,
+        source_image_id: uuid.UUID,
+    ) -> ImageModel:
+        """Edit an existing character render via fal image-edit model.
+
+        The source image is passed as a signed URL to fal alongside the user's
+        instruction. A new Image row is created for the result; the source image
+        is unchanged. The edit event records source_image_id so the audit trail
+        is durable even after the signed URL expires.
+        """
+        character = await self.repository_v2.character.get_character_for_user_in_project_and_story(
+            user_id=user_id,
+            project_id=project_id,
+            story_id=story_id,
+            character_id=character_id,
+        )
+        if character is None:
+            raise NotFoundError(
+                f"Character {character_id} not found for user {user_id} in project {project_id}"
+            )
+
+        source_image = await self.repository_v2.image.get_image(source_image_id)
+        if source_image is None or source_image.target_id != character_id:
+            raise NotFoundError(
+                f"Source image {source_image_id} not found for character {character_id}"
+            )
+
+        gcs_service = GCSUploadService()
+        signed_url, _ = gcs_service.generate_signed_url(source_image.object_key)
+
+        edit_event = EditEvent.create_edit_event(
+            project_id=project_id,
+            target_type=EditEventTargetType.CHARACTER,
+            target_id=character_id,
+            operation_type=EditEventOperationType.RENDER_CHARACTER_EDIT,
+            user_instruction=instruction,
+            input_snapshot={"source_image_id": str(source_image_id)},
+            status=EditEventStatus.PENDING,
+        )
+        await self.repository_v2.edit_event.add_edit_event_to_db(edit_event)
+        await self.db.flush()
+        edit_event_id = edit_event.id
+        await self.db.commit()
+
+        try:
+            fal_response = await fal_async_client.subscribe(
+                arguments={"prompt": instruction, "image_urls": [signed_url]},
+                on_queue_update=lambda status: logger.info(f"Fal status: {status}"),
+            )
+            fal_image_url = self._get_character_url_from_fal_client_response(
+                fal_response
+            )
+
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(fal_image_url)
+                resp.raise_for_status()
+                image_bytes = BytesIO(resp.content)
+                content_length = len(resp.content)
+                raw_content_type = (
+                    resp.headers.get("content-type", "image/jpeg").split(";")[0].strip()
+                )
+                valid_content_types = {ct.value for ct in ImageContentType}
+                content_type = (
+                    ImageContentType(raw_content_type)
+                    if raw_content_type in valid_content_types
+                    else ImageContentType.JPEG
+                )
+
+            width, height = extract_image_dimensions(image_bytes)
+
+            object_key = (
+                f"{project_id}/character/{character_id}/renders/{edit_event_id}"
+            )
+            receipt = gcs_service.upload(object_key, image_bytes, content_type)
+
+            image_model = ImageModel.create(
+                project_id=project_id,
+                user_id=user_id,
+                target_id=character_id,
+                width=width,
+                height=height,
+                content_type=content_type,
+                object_key=receipt.object_key,
+                bucket=receipt.bucket,
+                size_bytes=content_length,
+                discriminator_key=ImageDiscriminatorKey.CHARACTER_RENDER,
+                meta={},
+            )
+            await self.repository_v2.image.create_image(image_model)
+            await self.db.flush()
+
+            await self.repository_v2.edit_event.update_edit_event(
+                edit_event_id,
+                EditEventStatus.SUCCEEDED,
+                output_snapshot={"image_id": str(image_model.id)},
+            )
+            await self.db.commit()
+            await self.db.refresh(image_model)
+            return image_model
+
+        except Exception:
+            await self.repository_v2.edit_event.update_edit_event(
+                edit_event_id, EditEventStatus.FAILED
+            )
+            await self.db.commit()
+            raise
+
     async def delete_reference_image(
         self,
         user_id: uuid.UUID,

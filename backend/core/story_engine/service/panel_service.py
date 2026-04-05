@@ -556,6 +556,111 @@ class PanelService:
             await self.db.commit()
             raise
 
+    async def render_panel_edit(
+        self,
+        user_id: uuid.UUID,
+        project_id: uuid.UUID,
+        story_id: uuid.UUID,
+        panel_id: uuid.UUID,
+        instruction: str,
+        source_image_id: uuid.UUID,
+    ) -> ImageModel:
+        """Edit an existing panel render via fal image-edit model.
+
+        The source image is passed as a signed URL to fal alongside the user's
+        instruction. A new Image row is created for the result; the source image
+        is unchanged. The edit event records source_image_id for a durable audit trail.
+        """
+        story = await self.repository_v2.story.get_story(project_id, story_id)
+        if story is None:
+            raise NotFoundError(f"Story {story_id} not found")
+
+        panel = await self.repository_v2.panel.get_panel(panel_id, story_id)
+        if panel is None:
+            raise NotFoundError(f"Panel {panel_id} not found in story {story_id}")
+
+        source_image = await self.repository_v2.image.get_image(source_image_id)
+        if source_image is None or source_image.target_id != panel_id:
+            raise NotFoundError(
+                f"Source image {source_image_id} not found for panel {panel_id}"
+            )
+
+        gcs_service = GCSUploadService()
+        signed_url, _ = gcs_service.generate_signed_url(source_image.object_key)
+
+        edit_event = EditEvent.create_edit_event(
+            project_id=project_id,
+            target_type=EditEventTargetType.PANEL,
+            target_id=panel_id,
+            operation_type=EditEventOperationType.RENDER_PANEL_EDIT,
+            user_instruction=instruction,
+            input_snapshot={"source_image_id": str(source_image_id)},
+            status=EditEventStatus.PENDING,
+        )
+        await self.repository_v2.edit_event.add_edit_event_to_db(edit_event)
+        await self.db.flush()
+        edit_event_id = edit_event.id
+        await self.db.commit()
+
+        try:
+            fal_response = await fal_async_client.subscribe(
+                arguments={"prompt": instruction, "image_urls": [signed_url]},
+                on_queue_update=lambda status: logger.debug(f"Fal status: {status}"),
+            )
+            fal_image_url = self._extract_fal_image_url(fal_response)
+
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(fal_image_url)
+                resp.raise_for_status()
+                image_bytes = BytesIO(resp.content)
+                content_length = len(resp.content)
+                raw_ct = (
+                    resp.headers.get("content-type", "image/jpeg").split(";")[0].strip()
+                )
+                valid_cts = {ct.value for ct in ImageContentType}
+                content_type = (
+                    ImageContentType(raw_ct)
+                    if raw_ct in valid_cts
+                    else ImageContentType.JPEG
+                )
+
+            width, height = extract_image_dimensions(image_bytes)
+
+            object_key = f"{project_id}/panel/{panel_id}/renders/{edit_event_id}"
+            receipt = gcs_service.upload(object_key, image_bytes, content_type)
+
+            image_model = ImageModel.create(
+                project_id=project_id,
+                user_id=user_id,
+                target_id=panel_id,
+                width=width,
+                height=height,
+                content_type=content_type,
+                object_key=receipt.object_key,
+                bucket=receipt.bucket,
+                size_bytes=content_length,
+                discriminator_key=ImageDiscriminatorKey.PANEL_RENDER,
+                meta={},
+            )
+            await self.repository_v2.image.create_image(image_model)
+            await self.db.flush()
+
+            await self.repository_v2.edit_event.update_edit_event(
+                edit_event_id,
+                EditEventStatus.SUCCEEDED,
+                output_snapshot={"image_id": str(image_model.id)},
+            )
+            await self.db.commit()
+            await self.db.refresh(image_model)
+            return image_model
+
+        except Exception:
+            await self.repository_v2.edit_event.update_edit_event(
+                edit_event_id, EditEventStatus.FAILED
+            )
+            await self.db.commit()
+            raise
+
     def _build_panel_render_prompt(self, panel_attributes: dict[str, Any]) -> str:
         background = panel_attributes.get("background", "")
         dialogue = panel_attributes.get("dialogue", "")
