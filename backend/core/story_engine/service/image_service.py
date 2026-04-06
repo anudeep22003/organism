@@ -140,7 +140,7 @@ class ImageService:
         await self.db.refresh(first_image)
         return first_image
 
-    async def upload_reference_image(
+    async def upload_character_reference_image(
         self,
         user_id: uuid.UUID,
         project_id: uuid.UUID,

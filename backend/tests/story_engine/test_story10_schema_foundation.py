@@ -79,7 +79,7 @@ async def test_upload_reference_image_creates_image_row_with_target_id(
         return_value=mock_receipt,
     ):
         service = ImageService(db=db_session, repository_v2=repo)
-        image = await service.upload_reference_image(
+        image = await service.upload_character_reference_image(
             user_id=user.id,
             project_id=project.id,
             story_id=story.id,
@@ -118,7 +118,7 @@ async def test_upload_reference_image_output_snapshot_contains_image_id(
         return_value=mock_receipt,
     ):
         service = ImageService(db=db_session, repository_v2=repo)
-        image = await service.upload_reference_image(
+        image = await service.upload_character_reference_image(
             user_id=user.id,
             project_id=project.id,
             story_id=story.id,

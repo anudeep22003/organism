@@ -587,7 +587,7 @@ class CharacterService:
         character_id: uuid.UUID,
         image: UploadFile,
     ) -> ImageModel:
-        return await self.image_service.upload_reference_image(
+        return await self.image_service.upload_character_reference_image(
             user_id=user_id,
             project_id=project_id,
             story_id=story_id,
