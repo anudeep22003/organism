@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Skeleton } from "../../../../components/Skeleton";
+import { Skeleton } from "@scene-engine/components/Skeleton";
 import { imageSignedUrlOptions } from "../../character.queries";
 import type { ImageRecord } from "@scene-engine/shared/scene-engine.types";
 

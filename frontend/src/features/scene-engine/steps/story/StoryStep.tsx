@@ -1,6 +1,6 @@
-import Block from "../../components/Block";
-import PromptInput from "../../components/PromptInput";
-import { useSceneEngine } from "../../context";
+import Block from "@scene-engine/components/Block";
+import PromptInput from "@scene-engine/components/PromptInput";
+import { useSceneEngine } from "@scene-engine/context";
 import { useStoryPhase } from "./hooks/useStoryPhase";
 
 function StoryCanvas({

@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { StepLoadingSkeleton } from "../../../components/StepLoadingSkeleton";
-import { useSceneEngine } from "../../../context";
+import { StepLoadingSkeleton } from "@scene-engine/components/StepLoadingSkeleton";
+import { useSceneEngine } from "@scene-engine/context";
 import { charactersOptions } from "../character.queries";
 import { CharacterRenderModal } from "./components/CharacterRenderModal";
 import { CharacterRenderingList } from "./components/CharacterRenderingList";

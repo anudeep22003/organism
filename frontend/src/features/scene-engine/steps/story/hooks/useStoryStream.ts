@@ -1,8 +1,8 @@
 import { httpClient } from "@/lib/httpClient";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRef } from "react";
-import EventRouter from "../../../events/event-router";
-import type { EventEnvelope } from "../../../events/base-events";
+import EventRouter from "@scene-engine/events/event-router";
+import type { EventEnvelope } from "@scene-engine/events/base-events";
 import { storyDetailOptions, storyHistoryOptions } from "../story.queries";
 
 const STREAM_ENDPOINT = (projectId: string, storyId: string) =>

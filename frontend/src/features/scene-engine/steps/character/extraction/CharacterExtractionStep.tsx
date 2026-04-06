@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { StepLoadingSkeleton } from "../../../components/StepLoadingSkeleton";
-import { useSceneEngine } from "../../../context";
+import { StepLoadingSkeleton } from "@scene-engine/components/StepLoadingSkeleton";
+import { useSceneEngine } from "@scene-engine/context";
 import { useCharacterExtraction } from "./hooks/useCharacterExtraction";
 import { CharacterList } from "./components/CharacterList";
 import { CharacterModal } from "./components/CharacterModal";
