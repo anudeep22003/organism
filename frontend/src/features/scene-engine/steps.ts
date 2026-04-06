@@ -5,6 +5,7 @@ import CharacterExtractionStep from "./steps/character/extraction/CharacterExtra
 import CharacterRenderingStep from "./steps/character/rendering/CharacterRenderingStep";
 import PanelExtractionStep from "./steps/panel/extraction/PanelExtractionStep";
 import PanelRenderingStep from "./steps/panel/rendering/PanelRenderingStep";
+import ReviewStep from "./steps/review/ReviewStep";
 
 export const SCENE_STEPS: StepDef[] = [
   { id: 1, label: "Story",                component: StoryStep },
@@ -12,6 +13,6 @@ export const SCENE_STEPS: StepDef[] = [
   { id: 3, label: "Character Rendering",  component: CharacterRenderingStep },
   { id: 4, label: "Panel Extraction",     component: PanelExtractionStep },
   { id: 5, label: "Panel Rendering",      component: PanelRenderingStep },
-  { id: 6, label: "Review",               component: PlaceholderStep },
+  { id: 6, label: "Review",               component: ReviewStep },
   { id: 7, label: "Export",               component: PlaceholderStep },
 ];

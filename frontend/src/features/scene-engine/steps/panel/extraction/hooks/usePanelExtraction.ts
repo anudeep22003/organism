@@ -81,6 +81,18 @@ export function usePanelExtraction(projectId: string, storyId: string) {
     },
   });
 
+  const { mutate: deletePanel, isPending: isDeletingPanel } = useMutation({
+    mutationFn: ({ panelId }: { panelId: string }) =>
+      httpClient.delete(
+        `${STORY_API_BASE}/project/${projectId}/story/${storyId}/panel/${panelId}`,
+      ),
+    onSuccess: (_, { panelId }) => {
+      queryClient.setQueryData(queryKey, (prev: PanelBundle[] | undefined) =>
+        prev?.filter((b) => b.panel.id !== panelId),
+      );
+    },
+  });
+
   return {
     panels,
     isLoading,
@@ -98,5 +110,7 @@ export function usePanelExtraction(projectId: string, storyId: string) {
     isUploading,
     deleteReferenceImage,
     isDeleting,
+    deletePanel,
+    isDeletingPanel,
   };
 }

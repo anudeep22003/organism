@@ -84,6 +84,7 @@ export default function PanelExtractionStep() {
           displayIndex={activeIndex}
           onDismiss={() => { setActiveId(null); setViewingImageId(null); }}
           onImageClick={setViewingImageId}
+          onDeleted={() => { setActiveId(null); setViewingImageId(null); }}
         />
       )}
       {viewingImage && (
