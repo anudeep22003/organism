@@ -84,11 +84,13 @@ export function ComicCarousel({ panels, index, onIndexChange }: ComicCarouselPro
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {current && (
-        current.canonicalRender
-          ? <PanelImage render={current.canonicalRender} />
-          : <NoRenderSlot displayIndex={index + 1} />
-      )}
+      <div className="relative h-full w-full md:h-auto md:w-full md:max-w-lg md:aspect-[2/3]">
+        {current && (
+          current.canonicalRender
+            ? <PanelImage render={current.canonicalRender} />
+            : <NoRenderSlot displayIndex={index + 1} />
+        )}
+      </div>
 
       <span className="absolute left-3 top-3 bg-background/80 px-2 py-1 text-[10px] text-muted-foreground">
         Panel {index + 1} / {panels.length}
