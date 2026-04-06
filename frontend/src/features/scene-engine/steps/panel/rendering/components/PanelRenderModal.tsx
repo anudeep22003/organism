@@ -51,6 +51,7 @@ export function PanelRenderModal({ bundle, displayIndex, onDismiss }: PanelRende
     }
 
     editRender({ panelId, imageId: sourceImage.id, instruction, referenceImageId });
+    setSelectedIndex(0);
   };
 
   const headerActions = (
@@ -84,12 +85,11 @@ export function PanelRenderModal({ bundle, displayIndex, onDismiss }: PanelRende
         </div>
       );
     }
-    const canonicalIndex = renders.findIndex((r: ImageRecord) => r.id === bundle.canonicalRender?.id);
     return (
       <Carousel
         items={renders}
+        index={selectedIndex}
         onIndexChange={setSelectedIndex}
-        initialIndex={canonicalIndex === -1 ? 0 : canonicalIndex}
       />
     );
   };

@@ -50,6 +50,7 @@ export function CharacterRenderModal({ bundle, onDismiss }: CharacterRenderModal
     }
 
     editRender({ characterId, imageId: sourceImage.id, instruction, referenceImageId });
+    setSelectedIndex(0);
   };
 
   const headerActions = (
@@ -83,12 +84,11 @@ export function CharacterRenderModal({ bundle, onDismiss }: CharacterRenderModal
         </div>
       );
     }
-    const canonicalIndex = renders.findIndex((r: ImageRecord) => r.id === bundle.canonicalRender?.id);
     return (
       <Carousel
         items={renders}
+        index={selectedIndex}
         onIndexChange={setSelectedIndex}
-        initialIndex={canonicalIndex === -1 ? 0 : canonicalIndex}
       />
     );
   };

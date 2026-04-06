@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@scene-engine/components/Skeleton";
 import { imageSignedUrlOptions } from "@scene-engine/shared/scene-engine.queries";
@@ -30,17 +30,15 @@ function CarouselImage({ render }: { render: ImageRecord }) {
 
 type CarouselProps = {
   items: ImageRecord[];
-  onIndexChange?: (i: number) => void;
-  initialIndex?: number;
+  index: number;
+  onIndexChange: (i: number) => void;
 };
 
-export function Carousel({ items, onIndexChange, initialIndex }: CarouselProps) {
-  const [index, setIndex] = useState(initialIndex ?? 0);
+export function Carousel({ items, index, onIndexChange }: CarouselProps) {
   const touchStartX = useRef<number | null>(null);
 
   const setAndNotify = (i: number) => {
-    setIndex(i);
-    onIndexChange?.(i);
+    onIndexChange(i);
   };
 
   const prev = () => setAndNotify(Math.max(0, index - 1));
