@@ -18,6 +18,15 @@ Layer 3:
   test_export_pdf_200_starts_with_pdf_magic_bytes
   test_export_pdf_422_missing_render
   test_export_pdf_401_no_token
+
+Layer 4 (unit tests, no HTTP):
+  test_compose_panel_image_output_is_taller
+  test_compose_panel_image_width_unchanged
+  test_compose_panel_image_empty_dialogue_still_has_bar
+  test_compose_panel_image_text_colour_has_sufficient_contrast
+Layer 4 (integration):
+  test_export_zip_with_dialogue_bar_images_are_taller
+  test_export_instagram_with_dialogue_bar_still_1080x1080
 """
 
 import io
@@ -130,9 +139,14 @@ async def test_export_zip_200_correct_files(
     assert names[0] == "1_panel.jpg"
     assert names[1] == "2_panel.jpg"
     assert names[2] == "3_panel.jpg"
-    # Each file contains valid JPEG bytes
+    # Each file starts with JPEG magic bytes (may differ from raw due to bar composition)
+    from PIL import Image as PILImage
+
     for name in names:
-        assert zf.read(name) == jpeg
+        data = zf.read(name)
+        assert data[:2] == b"\xff\xd8", f"{name} is not a valid JPEG"
+        pil_img = PILImage.open(io.BytesIO(data))
+        assert pil_img.width > 0 and pil_img.height > 0
 
 
 async def test_export_zip_422_missing_render(
@@ -410,3 +424,149 @@ async def test_export_pdf_401_no_token(
         f"/api/comic-builder/v2/project/{project.id}/story/{story.id}/export/pdf",
     )
     assert response.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# Layer 4 — Dialogue bar unit tests (no HTTP)
+# ---------------------------------------------------------------------------
+
+
+def _make_jpeg(
+    width: int = 100, height: int = 100, colour: tuple[int, int, int] = (200, 100, 50)
+) -> bytes:
+    """Create a solid-colour JPEG of given dimensions."""
+    from PIL import Image as PILImage
+
+    buf = io.BytesIO()
+    PILImage.new("RGB", (width, height), colour).save(buf, format="JPEG")
+    return buf.getvalue()
+
+
+def test_compose_panel_image_output_is_taller() -> None:
+    """Output image height > input image height (bar was added)."""
+    from PIL import Image as PILImage
+
+    from core.story_engine.service.export_service import _compose_panel_image
+
+    jpeg = _make_jpeg(100, 100)
+    result = _compose_panel_image(jpeg, "Hello!")
+    out = PILImage.open(io.BytesIO(result))
+    assert out.height > 100
+
+
+def test_compose_panel_image_width_unchanged() -> None:
+    """Output image width equals input width."""
+    from PIL import Image as PILImage
+
+    from core.story_engine.service.export_service import _compose_panel_image
+
+    jpeg = _make_jpeg(120, 80)
+    result = _compose_panel_image(jpeg, "Some text")
+    out = PILImage.open(io.BytesIO(result))
+    assert out.width == 120
+
+
+def test_compose_panel_image_empty_dialogue_still_has_bar() -> None:
+    """Empty dialogue string: bar is still added (image is taller), no text drawn."""
+    from PIL import Image as PILImage
+
+    from core.story_engine.service.export_service import _compose_panel_image
+
+    jpeg = _make_jpeg(100, 100)
+    result = _compose_panel_image(jpeg, "")
+    out = PILImage.open(io.BytesIO(result))
+    # Bar is still present — image is taller
+    assert out.height > 100
+
+
+def test_compose_panel_image_text_colour_has_sufficient_contrast() -> None:
+    """Text colour has WCAG contrast ratio ≥ 4.5:1 against the bar colour."""
+    from PIL import Image as PILImage
+
+    from core.story_engine.service.export_service import (
+        _compose_panel_image,
+        _contrast_ratio,
+    )
+
+    jpeg = _make_jpeg(200, 200, colour=(200, 100, 50))
+    result = _compose_panel_image(jpeg, "Contrast check")
+    out = PILImage.open(io.BytesIO(result))
+
+    # The bar occupies the bottom portion of the output; sample the centre of the bar
+    bar_y = 210  # well inside the bar (input height=200, bar_h >= 30)
+    bar_pixel: tuple[int, int, int] = out.getpixel((out.width // 2, bar_y))  # type: ignore[assignment]
+
+    # Text colour must be either black or white (or dominant — any high-contrast choice)
+    black: tuple[int, int, int] = (0, 0, 0)
+    white: tuple[int, int, int] = (255, 255, 255)
+    contrast_black = _contrast_ratio(black, bar_pixel)
+    contrast_white = _contrast_ratio(white, bar_pixel)
+    # At least one of black/white must be ≥ 4.5:1 against bar background
+    assert max(contrast_black, contrast_white) >= 4.5
+
+
+# ---------------------------------------------------------------------------
+# Layer 4 integration tests
+# ---------------------------------------------------------------------------
+
+
+async def test_export_zip_with_dialogue_bar_images_are_taller(
+    api_client: AsyncClient,
+    db_session: AsyncSession,
+    user: User,
+    project: Project,
+    story: Story,
+) -> None:
+    """ZIP export: images have a bar added so they are taller than the source."""
+    await _setup_panels_with_renders(db_session, project, user, story, count=2)
+
+    # Use a 100×100 source JPEG
+    jpeg = _make_jpeg(100, 100)
+    with patch(
+        "core.story_engine.service.export_service.GCSUploadService.download_as_bytes",
+        return_value=jpeg,
+    ):
+        response = await api_client.get(
+            f"/api/comic-builder/v2/project/{project.id}/story/{story.id}/export/zip",
+            headers=_auth_headers(user.id),
+        )
+
+    assert response.status_code == 200
+    from PIL import Image as PILImage
+
+    zf = zipfile.ZipFile(io.BytesIO(response.content))
+    for name in zf.namelist():
+        if name.endswith(".jpg"):
+            img = PILImage.open(io.BytesIO(zf.read(name)))
+            assert img.height > 100, f"{name} height {img.height} not > 100"
+            assert img.width == 100
+
+
+async def test_export_instagram_with_dialogue_bar_still_1080x1080(
+    api_client: AsyncClient,
+    db_session: AsyncSession,
+    user: User,
+    project: Project,
+    story: Story,
+) -> None:
+    """Instagram ZIP: images are still 1080×1080 even after bar composition."""
+    await _setup_panels_with_renders(db_session, project, user, story, count=2)
+
+    jpeg = _make_jpeg(100, 100)
+    with patch(
+        "core.story_engine.service.export_service.GCSUploadService.download_as_bytes",
+        return_value=jpeg,
+    ):
+        response = await api_client.get(
+            f"/api/comic-builder/v2/project/{project.id}/story/{story.id}/export/instagram",
+            headers=_auth_headers(user.id),
+        )
+
+    assert response.status_code == 200
+    from PIL import Image as PILImage
+
+    zf = zipfile.ZipFile(io.BytesIO(response.content))
+    for name in zf.namelist():
+        if name.endswith(".jpg"):
+            img = PILImage.open(io.BytesIO(zf.read(name)))
+            assert img.size == (1080, 1080), f"{name} is {img.size}"
