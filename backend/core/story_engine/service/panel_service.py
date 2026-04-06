@@ -369,6 +369,27 @@ class PanelService:
         )
 
     # -----------------------------------------------------------------------
+    # get_canonical_panel_render
+    # -----------------------------------------------------------------------
+
+    async def get_canonical_panel_render(
+        self, panel_id: uuid.UUID
+    ) -> ImageModel | None:
+        """Return the canonical render for a panel.
+
+        Prefers canonical_render_id if explicitly set on the panel; falls back
+        to the most-recently created PANEL_RENDER image when the pointer is NULL.
+        Mirrors get_canonical_character_render in character_service.py.
+        """
+        panel = await self.repository_v2.panel.get_panel_by_id(panel_id)
+        if panel is not None and panel.canonical_render_id is not None:
+            return await self.repository_v2.image.get_image(panel.canonical_render_id)
+        return await self.repository_v2.image.get_canonical_render(
+            target_id=panel_id,
+            discriminator_key=ImageDiscriminatorKey.PANEL_RENDER,
+        )
+
+    # -----------------------------------------------------------------------
     # get_panels (for Story 30)
     # -----------------------------------------------------------------------
 
@@ -389,10 +410,7 @@ class PanelService:
 
         result: list[tuple[Panel, ImageModel | None]] = []
         for panel in panels:
-            render = await self.repository_v2.image.get_canonical_render(
-                target_id=panel.id,
-                discriminator_key=ImageDiscriminatorKey.PANEL_RENDER,
-            )
+            render = await self.get_canonical_panel_render(panel.id)
             result.append((panel, render))
 
         return result
@@ -405,7 +423,6 @@ class PanelService:
         self, project_id: uuid.UUID, story_id: uuid.UUID, panel_id: uuid.UUID
     ) -> tuple[Panel, Any]:
         """Return a single panel with its canonical render."""
-        from ..models.image import Image as ImageModel
 
         story = await self.repository_v2.story.get_story(project_id, story_id)
         if story is None:
@@ -415,10 +432,7 @@ class PanelService:
         if panel is None:
             raise NotFoundError(f"Panel {panel_id} not found in story {story_id}")
 
-        render: ImageModel | None = await self.repository_v2.image.get_canonical_render(
-            target_id=panel_id,
-            discriminator_key=ImageDiscriminatorKey.PANEL_RENDER,
-        )
+        render = await self.get_canonical_panel_render(panel_id)
         return panel, render
 
     # -----------------------------------------------------------------------
@@ -541,6 +555,11 @@ class PanelService:
             )
             await self.repository_v2.image.create_image(image_model)
             await self.db.flush()
+
+            # Auto-set canonical render pointer (no edit event — RENDER_PANEL records it)
+            await self.repository_v2.panel.set_canonical_render(
+                panel_id, story_id, image_model.id
+            )
 
             # TX2: complete edit event
             await self.repository_v2.edit_event.update_edit_event(
@@ -670,6 +689,11 @@ class PanelService:
             )
             await self.repository_v2.image.create_image(image_model)
             await self.db.flush()
+
+            # Auto-set canonical render pointer (no edit event — RENDER_PANEL_EDIT records it)
+            await self.repository_v2.panel.set_canonical_render(
+                panel_id, story_id, image_model.id
+            )
 
             await self.repository_v2.edit_event.update_edit_event(
                 edit_event_id,

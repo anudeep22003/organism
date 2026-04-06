@@ -20,7 +20,6 @@ from loguru import logger
 from core.auth.dependencies import get_current_user_id
 
 from ...exceptions import NoCharactersError, NoStoryTextError, NotFoundError
-from ...models.image import ImageDiscriminatorKey
 from ...schemas.edit_event import EditEventResponseSchema
 from ...schemas.image import ImageResponseSchema
 from ...schemas.panel import (
@@ -171,10 +170,7 @@ async def generate_panel(
             panel_id=panel_id,
             instruction=body.instruction if body is not None else None,
         )
-        render = await service.repository_v2.image.get_canonical_render(
-            target_id=panel_id,
-            discriminator_key=ImageDiscriminatorKey.PANEL_RENDER,
-        )
+        render = await service.get_canonical_panel_render(panel_id)
         return _build_panel_full(panel, render)
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))

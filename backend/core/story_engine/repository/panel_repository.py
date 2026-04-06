@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import Panel
 from ..models.panel_character import PanelCharacter
+from .exception import NotFoundError
 
 
 class PanelRepository:
@@ -46,6 +47,20 @@ class PanelRepository:
             )
         )
         return list(result.scalars().all())
+
+    async def get_panel_by_id(self, panel_id: uuid.UUID) -> Panel | None:
+        """Fetch a panel by ID alone — use only when story_id is not available."""
+        result = await self.db.execute(select(Panel).where(Panel.id == panel_id))
+        return result.scalar_one_or_none()
+
+    async def set_canonical_render(
+        self, panel_id: uuid.UUID, story_id: uuid.UUID, image_id: uuid.UUID
+    ) -> Panel:
+        panel = await self.get_panel(panel_id, story_id)
+        if panel is None:
+            raise NotFoundError(f"Panel {panel_id} not found in story {story_id}")
+        panel.canonical_render_id = image_id
+        return panel
 
     async def delete_panel(self, panel_id: uuid.UUID, story_id: uuid.UUID) -> None:
         panel = await self.get_panel(panel_id, story_id)
