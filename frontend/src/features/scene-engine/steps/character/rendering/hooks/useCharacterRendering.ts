@@ -1,11 +1,11 @@
 import { httpClient } from "@/lib/httpClient";
-import { STORY_API_BASE } from "@/features/story/shared/story.constants";
+import { STORY_API_BASE } from "../../../../shared/scene-engine.constants";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { charactersOptions } from "../../character.queries";
 import { spliceCharacterIntoList, uploadReferenceImageRequest, buildHttpErrorMessage } from "../../character.utils";
 import type { CharacterBundle } from "../../character.types";
-import type { ImageRecord } from "@/features/story/shared/story.types";
+import type { ImageRecord } from "../../../../shared/scene-engine.types";
 import { characterRendersOptions } from "../rendering.queries";
 
 export function useCharacterRendering(projectId: string, storyId: string) {

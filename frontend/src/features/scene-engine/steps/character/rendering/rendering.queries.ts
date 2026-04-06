@@ -1,7 +1,7 @@
 import { httpClient } from "@/lib/httpClient";
 import { queryOptions } from "@tanstack/react-query";
-import { STORY_API_BASE, STORY_QUERY_ROOT } from "@/features/story/shared/story.constants";
-import type { ImageRecord } from "@/features/story/shared/story.types";
+import { STORY_API_BASE, STORY_QUERY_ROOT } from "../../../shared/scene-engine.constants";
+import type { ImageRecord } from "../../../shared/scene-engine.types";
 
 export const characterRendersOptions = (
   projectId: string,

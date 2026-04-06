@@ -1,4 +1,4 @@
-import type { ImageRecord } from "@/features/story/shared/story.types";
+import type { ImageRecord } from "../../shared/scene-engine.types";
 
 export type CharacterRecord = {
   id: string;

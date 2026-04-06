@@ -1,6 +1,6 @@
 import { httpClient } from "@/lib/httpClient";
 import { queryOptions } from "@tanstack/react-query";
-import { STORY_API_BASE, STORY_QUERY_ROOT } from "@/features/story/shared/story.constants";
+import { STORY_API_BASE, STORY_QUERY_ROOT } from "../../shared/scene-engine.constants";
 import type { CharacterBundle } from "./character.types";
 
 export const charactersOptions = (projectId: string, storyId: string) =>
