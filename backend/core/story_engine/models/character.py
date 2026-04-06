@@ -49,3 +49,9 @@ class Character(ORMBase):
         "EditEvent", foreign_keys=[source_event_id]
     )
     render_url: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
+    canonical_render_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("image.id", ondelete="SET NULL"),
+        nullable=True,
+        default=None,
+    )
