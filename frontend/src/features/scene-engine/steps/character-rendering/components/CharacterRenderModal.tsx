@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ModalShell } from "../../../components/ModalShell";
 import PromptInput from "../../../components/PromptInput";
@@ -26,6 +26,12 @@ export function CharacterRenderModal({ bundle, onDismiss }: CharacterRenderModal
   );
 
   const [selectedIndex, setSelectedIndex] = useState(0);
+
+  useEffect(() => {
+    if (!renders) return;
+    const idx = renders.findIndex((r) => r.id === bundle.canonicalRender?.id);
+    setSelectedIndex(idx === -1 ? 0 : idx);
+  }, [renders, bundle.canonicalRender?.id]);
 
   const selectedRender = renders?.[selectedIndex];
   const isCanonical = !!selectedRender && selectedRender.id === bundle.canonicalRender?.id;
@@ -76,11 +82,12 @@ export function CharacterRenderModal({ bundle, onDismiss }: CharacterRenderModal
         </div>
       );
     }
+    const canonicalIndex = renders.findIndex((r) => r.id === bundle.canonicalRender?.id);
     return (
       <Carousel
         items={renders}
         onIndexChange={setSelectedIndex}
-        initialIndex={0}
+        initialIndex={canonicalIndex === -1 ? 0 : canonicalIndex}
       />
     );
   };
@@ -95,8 +102,8 @@ export function CharacterRenderModal({ bundle, onDismiss }: CharacterRenderModal
       <div className="shrink-0 border-t border-border">
         <PromptInput
           onSend={handleSend}
-          placeholder={selectedIndex === 0 ? "Describe an edit…" : "Only the most recent render can be edited"}
-          disabled={isEditing || isLoading || !renders || renders.length === 0 || selectedIndex !== 0}
+          placeholder={isCanonical ? "Describe an edit…" : "Only the canonical render can be edited"}
+          disabled={isEditing || isLoading || !renders || renders.length === 0 || !isCanonical}
           enableUploads
           maxFiles={1}
           acceptedFileTypes="image/*"
