@@ -1,6 +1,9 @@
+import { useEffect, useState } from "react";
 import { ModalShell } from "../../../components/ModalShell";
 import PromptInput from "../../../components/PromptInput";
+import { ValidationErrorBlock } from "../../../components/ValidationErrorBlock";
 import { useSceneEngine } from "../../../context";
+import { useFilePicker } from "../../../hooks/useFilePicker";
 import { CharacterAttributes } from "../CharacterAttributes";
 import type { CharacterBundle } from "../character-extraction.types";
 import { useCharacterExtraction } from "../hooks/useCharacterExtraction";
@@ -14,10 +17,24 @@ type CharacterModalProps = {
 
 export function CharacterModal({ bundle, onDismiss, onImageClick }: CharacterModalProps) {
   const { projectId, storyId } = useSceneEngine();
-  const { refineCharacter, isRefining } =
+  const { refineCharacter, isRefining, uploadReferenceImage, isUploading } =
     useCharacterExtraction(projectId, storyId);
 
   const characterId = bundle.character.id;
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!validationError) return;
+    const t = setTimeout(() => setValidationError(null), 3000);
+    return () => clearTimeout(t);
+  }, [validationError]);
+
+  const { triggerPick, inputProps } = useFilePicker({
+    accept: "image/*",
+    multiple: false,
+    onPick: ([file]) => uploadReferenceImage({ characterId, file }),
+    onReject: setValidationError,
+  });
 
   return (
     <ModalShell header={bundle.character.name} onDismiss={onDismiss}>
@@ -30,6 +47,19 @@ export function CharacterModal({ bundle, onDismiss, onImageClick }: CharacterMod
           variant="modal"
           onImageClick={onImageClick}
         />
+      </div>
+      <div className="shrink-0 border-t border-border">
+        {validationError && <ValidationErrorBlock message={validationError} />}
+        <div className="px-3 py-2">
+          <input {...inputProps} />
+          <button
+            onClick={triggerPick}
+            disabled={isUploading}
+            className="bg-foreground px-2 py-1 text-[10px] text-background hover:bg-foreground/80 disabled:opacity-50"
+          >
+            {isUploading ? "Uploading…" : "Upload a reference image"}
+          </button>
+        </div>
       </div>
       <div className="shrink-0 border-t border-border">
         <PromptInput

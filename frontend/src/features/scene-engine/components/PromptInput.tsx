@@ -9,6 +9,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useCallback, useEffect, useState } from "react";
 import { useFilePicker } from "../hooks/useFilePicker";
 import { StagedFilePill } from "./StagedFilePill";
+import { ValidationErrorBlock } from "./ValidationErrorBlock";
 import WaveformIndicator from "./WaveformIndicator";
 
 type PromptInputProps = {
@@ -113,11 +114,7 @@ export default function PromptInput({
         </div>
       )}
 
-      {validationError && (
-        <div className="shrink-0 border-b border-border bg-destructive/5 px-3 py-1.5">
-          <span className="text-[10px] text-destructive">{validationError}</span>
-        </div>
-      )}
+      {validationError && <ValidationErrorBlock message={validationError} />}
 
       <div className="relative">
         <textarea
