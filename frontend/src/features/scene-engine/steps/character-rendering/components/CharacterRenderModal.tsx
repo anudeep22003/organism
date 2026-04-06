@@ -18,7 +18,7 @@ export function CharacterRenderModal({ bundle, onDismiss }: CharacterRenderModal
   const { projectId, storyId } = useSceneEngine();
   const characterId = bundle.character.id;
 
-  const { uploadReferenceImage, editRender, editingIds } = useCharacterRendering(projectId, storyId);
+  const { uploadReferenceImage, editRender, editingIds, setCanonicalRender, isSettingCanonical } = useCharacterRendering(projectId, storyId);
   const isEditing = editingIds.has(characterId);
 
   const { data: renders, isLoading } = useQuery(
@@ -27,7 +27,8 @@ export function CharacterRenderModal({ bundle, onDismiss }: CharacterRenderModal
 
   const [selectedIndex, setSelectedIndex] = useState(0);
 
-  const isCanonical = false;
+  const selectedRender = renders?.[selectedIndex];
+  const isCanonical = !!selectedRender && selectedRender.id === bundle.canonicalRender?.id;
 
   const handleSend = async (instruction: string, files: File[]) => {
     if (!renders || renders.length === 0) return;
@@ -46,14 +47,18 @@ export function CharacterRenderModal({ bundle, onDismiss }: CharacterRenderModal
 
   const headerActions = (
     <button
-      disabled
+      onClick={() => {
+        if (!selectedRender || isCanonical) return;
+        setCanonicalRender({ characterId, imageId: selectedRender.id });
+      }}
+      disabled={isCanonical || isSettingCanonical || !selectedRender}
       className={`px-2 py-1 text-[10px] ${
         isCanonical
-          ? "bg-foreground text-background hover:bg-foreground/80"
-          : "border border-foreground/30 text-foreground hover:bg-muted/40"
+          ? "bg-foreground text-background"
+          : "border border-foreground/30 text-foreground hover:bg-muted/40 disabled:opacity-50"
       }`}
     >
-      {isCanonical ? "✓ Selected" : "Use this"}
+      {isSettingCanonical ? "Setting…" : isCanonical ? "✓ Selected" : "Use this"}
     </button>
   );
 

@@ -130,5 +130,22 @@ export function useCharacterRendering(projectId: string, storyId: string) {
     },
   });
 
-  return { triggerRender, renderingIds, uploadReferenceImage, isUploading, editRender, editingIds, errorIds };
+  const { mutate: setCanonicalRender, isPending: isSettingCanonical } = useMutation({
+    mutationFn: ({ characterId, imageId }: { characterId: string; imageId: string }) =>
+      httpClient.post<CharacterBundle>(
+        `${STORY_API_BASE}/project/${projectId}/story/${storyId}/character/${characterId}/set-canonical-render`,
+        { imageId },
+      ),
+    onSuccess: (updatedBundle) => {
+      queryClient.setQueryData(
+        charactersQueryKey,
+        (prev: CharacterBundle[] | undefined) =>
+          prev?.map((b) =>
+            b.character.id === updatedBundle.character.id ? updatedBundle : b,
+          ),
+      );
+    },
+  });
+
+  return { triggerRender, renderingIds, uploadReferenceImage, isUploading, editRender, editingIds, setCanonicalRender, isSettingCanonical, errorIds };
 }
