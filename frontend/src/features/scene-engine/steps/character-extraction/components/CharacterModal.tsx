@@ -42,7 +42,7 @@ export function CharacterModal({ bundle, onDismiss, onImageClick }: CharacterMod
           onImageClick={onImageClick}
         />
       </div>
-      <div className="shrink-0 border-t border-border">
+      <div className="shrink-0">
         {validationError && (
           <ValidationErrorBlock
             message={validationError}
