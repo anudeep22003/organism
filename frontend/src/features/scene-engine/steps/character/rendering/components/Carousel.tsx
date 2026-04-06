@@ -1,10 +1,10 @@
 import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Skeleton } from "../../../components/Skeleton";
-import { imageSignedUrlOptions } from "../../character-extraction/character-extraction.queries";
-import type { RenderRecord } from "../character-rendering.types";
+import { Skeleton } from "@scene-engine/components/Skeleton";
+import { imageSignedUrlOptions } from "../../character.queries";
+import type { ImageRecord } from "@scene-engine/shared/scene-engine.types";
 
-function CarouselImage({ render }: { render: RenderRecord }) {
+function CarouselImage({ render }: { render: ImageRecord }) {
   const queryClient = useQueryClient();
   const { data } = useQuery(imageSignedUrlOptions(render.id));
 
@@ -29,7 +29,7 @@ function CarouselImage({ render }: { render: RenderRecord }) {
 }
 
 type CarouselProps = {
-  items: RenderRecord[];
+  items: ImageRecord[];
   onIndexChange?: (i: number) => void;
   initialIndex?: number;
 };

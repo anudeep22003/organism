@@ -12,6 +12,9 @@
       "paths": {
         "@/*": [
           "./src/*"
+        ],
+        "@scene-engine/*": [
+          "./src/features/scene-engine/*"
         ]
       },
 

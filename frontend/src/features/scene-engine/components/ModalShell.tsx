@@ -21,8 +21,12 @@ export function ModalShell({
 
       <div
         className={`absolute inset-0 ${zClass} flex items-center justify-center p-4`}
+        onClick={onDismiss}
       >
-        <div className="flex w-full max-w-2xl h-full flex-col border border-border bg-background">
+        <div
+          className="flex w-full max-w-2xl h-full flex-col border border-border bg-background"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="flex shrink-0 items-center justify-between border-b border-border px-3 py-2">
             <div className="min-w-0 flex-1">
               {typeof header === "string" ? (

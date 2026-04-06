@@ -1,13 +1,4 @@
-export type ImageRecord = {
-  id: string;
-  objectKey: string;
-  bucket: string;
-  contentType: string;
-  width: number;
-  height: number;
-  sizeBytes: number;
-  createdAt: string;
-};
+import type { ImageRecord } from "@scene-engine/shared/scene-engine.types";
 
 export type CharacterRecord = {
   id: string;

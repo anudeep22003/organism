@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ModalShell } from "../../../components/ModalShell";
-import PromptInput from "../../../components/PromptInput";
-import { Skeleton } from "../../../components/Skeleton";
-import { useSceneEngine } from "../../../context";
-import type { CharacterBundle } from "../../character-extraction/character-extraction.types";
-import { characterRendersOptions } from "../character-rendering.queries";
+import { ModalShell } from "@scene-engine/components/ModalShell";
+import PromptInput from "@scene-engine/components/PromptInput";
+import { Skeleton } from "@scene-engine/components/Skeleton";
+import { useSceneEngine } from "@scene-engine/context";
+import type { CharacterBundle } from "../../character.types";
+import type { ImageRecord } from "@scene-engine/shared/scene-engine.types";
+import { characterRendersOptions } from "../rendering.queries";
 import { useCharacterRendering } from "../hooks/useCharacterRendering";
 import { Carousel } from "./Carousel";
 
@@ -29,7 +30,7 @@ export function CharacterRenderModal({ bundle, onDismiss }: CharacterRenderModal
 
   useEffect(() => {
     if (!renders) return;
-    const idx = renders.findIndex((r) => r.id === bundle.canonicalRender?.id);
+    const idx = renders.findIndex((r: ImageRecord) => r.id === bundle.canonicalRender?.id);
     setSelectedIndex(idx === -1 ? 0 : idx);
   }, [renders, bundle.canonicalRender?.id]);
 
@@ -82,7 +83,7 @@ export function CharacterRenderModal({ bundle, onDismiss }: CharacterRenderModal
         </div>
       );
     }
-    const canonicalIndex = renders.findIndex((r) => r.id === bundle.canonicalRender?.id);
+    const canonicalIndex = renders.findIndex((r: ImageRecord) => r.id === bundle.canonicalRender?.id);
     return (
       <Carousel
         items={renders}

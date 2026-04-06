@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { ModalShell } from "../../../components/ModalShell";
-import PromptInput from "../../../components/PromptInput";
-import { ValidationErrorBlock } from "../../../components/ValidationErrorBlock";
-import { useSceneEngine } from "../../../context";
-import { useFilePicker } from "../../../hooks/useFilePicker";
-import { CharacterAttributes } from "../CharacterAttributes";
-import type { CharacterBundle } from "../character-extraction.types";
+import { ModalShell } from "@scene-engine/components/ModalShell";
+import PromptInput from "@scene-engine/components/PromptInput";
+import { ValidationErrorBlock } from "@scene-engine/components/ValidationErrorBlock";
+import { useSceneEngine } from "@scene-engine/context";
+import { useFilePicker } from "@scene-engine/hooks/useFilePicker";
+import type { CharacterBundle } from "../../character.types";
 import { useCharacterExtraction } from "../hooks/useCharacterExtraction";
+import { CharacterAttributes } from "./CharacterAttributes";
 import { RefImageTray } from "./RefImageTray";
 
 type CharacterModalProps = {

@@ -1,22 +1,12 @@
 import { httpClient } from "@/lib/httpClient";
+import { STORY_API_BASE } from "@scene-engine/shared/scene-engine.constants";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { isAxiosError } from "axios";
 import { useState } from "react";
-import { charactersOptions } from "../../character-extraction/character-extraction.queries";
-import type { CharacterBundle } from "../../character-extraction/character-extraction.types";
-import { characterRendersOptions } from "../character-rendering.queries";
-import type { RenderRecord } from "../character-rendering.types";
-
-const STORY_API_BASE = "/api/comic-builder/v2" as const;
-
-function renderErrorMessage(error: unknown): string {
-  if (isAxiosError(error)) {
-    const status = error.response?.status;
-    if (status === 401) return "Session expired. Please sign in again.";
-    if (status === 404) return "Character not found. Try refreshing.";
-  }
-  return "Render failed. Try again.";
-}
+import { charactersOptions } from "../../character.queries";
+import { spliceCharacterIntoList, uploadReferenceImageRequest, buildHttpErrorMessage } from "../../character.utils";
+import type { CharacterBundle } from "../../character.types";
+import type { ImageRecord } from "@scene-engine/shared/scene-engine.types";
+import { characterRendersOptions } from "../rendering.queries";
 
 export function useCharacterRendering(projectId: string, storyId: string) {
   const queryClient = useQueryClient();
@@ -58,23 +48,22 @@ export function useCharacterRendering(projectId: string, storyId: string) {
     onError: (error, { characterId }) => {
       setErrorIds((prev) => {
         const next = new Map(prev);
-        next.set(characterId, renderErrorMessage(error));
+        next.set(characterId, buildHttpErrorMessage(error, {
+          401: "Session expired. Please sign in again.",
+          404: "Character not found. Try refreshing.",
+        }, "Render failed. Try again."));
         return next;
       });
     },
   });
 
   const { mutateAsync: uploadReferenceImage, isPending: isUploading } = useMutation({
-    mutationFn: ({ characterId, file }: { characterId: string; file: File }) => {
-      const formData = new FormData();
-      formData.append("image", file);
-      return httpClient.post<CharacterBundle>(
-        `${STORY_API_BASE}/project/${projectId}/story/${storyId}/character/${characterId}/upload-reference-image`,
-        formData,
+    mutationFn: ({ characterId, file }: { characterId: string; file: File }) =>
+      uploadReferenceImageRequest(projectId, storyId, characterId, file),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(charactersQueryKey, (prev: CharacterBundle[] | undefined) =>
+        prev ? spliceCharacterIntoList(prev, updated) : [updated],
       );
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: charactersQueryKey });
     },
   });
 
@@ -90,7 +79,7 @@ export function useCharacterRendering(projectId: string, storyId: string) {
       instruction: string;
       referenceImageId?: string;
     }) =>
-      httpClient.post<RenderRecord>(
+      httpClient.post<ImageRecord>(
         `${STORY_API_BASE}/project/${projectId}/story/${storyId}/character/${characterId}/render/edit`,
         {
           instruction,
@@ -116,7 +105,7 @@ export function useCharacterRendering(projectId: string, storyId: string) {
     onSuccess: (newRender, { characterId }) => {
       queryClient.setQueryData(
         characterRendersOptions(projectId, storyId, characterId).queryKey,
-        (prev: RenderRecord[] | undefined) =>
+        (prev: ImageRecord[] | undefined) =>
           prev ? [newRender, ...prev] : [newRender],
       );
       void queryClient.invalidateQueries({ queryKey: charactersQueryKey });
@@ -124,7 +113,10 @@ export function useCharacterRendering(projectId: string, storyId: string) {
     onError: (error, { characterId }) => {
       setErrorIds((prev) => {
         const next = new Map(prev);
-        next.set(characterId, renderErrorMessage(error));
+        next.set(characterId, buildHttpErrorMessage(error, {
+          401: "Session expired. Please sign in again.",
+          404: "Character not found. Try refreshing.",
+        }, "Render failed. Try again."));
         return next;
       });
     },

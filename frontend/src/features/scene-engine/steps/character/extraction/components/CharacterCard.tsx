@@ -1,5 +1,5 @@
-import { CharacterAttributes } from "../CharacterAttributes";
-import type { CharacterBundle } from "../character-extraction.types";
+import type { CharacterBundle } from "../../character.types";
+import { CharacterAttributes } from "./CharacterAttributes";
 import { RefImageTray } from "./RefImageTray";
 
 type CharacterCardProps = {

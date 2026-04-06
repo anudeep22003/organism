@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
-import { Skeleton } from "../../../components/Skeleton";
-import { imageSignedUrlOptions } from "../character-extraction.queries";
-import type { ImageRecord } from "../character-extraction.types";
+import { Skeleton } from "@scene-engine/components/Skeleton";
+import { imageSignedUrlOptions } from "../../character.queries";
+import type { ImageRecord } from "@scene-engine/shared/scene-engine.types";
 
 type ReferenceImageViewerProps = {
   img: ImageRecord;

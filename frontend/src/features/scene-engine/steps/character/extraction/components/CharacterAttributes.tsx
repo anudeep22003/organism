@@ -1,4 +1,4 @@
-import type { CharacterRecord } from "./character-extraction.types";
+import type { CharacterRecord } from "../../character.types";
 
 type CharacterAttributesProps = {
   character: CharacterRecord;

@@ -1,4 +1,4 @@
-import type { CharacterBundle } from "../character-extraction.types";
+import type { CharacterBundle } from "../../character.types";
 import { CharacterCard } from "./CharacterCard";
 
 type CharacterListProps = {

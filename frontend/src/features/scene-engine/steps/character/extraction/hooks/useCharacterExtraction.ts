@@ -1,30 +1,9 @@
 import { httpClient } from "@/lib/httpClient";
+import { STORY_API_BASE } from "@scene-engine/shared/scene-engine.constants";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { isAxiosError } from "axios";
-import { charactersOptions } from "../character-extraction.queries";
-import type { CharacterBundle } from "../character-extraction.types";
-
-const STORY_API_BASE = "/api/comic-builder/v2" as const;
-
-function extractionErrorMessage(error: unknown): string {
-  if (isAxiosError(error)) {
-    const status = error.response?.status;
-    if (status === 400)
-      return "Your story has no text yet. Go to Step 1 and write a story first.";
-    if (status === 404)
-      return "Story not found. Make sure a story has been created.";
-  }
-  return "Something went wrong. Try again.";
-}
-
-function spliceCharacterIntoList(
-  list: CharacterBundle[],
-  updated: CharacterBundle,
-): CharacterBundle[] {
-  return list.map((b) =>
-    b.character.id === updated.character.id ? updated : b,
-  );
-}
+import { charactersOptions } from "../../character.queries";
+import { spliceCharacterIntoList, uploadReferenceImageRequest, buildHttpErrorMessage } from "../../character.utils";
+import type { CharacterBundle } from "../../character.types";
 
 export function useCharacterExtraction(projectId: string, storyId: string) {
   const queryClient = useQueryClient();
@@ -68,14 +47,8 @@ export function useCharacterExtraction(projectId: string, storyId: string) {
   });
 
   const { mutate: uploadReferenceImage, isPending: isUploading } = useMutation({
-    mutationFn: ({ characterId, file }: { characterId: string; file: File }) => {
-      const formData = new FormData();
-      formData.append("image", file);
-      return httpClient.post<CharacterBundle>(
-        `${STORY_API_BASE}/project/${projectId}/story/${storyId}/character/${characterId}/upload-reference-image`,
-        formData,
-      );
-    },
+    mutationFn: ({ characterId, file }: { characterId: string; file: File }) =>
+      uploadReferenceImageRequest(projectId, storyId, characterId, file),
     onSuccess: (updated) => {
       queryClient.setQueryData(queryKey, (prev: CharacterBundle[] | undefined) =>
         prev ? spliceCharacterIntoList(prev, updated) : [updated],
@@ -114,7 +87,10 @@ export function useCharacterExtraction(projectId: string, storyId: string) {
     extractCharacters,
     isExtracting,
     extractError: rawExtractError
-      ? extractionErrorMessage(rawExtractError)
+      ? buildHttpErrorMessage(rawExtractError, {
+          400: "Your story has no text yet. Go to Step 1 and write a story first.",
+          404: "Story not found. Make sure a story has been created.",
+        }, "Something went wrong. Try again.")
       : null,
     refineCharacter,
     isRefining,

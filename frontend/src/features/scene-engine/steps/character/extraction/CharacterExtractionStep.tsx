@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Skeleton } from "../../components/Skeleton";
-import { useSceneEngine } from "../../context";
+import { StepLoadingSkeleton } from "@scene-engine/components/StepLoadingSkeleton";
+import { useSceneEngine } from "@scene-engine/context";
 import { useCharacterExtraction } from "./hooks/useCharacterExtraction";
 import { CharacterList } from "./components/CharacterList";
 import { CharacterModal } from "./components/CharacterModal";
@@ -69,13 +69,7 @@ export default function CharacterExtractionStep() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex h-full w-full flex-col gap-2 p-4">
-        <Skeleton className="min-h-0 flex-1 w-full" />
-        <Skeleton className="min-h-0 flex-1 w-full" />
-        <Skeleton className="min-h-0 flex-1 w-full" />
-      </div>
-    );
+    return <StepLoadingSkeleton />;
   }
 
   return (

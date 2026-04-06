@@ -1,8 +1,7 @@
 import { httpClient } from "@/lib/httpClient";
 import { queryOptions } from "@tanstack/react-query";
-import type { RenderRecord } from "./character-rendering.types";
-
-const STORY_API_BASE = "/api/comic-builder/v2" as const;
+import { STORY_API_BASE, STORY_QUERY_ROOT } from "@scene-engine/shared/scene-engine.constants";
+import type { ImageRecord } from "@scene-engine/shared/scene-engine.types";
 
 export const characterRendersOptions = (
   projectId: string,
@@ -11,7 +10,7 @@ export const characterRendersOptions = (
 ) =>
   queryOptions({
     queryKey: [
-      "story",
+      ...STORY_QUERY_ROOT,
       "project",
       projectId,
       "story",
@@ -21,7 +20,7 @@ export const characterRendersOptions = (
       "renders",
     ] as const,
     queryFn: () =>
-      httpClient.get<RenderRecord[]>(
+      httpClient.get<ImageRecord[]>(
         `${STORY_API_BASE}/project/${projectId}/story/${storyId}/character/${characterId}/renders`,
       ),
     enabled: !!projectId && !!storyId && !!characterId,

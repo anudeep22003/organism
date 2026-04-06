@@ -9,6 +9,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "@scene-engine": path.resolve(__dirname, "./src/features/scene-engine"),
     },
   },
 })
