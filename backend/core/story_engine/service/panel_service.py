@@ -851,9 +851,36 @@ class PanelService:
 
         gcs_service = get_gcs_upload_service()
         source_signed_url, _ = gcs_service.generate_signed_url(source_image.object_key)
+
+        # URL order: [source, ...character_renders, optional_reference]
+        # Source anchors the edit; character renders enforce consistency;
+        # optional reference acts as a style guide.
         image_urls = [source_signed_url]
 
-        input_snapshot: dict[str, str] = {"source_image_id": str(source_image_id)}
+        # Resolve character renders — same block as render_panel
+        character_ids = await self.repository_v2.panel.get_character_ids_for_panel(
+            panel_id
+        )
+        character_render_ids: list[str] = []
+        for character_id in character_ids:
+            character_render = await self.repository_v2.image.get_canonical_render(
+                target_id=character_id,
+                discriminator_key=ImageDiscriminatorKey.CHARACTER_RENDER,
+            )
+            if character_render is None:
+                logger.warning(
+                    f"Character {character_id} has no canonical render — "
+                    f"skipping for panel {panel_id} render/edit"
+                )
+                continue
+            signed_url, _ = gcs_service.generate_signed_url(character_render.object_key)
+            image_urls.append(signed_url)
+            character_render_ids.append(str(character_render.id))
+
+        input_snapshot: dict[str, object] = {
+            "source_image_id": str(source_image_id),
+            "character_render_ids": character_render_ids,
+        }
 
         if reference_image_id is not None:
             reference_image = await self.repository_v2.image.get_image(
