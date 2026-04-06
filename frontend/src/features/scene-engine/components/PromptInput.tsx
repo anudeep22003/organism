@@ -6,7 +6,7 @@ import {
   Mic01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useFilePicker } from "../hooks/useFilePicker";
 import { StagedFilePill } from "./StagedFilePill";
 import { ValidationErrorBlock } from "./ValidationErrorBlock";
@@ -38,12 +38,6 @@ export default function PromptInput({
   const { textareaRef, adjustHeight, resetHeight } = useAutoExpandTextarea();
   const [stagedFiles, setStagedFiles] = useState<File[]>([]);
   const [validationError, setValidationError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!validationError) return;
-    const t = setTimeout(() => setValidationError(null), 3000);
-    return () => clearTimeout(t);
-  }, [validationError]);
 
   const { triggerPick, inputProps } = useFilePicker({
     accept: acceptedFileTypes,
@@ -114,7 +108,12 @@ export default function PromptInput({
         </div>
       )}
 
-      {validationError && <ValidationErrorBlock message={validationError} />}
+      {validationError && (
+        <ValidationErrorBlock
+          message={validationError}
+          onClear={() => setValidationError(null)}
+        />
+      )}
 
       <div className="relative">
         <textarea

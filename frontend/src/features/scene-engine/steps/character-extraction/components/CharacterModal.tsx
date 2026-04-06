@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ModalShell } from "../../../components/ModalShell";
 import PromptInput from "../../../components/PromptInput";
 import { ValidationErrorBlock } from "../../../components/ValidationErrorBlock";
@@ -23,12 +23,6 @@ export function CharacterModal({ bundle, onDismiss, onImageClick }: CharacterMod
   const characterId = bundle.character.id;
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!validationError) return;
-    const t = setTimeout(() => setValidationError(null), 3000);
-    return () => clearTimeout(t);
-  }, [validationError]);
-
   const { triggerPick, inputProps } = useFilePicker({
     accept: "image/*",
     multiple: false,
@@ -49,7 +43,12 @@ export function CharacterModal({ bundle, onDismiss, onImageClick }: CharacterMod
         />
       </div>
       <div className="shrink-0 border-t border-border">
-        {validationError && <ValidationErrorBlock message={validationError} />}
+        {validationError && (
+          <ValidationErrorBlock
+            message={validationError}
+            onClear={() => setValidationError(null)}
+          />
+        )}
         <div className="px-3 py-2">
           <input {...inputProps} />
           <button
