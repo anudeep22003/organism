@@ -109,7 +109,7 @@ export default function PromptInput({
         <div className="shrink-0 border-b border-border px-3 py-1.5">
           <div className="flex flex-wrap gap-2">
             {stagedFiles.map((file, i) => (
-              <span key={i} className="flex items-center gap-1">
+              <span key={i} className="flex items-center gap-1 border border-border px-1.5 py-0.5">
                 <span className="text-[10px] text-muted-foreground">
                   {file.name}
                 </span>
