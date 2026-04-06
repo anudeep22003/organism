@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "../../../../components/Skeleton";
 import { imageSignedUrlOptions } from "../../character.queries";
-import type { ImageRecord } from "../../../../shared/scene-engine.types";
+import type { ImageRecord } from "@scene-engine/shared/scene-engine.types";
 
 function CarouselImage({ render }: { render: ImageRecord }) {
   const queryClient = useQueryClient();
