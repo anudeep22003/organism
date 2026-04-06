@@ -24,12 +24,13 @@ from ...exceptions import (
     NoCharactersError,
     NoStoryTextError,
     NotFoundError,
+    PanelAlreadyGeneratedError,
     UploadImageError,
 )
 from ...schemas.edit_event import EditEventResponseSchema
 from ...schemas.image import ImageResponseSchema
 from ...schemas.panel import (
-    PanelGenerateRequest,
+    PanelRefineRequest,
     PanelRenderEditRequest,
     PanelRenderReferencesSchema,
     PanelResponseSchema,
@@ -163,22 +164,22 @@ async def generate_panel(
     panel_id: uuid.UUID,
     user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     service: Annotated[PanelService, Depends(get_panel_service)],
-    body: PanelGenerateRequest | None = None,
 ) -> PanelRenderReferencesSchema:
-    """Generate or regenerate content for a single panel (Decision 8).
+    """Generate content for a single panel for the first time.
 
-    First call (empty attributes): generates from story context.
-    Subsequent calls: refines using the optional instruction.
+    Only valid when the panel has no content yet. Returns 400 if the panel
+    already has generated content — use POST .../refine to update it.
     """
     try:
         panel = await service.generate_panel(
             project_id=project_id,
             story_id=story_id,
             panel_id=panel_id,
-            instruction=body.instruction if body is not None else None,
         )
         render = await service.get_canonical_panel_render(panel_id)
         return _build_panel_full(panel, render)
+    except PanelAlreadyGeneratedError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except NoCharactersError as e:
@@ -188,6 +189,50 @@ async def generate_panel(
         raise HTTPException(
             status_code=500,
             detail="An unexpected error occurred while generating the panel",
+        )
+
+
+# ---------------------------------------------------------------------------
+# Story 55 — Refine panel attributes via user instruction
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/project/{project_id}/story/{story_id}/panel/{panel_id}/refine",
+    status_code=200,
+)
+async def refine_panel(
+    project_id: uuid.UUID,
+    story_id: uuid.UUID,
+    panel_id: uuid.UUID,
+    body: PanelRefineRequest,
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    service: Annotated[PanelService, Depends(get_panel_service)],
+) -> PanelRenderReferencesSchema:
+    """Refine a panel's attributes using a user instruction.
+
+    The panel must already have content (i.e. generate must have been called first).
+    Returns the full panel payload with updated attributes. Mirrors POST .../character/:id/refine.
+    """
+    try:
+        panel = await service.refine_panel(
+            project_id=project_id,
+            story_id=story_id,
+            panel_id=panel_id,
+            instruction=body.instruction,
+        )
+        render = await service.get_canonical_panel_render(panel_id)
+        refs = await service.get_panel_reference_images(panel_id)
+        return _build_panel_full(panel, render, refs)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except NoCharactersError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        logger.exception(f"Unexpected error refining panel {panel_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while refining the panel",
         )
 
 
@@ -206,20 +251,22 @@ async def render_panel(
     panel_id: uuid.UUID,
     user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     service: Annotated[PanelService, Depends(get_panel_service)],
-) -> ImageResponseSchema:
+) -> PanelRenderReferencesSchema:
     """Render a panel image via fal and store in GCS.
 
-    Returns the created Image ORM object serialized as ImageResponseSchema.
-    The panel's updated canonical render is visible on subsequent GET /panel/{id} calls.
+    Returns the full panel payload including the new canonical render and
+    reference images — mirrors render_character which returns the full
+    CharacterRenderReferencesSchema so the client can update its cache slot.
     """
     try:
-        image = await service.render_panel(
+        panel, image = await service.render_panel(
             user_id=user_id,
             project_id=project_id,
             story_id=story_id,
             panel_id=panel_id,
         )
-        return ImageResponseSchema.model_validate(image)
+        refs = await service.get_panel_reference_images(panel_id)
+        return _build_panel_full(panel, image, refs)
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:

@@ -94,7 +94,7 @@ async def test_render_panel_creates_image_row_with_panel_render_discriminator(
             return_value=_mock_fal_response(),
         ),
         patch(
-            "core.story_engine.service.panel_service.GCSUploadService.upload",
+            "core.story_engine.service.image_service.GCSUploadService.upload",
             return_value=mock_receipt,
         ),
         patch(
@@ -150,7 +150,7 @@ async def test_render_panel_creates_edit_event_render_panel_succeeded(
             return_value=_mock_fal_response(),
         ),
         patch(
-            "core.story_engine.service.panel_service.GCSUploadService.upload",
+            "core.story_engine.service.image_service.GCSUploadService.upload",
             return_value=mock_receipt,
         ),
         patch(
@@ -206,7 +206,7 @@ async def test_render_panel_output_snapshot_contains_image_id(
             return_value=_mock_fal_response(),
         ),
         patch(
-            "core.story_engine.service.panel_service.GCSUploadService.upload",
+            "core.story_engine.service.image_service.GCSUploadService.upload",
             return_value=mock_receipt,
         ),
         patch(
@@ -221,7 +221,7 @@ async def test_render_panel_output_snapshot_contains_image_id(
         )
 
     assert response.status_code == 200
-    image_id = response.json()["id"]
+    image_id = response.json()["canonicalRender"]["id"]
 
     result = await db_session.execute(
         select(EditEvent).where(
@@ -263,7 +263,7 @@ async def test_render_panel_twice_creates_two_image_rows(
                 return_value=_mock_fal_response(),
             ),
             patch(
-                "core.story_engine.service.panel_service.GCSUploadService.upload",
+                "core.story_engine.service.image_service.GCSUploadService.upload",
                 return_value=mock_receipt,
             ),
             patch(
@@ -375,7 +375,7 @@ async def test_render_panel_characters_without_render_skipped_gracefully(
             return_value=_mock_fal_response(),
         ),
         patch(
-            "core.story_engine.service.panel_service.GCSUploadService.upload",
+            "core.story_engine.service.image_service.GCSUploadService.upload",
             return_value=mock_receipt,
         ),
         patch(

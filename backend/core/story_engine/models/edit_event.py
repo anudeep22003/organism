@@ -28,6 +28,7 @@ class EditEventOperationType(StrEnum):
     RENDER_CHARACTER_EDIT = "render_character_edit"
     SET_CANONICAL_RENDER = "set_canonical_render"
     GENERATE_PANEL = "generate_panel"
+    REFINE_PANEL = "refine_panel"
     RENDER_PANEL = "render_panel"
     RENDER_PANEL_EDIT = "render_panel_edit"
 

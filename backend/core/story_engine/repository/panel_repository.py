@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import asc, select
+from sqlalchemy import asc, delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import Panel
@@ -61,6 +61,22 @@ class PanelRepository:
             raise NotFoundError(f"Panel {panel_id} not found in story {story_id}")
         panel.canonical_render_id = image_id
         return panel
+
+    async def replace_panel_characters(
+        self, panel_id: uuid.UUID, character_ids: list[uuid.UUID]
+    ) -> None:
+        """Replace all panel_character rows for a panel atomically.
+
+        Deletes every existing join row for the panel, then inserts fresh rows
+        for each UUID in character_ids. Safe to call when the table is empty
+        (first-gen) or when rows already exist (regen/refine). Caller is
+        responsible for flushing/committing the surrounding transaction.
+        """
+        await self.db.execute(
+            delete(PanelCharacter).where(PanelCharacter.panel_id == panel_id)
+        )
+        for character_id in character_ids:
+            self.db.add(PanelCharacter(panel_id=panel_id, character_id=character_id))
 
     async def delete_panel(self, panel_id: uuid.UUID, story_id: uuid.UUID) -> None:
         panel = await self.get_panel(panel_id, story_id)

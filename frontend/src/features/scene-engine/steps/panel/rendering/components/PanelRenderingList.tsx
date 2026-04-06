@@ -2,12 +2,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@scene-engine/components/Skeleton";
 import { useSceneEngine } from "@scene-engine/context";
 import { imageSignedUrlOptions } from "@scene-engine/shared/scene-engine.queries";
-import type { CharacterBundle } from "../../character.types";
+import type { PanelBundle } from "../../panel.types";
 import type { ImageRecord } from "@scene-engine/shared/scene-engine.types";
-import { useCharacterRendering } from "../hooks/useCharacterRendering";
+import { usePanelRendering } from "../hooks/usePanelRendering";
 
-type CharacterRenderBlockProps = {
-  bundle: CharacterBundle;
+type PanelRenderBlockProps = {
+  bundle: PanelBundle;
+  displayIndex: number;
   onActivate: () => void;
   onRender: () => void;
   isRendering: boolean;
@@ -38,7 +39,7 @@ function RenderedImage({ render }: { render: ImageRecord }) {
   );
 }
 
-function CharacterRenderBlock({ bundle, onActivate, onRender, isRendering, errorMessage }: CharacterRenderBlockProps) {
+function PanelRenderBlock({ bundle, displayIndex, onActivate, onRender, isRendering, errorMessage }: PanelRenderBlockProps) {
   const hasRender = bundle.canonicalRender !== null;
 
   return (
@@ -57,12 +58,12 @@ function CharacterRenderBlock({ bundle, onActivate, onRender, isRendering, error
             {hasRender && <RenderedImage render={bundle.canonicalRender!} />}
             {!hasRender && (
               <span className="text-xs text-muted-foreground">
-                {bundle.character.name}
+                Panel {displayIndex}
               </span>
             )}
             {hasRender && (
               <span className="absolute bottom-3 left-3 bg-background px-2 py-1 text-xs text-foreground">
-                {bundle.character.name}
+                Panel {displayIndex}
               </span>
             )}
             <div className="absolute bottom-3 right-3 flex items-center gap-2">
@@ -88,25 +89,26 @@ function CharacterRenderBlock({ bundle, onActivate, onRender, isRendering, error
   );
 }
 
-type CharacterRenderingListProps = {
-  characters: CharacterBundle[];
-  onActivate: (characterId: string) => void;
+type PanelRenderingListProps = {
+  panels: PanelBundle[];
+  onActivate: (panelId: string) => void;
 };
 
-export function CharacterRenderingList({ characters, onActivate }: CharacterRenderingListProps) {
+export function PanelRenderingList({ panels, onActivate }: PanelRenderingListProps) {
   const { projectId, storyId } = useSceneEngine();
-  const { triggerRender, renderingIds, errorIds } = useCharacterRendering(projectId, storyId);
+  const { triggerRender, renderingIds, errorIds } = usePanelRendering(projectId, storyId);
 
   return (
     <div className="flex h-full w-full flex-col items-center gap-2 overflow-y-auto p-4">
-      {characters.map((bundle) => (
-        <CharacterRenderBlock
-          key={bundle.character.id}
+      {panels.map((bundle, index) => (
+        <PanelRenderBlock
+          key={bundle.panel.id}
           bundle={bundle}
-          onActivate={() => onActivate(bundle.character.id)}
-          onRender={() => triggerRender({ characterId: bundle.character.id })}
-          isRendering={renderingIds.has(bundle.character.id)}
-          errorMessage={errorIds.get(bundle.character.id) ?? null}
+          displayIndex={index + 1}
+          onActivate={() => onActivate(bundle.panel.id)}
+          onRender={() => triggerRender({ panelId: bundle.panel.id })}
+          isRendering={renderingIds.has(bundle.panel.id)}
+          errorMessage={errorIds.get(bundle.panel.id) ?? null}
         />
       ))}
     </div>

@@ -4,26 +4,27 @@ import { ModalShell } from "@scene-engine/components/ModalShell";
 import PromptInput from "@scene-engine/components/PromptInput";
 import { Skeleton } from "@scene-engine/components/Skeleton";
 import { useSceneEngine } from "@scene-engine/context";
-import type { CharacterBundle } from "../../character.types";
+import type { PanelBundle } from "../../panel.types";
 import type { ImageRecord } from "@scene-engine/shared/scene-engine.types";
-import { characterRendersOptions } from "../rendering.queries";
-import { useCharacterRendering } from "../hooks/useCharacterRendering";
+import { panelRendersOptions } from "../rendering.queries";
+import { usePanelRendering } from "../hooks/usePanelRendering";
 import { Carousel } from "./Carousel";
 
-type CharacterRenderModalProps = {
-  bundle: CharacterBundle;
+type PanelRenderModalProps = {
+  bundle: PanelBundle;
+  displayIndex: number;
   onDismiss: () => void;
 };
 
-export function CharacterRenderModal({ bundle, onDismiss }: CharacterRenderModalProps) {
+export function PanelRenderModal({ bundle, displayIndex, onDismiss }: PanelRenderModalProps) {
   const { projectId, storyId } = useSceneEngine();
-  const characterId = bundle.character.id;
+  const panelId = bundle.panel.id;
 
-  const { uploadReferenceImage, editRender, editingIds, setCanonicalRender, isSettingCanonical } = useCharacterRendering(projectId, storyId);
-  const isEditing = editingIds.has(characterId);
+  const { uploadReferenceImage, editRender, editingIds, setCanonicalRender, isSettingCanonical } = usePanelRendering(projectId, storyId);
+  const isEditing = editingIds.has(panelId);
 
   const { data: renders, isLoading } = useQuery(
-    characterRendersOptions(projectId, storyId, characterId),
+    panelRendersOptions(projectId, storyId, panelId),
   );
 
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -45,11 +46,11 @@ export function CharacterRenderModal({ bundle, onDismiss }: CharacterRenderModal
     let referenceImageId: string | undefined;
 
     if (files.length > 0) {
-      const updatedBundle = await uploadReferenceImage({ characterId, file: files[0] });
+      const updatedBundle = await uploadReferenceImage({ panelId, file: files[0] });
       referenceImageId = updatedBundle.referenceImages.at(-1)?.id;
     }
 
-    editRender({ characterId, imageId: sourceImage.id, instruction, referenceImageId });
+    editRender({ panelId, imageId: sourceImage.id, instruction, referenceImageId });
     setSelectedIndex(0);
   };
 
@@ -57,7 +58,7 @@ export function CharacterRenderModal({ bundle, onDismiss }: CharacterRenderModal
     <button
       onClick={() => {
         if (!selectedRender || isCanonical) return;
-        setCanonicalRender({ characterId, imageId: selectedRender.id });
+        setCanonicalRender({ panelId, imageId: selectedRender.id });
       }}
       disabled={isCanonical || isSettingCanonical || !selectedRender}
       className={`px-2 py-1 text-[10px] ${
@@ -95,7 +96,7 @@ export function CharacterRenderModal({ bundle, onDismiss }: CharacterRenderModal
 
   return (
     <ModalShell
-      header={bundle.character.name}
+      header={`Panel ${displayIndex}`}
       onDismiss={onDismiss}
       headerActions={headerActions}
     >

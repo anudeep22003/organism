@@ -117,3 +117,9 @@ class UploadImageError(BaseError):
     """Error uploading image to bucket."""
 
     pass
+
+
+class PanelAlreadyGeneratedError(BaseError):
+    """Panel already has generated content — use /refine to update it."""
+
+    pass

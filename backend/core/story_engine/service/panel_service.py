@@ -25,6 +25,7 @@ from ..exceptions import (
     NoCharactersError,
     NoStoryTextError,
     NotFoundError,
+    PanelAlreadyGeneratedError,
 )
 from ..models import EditEvent, Panel
 from ..models.edit_event import (
@@ -156,13 +157,15 @@ class PanelService:
         project_id: uuid.UUID,
         story_id: uuid.UUID,
         panel_id: uuid.UUID,
-        instruction: str | None,
     ) -> Panel:
-        """Generate or regenerate content for a single panel (Decision 8).
+        """Generate content for a single panel for the first time.
 
-        First call (empty attributes): generates from story context.
-        Subsequent calls (populated attributes): refines using instruction.
-        Operation type is always GENERATE_PANEL regardless.
+        Only valid when the panel has no content yet (empty attributes).
+        Raises PanelAlreadyGeneratedError if the panel already has content —
+        callers should use /refine to update an already-generated panel.
+
+        Creates panel_character join rows for each character the LLM assigns,
+        mirroring the bulk generate_panels flow.
         """
         story = await self.repository_v2.story.get_story(project_id, story_id)
         if story is None:
@@ -172,18 +175,24 @@ class PanelService:
         if panel is None:
             raise NotFoundError(f"Panel {panel_id} not found in story {story_id}")
 
+        # Guard: first-generation only
+        if panel.attributes:
+            raise PanelAlreadyGeneratedError(
+                f"Panel {panel_id} already has content — use /refine to update it"
+            )
+
         # Load characters to build slug list for constrained LLM extraction
         characters = await self.repository_v2.character.get_all_characters_for_a_story(
             story_id
         )
-        character_slugs = [c.slug for c in characters]
+        slug_to_id: dict[str, uuid.UUID] = {c.slug: c.id for c in characters}
+        character_slugs = list(slug_to_id.keys())
         if not character_slugs:
             raise NoCharactersError(
                 f"Story {story_id} has no characters — extract characters before generating panels"
             )
 
-        # Snapshot all ORM attribute values before any commit (ORM objects expire after commit)
-        input_attrs = dict(panel.attributes)
+        # Snapshot order_index and story_text before any commit
         panel_order_index = panel.order_index
         story_text = story.story_text
 
@@ -193,7 +202,103 @@ class PanelService:
             target_type=EditEventTargetType.PANEL,
             target_id=panel_id,
             operation_type=EditEventOperationType.GENERATE_PANEL,
-            user_instruction=instruction or "",
+            user_instruction="",
+            status=EditEventStatus.PENDING,
+            input_snapshot={},
+        )
+        await self.repository_v2.edit_event.add_edit_event_to_db(edit_event)
+        await self.db.flush()
+        edit_event_id = edit_event.id
+        await self.db.commit()
+
+        try:
+            panel_content = await self._generate_panel_first_time(
+                story_text=story_text,
+                order_index=panel_order_index,
+                character_slugs=character_slugs,
+            )
+            new_attributes = {
+                "background": panel_content.background,
+                "dialogue": panel_content.dialogue,
+                "characters": panel_content.characters,
+            }
+
+            # TX2: update panel attributes + create join rows + mark event SUCCEEDED
+            panel.attributes = new_attributes
+            panel.source_event_id = edit_event_id
+            resolved_ids = [
+                slug_to_id[slug]
+                for slug in panel_content.characters
+                if slug in slug_to_id
+            ]
+            await self.repository_v2.panel.replace_panel_characters(
+                panel_id, resolved_ids
+            )
+            await self.repository_v2.edit_event.update_edit_event(
+                edit_event_id,
+                EditEventStatus.SUCCEEDED,
+                output_snapshot=new_attributes,
+            )
+            await self.db.commit()
+            await self.db.refresh(panel)
+            return panel
+
+        except Exception:
+            await self.repository_v2.edit_event.update_edit_event(
+                edit_event_id, EditEventStatus.FAILED
+            )
+            await self.db.commit()
+            raise
+
+    # -----------------------------------------------------------------------
+    # refine_panel (user-directed attribute update — Story 55)
+    # -----------------------------------------------------------------------
+
+    async def refine_panel(
+        self,
+        project_id: uuid.UUID,
+        story_id: uuid.UUID,
+        panel_id: uuid.UUID,
+        instruction: str,
+    ) -> Panel:
+        """Refine a panel's attributes using a user instruction.
+
+        Requires the panel to have already been generated (non-empty attributes).
+        Calls the LLM regeneration branch with the provided instruction and
+        persists the updated attributes under a REFINE_PANEL edit event.
+        Mirrors refine_character in character_service.py.
+        """
+        story = await self.repository_v2.story.get_story(project_id, story_id)
+        if story is None:
+            raise NotFoundError(f"Story {story_id} not found")
+
+        panel = await self.repository_v2.panel.get_panel(panel_id, story_id)
+        if panel is None:
+            raise NotFoundError(f"Panel {panel_id} not found in story {story_id}")
+
+        input_attrs = dict(panel.attributes)
+        if not input_attrs:
+            raise NotFoundError(
+                f"Panel {panel_id} has no content yet — generate it before refining"
+            )
+
+        characters = await self.repository_v2.character.get_all_characters_for_a_story(
+            story_id
+        )
+        slug_to_id: dict[str, uuid.UUID] = {c.slug: c.id for c in characters}
+        character_slugs = list(slug_to_id.keys())
+        if not character_slugs:
+            raise NoCharactersError(
+                f"Story {story_id} has no characters — extract characters first"
+            )
+
+        # TX1: create PENDING edit event
+        edit_event = EditEvent.create_edit_event(
+            project_id=project_id,
+            target_type=EditEventTargetType.PANEL,
+            target_id=panel_id,
+            operation_type=EditEventOperationType.REFINE_PANEL,
+            user_instruction=instruction,
             status=EditEventStatus.PENDING,
             input_snapshot=input_attrs,
         )
@@ -203,29 +308,28 @@ class PanelService:
         await self.db.commit()
 
         try:
-            is_first_generation = not input_attrs
-            if is_first_generation:
-                panel_content = await self._generate_panel_first_time(
-                    story_text=story_text,
-                    order_index=panel_order_index,
-                    character_slugs=character_slugs,
-                )
-            else:
-                panel_content = await self._regenerate_panel(
-                    existing_attributes=input_attrs,
-                    instruction=instruction or "Regenerate this panel.",
-                    character_slugs=character_slugs,
-                )
-
+            panel_content = await self._regenerate_panel(
+                existing_attributes=input_attrs,
+                instruction=instruction,
+                character_slugs=character_slugs,
+            )
             new_attributes = {
                 "background": panel_content.background,
                 "dialogue": panel_content.dialogue,
                 "characters": panel_content.characters,
             }
 
-            # TX2: update panel attributes + mark event SUCCEEDED
+            # TX2: persist refined attributes + reconcile join table + mark SUCCEEDED
             panel.attributes = new_attributes
             panel.source_event_id = edit_event_id
+            resolved_ids = [
+                slug_to_id[slug]
+                for slug in panel_content.characters
+                if slug in slug_to_id
+            ]
+            await self.repository_v2.panel.replace_panel_characters(
+                panel_id, resolved_ids
+            )
             await self.repository_v2.edit_event.update_edit_event(
                 edit_event_id,
                 EditEventStatus.SUCCEEDED,
@@ -570,7 +674,7 @@ class PanelService:
         project_id: uuid.UUID,
         story_id: uuid.UUID,
         panel_id: uuid.UUID,
-    ) -> ImageModel:
+    ) -> tuple[Panel, ImageModel]:
         """Render a panel image via fal and store in GCS.
 
         Flow (Decision 16):
@@ -580,7 +684,7 @@ class PanelService:
           4. Download fal output bytes, upload to GCS.
           5. Create Image row (target_id=panel_id, discriminator_key=panel_render).
           6. Create EditEvent(RENDER_PANEL, SUCCEEDED).
-          7. Return the Image ORM object.
+          7. Return (panel, image) — mirrors render_character return signature.
         """
         story = await self.repository_v2.story.get_story(project_id, story_id)
         if story is None:
@@ -694,7 +798,14 @@ class PanelService:
             )
             await self.db.commit()
             await self.db.refresh(image_model)
-            return image_model
+
+            # Refresh panel so canonical_render_id is up-to-date
+            refreshed_panel = await self.repository_v2.panel.get_panel(
+                panel_id, story_id
+            )
+            if refreshed_panel is None:
+                raise NotFoundError(f"Panel {panel_id} not found in story {story_id}")
+            return refreshed_panel, image_model
 
         except Exception:
             await self.repository_v2.edit_event.update_edit_event(
@@ -740,9 +851,36 @@ class PanelService:
 
         gcs_service = get_gcs_upload_service()
         source_signed_url, _ = gcs_service.generate_signed_url(source_image.object_key)
+
+        # URL order: [source, ...character_renders, optional_reference]
+        # Source anchors the edit; character renders enforce consistency;
+        # optional reference acts as a style guide.
         image_urls = [source_signed_url]
 
-        input_snapshot: dict[str, str] = {"source_image_id": str(source_image_id)}
+        # Resolve character renders — same block as render_panel
+        character_ids = await self.repository_v2.panel.get_character_ids_for_panel(
+            panel_id
+        )
+        character_render_ids: list[str] = []
+        for character_id in character_ids:
+            character_render = await self.repository_v2.image.get_canonical_render(
+                target_id=character_id,
+                discriminator_key=ImageDiscriminatorKey.CHARACTER_RENDER,
+            )
+            if character_render is None:
+                logger.warning(
+                    f"Character {character_id} has no canonical render — "
+                    f"skipping for panel {panel_id} render/edit"
+                )
+                continue
+            signed_url, _ = gcs_service.generate_signed_url(character_render.object_key)
+            image_urls.append(signed_url)
+            character_render_ids.append(str(character_render.id))
+
+        input_snapshot: dict[str, object] = {
+            "source_image_id": str(source_image_id),
+            "character_render_ids": character_render_ids,
+        }
 
         if reference_image_id is not None:
             reference_image = await self.repository_v2.image.get_image(
