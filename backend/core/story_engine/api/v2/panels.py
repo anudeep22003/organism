@@ -27,6 +27,7 @@ from ...schemas.panel import (
     PanelRenderEditRequest,
     PanelRenderReferencesSchema,
     PanelResponseSchema,
+    SetCanonicalPanelRenderRequest,
 )
 from ...service import PanelService
 from ..dependencies import get_panel_service
@@ -367,4 +368,48 @@ async def render_panel_edit(
         raise HTTPException(
             status_code=500,
             detail="An unexpected error occurred while editing the panel render",
+        )
+
+
+# ---------------------------------------------------------------------------
+# set-canonical-render
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/project/{project_id}/story/{story_id}/panel/{panel_id}/set-canonical-render",
+    status_code=200,
+)
+async def set_canonical_render(
+    project_id: uuid.UUID,
+    story_id: uuid.UUID,
+    panel_id: uuid.UUID,
+    body: SetCanonicalPanelRenderRequest,
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    service: Annotated[PanelService, Depends(get_panel_service)],
+) -> PanelRenderReferencesSchema:
+    """Set a specific render image as the canonical render for a panel.
+
+    The chosen image must already exist as a PANEL_RENDER for this panel.
+    Returns the full panel payload with the updated canonical render.
+    """
+    try:
+        panel = await service.set_canonical_render(
+            user_id=user_id,
+            project_id=project_id,
+            story_id=story_id,
+            panel_id=panel_id,
+            image_id=body.image_id,
+        )
+        render = await service.get_canonical_panel_render(panel.id)
+        return _build_panel_full(panel, render)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.exception(
+            f"Unexpected error setting canonical render for panel {panel_id}: {e}"
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while setting the canonical render",
         )

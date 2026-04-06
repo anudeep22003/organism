@@ -390,6 +390,61 @@ class PanelService:
         )
 
     # -----------------------------------------------------------------------
+    # set_canonical_render (explicit user override)
+    # -----------------------------------------------------------------------
+
+    async def set_canonical_render(
+        self,
+        user_id: uuid.UUID,
+        project_id: uuid.UUID,
+        story_id: uuid.UUID,
+        panel_id: uuid.UUID,
+        image_id: uuid.UUID,
+    ) -> Panel:
+        """Set a specific render as the canonical render for a panel.
+
+        Verifies story/panel ownership and that the image is a PANEL_RENDER
+        belonging to this panel. Creates a SET_CANONICAL_RENDER audit event
+        immediately as SUCCEEDED (no PENDING state). Returns the updated panel.
+        """
+        story = await self.repository_v2.story.get_story(project_id, story_id)
+        if story is None:
+            raise NotFoundError(f"Story {story_id} not found in project {project_id}")
+
+        panel = await self.repository_v2.panel.get_panel(panel_id, story_id)
+        if panel is None:
+            raise NotFoundError(f"Panel {panel_id} not found in story {story_id}")
+
+        image = await self.repository_v2.image.get_image(image_id)
+        if (
+            image is None
+            or image.target_id != panel_id
+            or image.discriminator_key != ImageDiscriminatorKey.PANEL_RENDER
+        ):
+            raise NotFoundError(
+                f"Render image {image_id} not found for panel {panel_id}"
+            )
+
+        await self.repository_v2.panel.set_canonical_render(
+            panel_id, story_id, image_id
+        )
+
+        edit_event = EditEvent.create_edit_event(
+            project_id=project_id,
+            target_type=EditEventTargetType.PANEL,
+            target_id=panel_id,
+            operation_type=EditEventOperationType.SET_CANONICAL_RENDER,
+            user_instruction="",
+            input_snapshot={"image_id": str(image_id)},
+            status=EditEventStatus.SUCCEEDED,
+        )
+        await self.repository_v2.edit_event.add_edit_event_to_db(edit_event)
+
+        await self.db.commit()
+        await self.db.refresh(panel)
+        return panel
+
+    # -----------------------------------------------------------------------
     # get_panels (for Story 30)
     # -----------------------------------------------------------------------
 
