@@ -567,12 +567,18 @@ class PanelService:
         panel_id: uuid.UUID,
         instruction: str,
         source_image_id: uuid.UUID,
+        reference_image_id: uuid.UUID | None = None,
     ) -> ImageModel:
         """Edit an existing panel render via fal image-edit model.
 
         The source image is passed as a signed URL to fal alongside the user's
         instruction. A new Image row is created for the result; the source image
-        is unchanged. The edit event records source_image_id for a durable audit trail.
+        is unchanged. The edit event records source_image_id (and reference_image_id
+        if provided) for a durable audit trail.
+
+        Side-effect note: if reference_image_id is provided it must already exist
+        as a PANEL_RENDER image for this panel — upload or render it first via the
+        appropriate endpoint. That image persists independently of this call.
         """
         story = await self.repository_v2.story.get_story(project_id, story_id)
         if story is None:
@@ -589,7 +595,24 @@ class PanelService:
             )
 
         gcs_service = get_gcs_upload_service()
-        signed_url, _ = gcs_service.generate_signed_url(source_image.object_key)
+        source_signed_url, _ = gcs_service.generate_signed_url(source_image.object_key)
+        image_urls = [source_signed_url]
+
+        input_snapshot: dict[str, str] = {"source_image_id": str(source_image_id)}
+
+        if reference_image_id is not None:
+            reference_image = await self.repository_v2.image.get_image(
+                reference_image_id
+            )
+            if reference_image is None or reference_image.target_id != panel_id:
+                raise NotFoundError(
+                    f"Reference image {reference_image_id} not found for panel {panel_id}"
+                )
+            reference_signed_url, _ = gcs_service.generate_signed_url(
+                reference_image.object_key
+            )
+            image_urls.append(reference_signed_url)
+            input_snapshot["reference_image_id"] = str(reference_image_id)
 
         edit_event = EditEvent.create_edit_event(
             project_id=project_id,
@@ -597,7 +620,7 @@ class PanelService:
             target_id=panel_id,
             operation_type=EditEventOperationType.RENDER_PANEL_EDIT,
             user_instruction=instruction,
-            input_snapshot={"source_image_id": str(source_image_id)},
+            input_snapshot=input_snapshot,
             status=EditEventStatus.PENDING,
         )
         await self.repository_v2.edit_event.add_edit_event_to_db(edit_event)
@@ -607,7 +630,7 @@ class PanelService:
 
         try:
             fal_response = await fal_async_client.subscribe(
-                arguments={"prompt": instruction, "image_urls": [signed_url]},
+                arguments={"prompt": instruction, "image_urls": image_urls},
                 on_queue_update=lambda status: logger.debug(f"Fal status: {status}"),
             )
             fal_image_url = self._extract_fal_image_url(fal_response)

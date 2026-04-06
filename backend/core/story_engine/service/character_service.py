@@ -536,13 +536,20 @@ class CharacterService:
         character_id: uuid.UUID,
         instruction: str,
         source_image_id: uuid.UUID,
+        reference_image_id: uuid.UUID | None = None,
     ) -> ImageModel:
         """Edit an existing character render via fal image-edit model.
 
         The source image is passed as a signed URL to fal alongside the user's
         instruction. A new Image row is created for the result; the source image
-        is unchanged. The edit event records source_image_id so the audit trail
-        is durable even after the signed URL expires.
+        is unchanged. The edit event records source_image_id (and reference_image_id
+        if provided) so the audit trail is durable even after signed URLs expire.
+
+        Side-effect note: if reference_image_id is provided it must already exist
+        as a CHARACTER_REFERENCE image for this character — upload it first via
+        POST .../upload-reference-image, which creates its own UPLOAD_REFERENCE_IMAGE
+        edit event and persists the image row. That image will continue to appear in
+        the character's referenceImages list after this call.
         """
         character = await self.repository_v2.character.get_character_for_user_in_project_and_story(
             user_id=user_id,
@@ -562,7 +569,24 @@ class CharacterService:
             )
 
         gcs_service = get_gcs_upload_service()
-        signed_url, _ = gcs_service.generate_signed_url(source_image.object_key)
+        source_signed_url, _ = gcs_service.generate_signed_url(source_image.object_key)
+        image_urls = [source_signed_url]
+
+        input_snapshot: dict[str, str] = {"source_image_id": str(source_image_id)}
+
+        if reference_image_id is not None:
+            reference_image = await self.repository_v2.image.get_image(
+                reference_image_id
+            )
+            if reference_image is None or reference_image.target_id != character_id:
+                raise NotFoundError(
+                    f"Reference image {reference_image_id} not found for character {character_id}"
+                )
+            reference_signed_url, _ = gcs_service.generate_signed_url(
+                reference_image.object_key
+            )
+            image_urls.append(reference_signed_url)
+            input_snapshot["reference_image_id"] = str(reference_image_id)
 
         edit_event = EditEvent.create_edit_event(
             project_id=project_id,
@@ -570,7 +594,7 @@ class CharacterService:
             target_id=character_id,
             operation_type=EditEventOperationType.RENDER_CHARACTER_EDIT,
             user_instruction=instruction,
-            input_snapshot={"source_image_id": str(source_image_id)},
+            input_snapshot=input_snapshot,
             status=EditEventStatus.PENDING,
         )
         await self.repository_v2.edit_event.add_edit_event_to_db(edit_event)
@@ -580,7 +604,7 @@ class CharacterService:
 
         try:
             fal_response = await fal_async_client.subscribe(
-                arguments={"prompt": instruction, "image_urls": [signed_url]},
+                arguments={"prompt": instruction, "image_urls": image_urls},
                 on_queue_update=lambda status: logger.info(f"Fal status: {status}"),
             )
             fal_image_url = self._get_character_url_from_fal_client_response(

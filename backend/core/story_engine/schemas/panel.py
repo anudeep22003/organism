@@ -82,3 +82,4 @@ class PanelRenderEditRequest(AliasedBaseModel):
 
     instruction: str
     source_image_id: uuid.UUID
+    reference_image_id: uuid.UUID | None = None

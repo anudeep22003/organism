@@ -335,6 +335,14 @@ async def render_panel_edit(
     user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     service: Annotated[PanelService, Depends(get_panel_service)],
 ) -> ImageResponseSchema:
+    """Edit an existing panel render using fal's image-edit model.
+
+    Optionally accepts a reference_image_id to guide the visual style of the edit.
+    If provided, the reference image must already exist as a render for this panel.
+
+    Side-effect: the reference image (if provided) is not consumed or removed by
+    this call — it remains associated with the panel independently.
+    """
     try:
         image = await service.render_panel_edit(
             user_id=user_id,
@@ -343,6 +351,7 @@ async def render_panel_edit(
             panel_id=panel_id,
             instruction=body.instruction,
             source_image_id=body.source_image_id,
+            reference_image_id=body.reference_image_id,
         )
         return ImageResponseSchema.model_validate(image)
     except NotFoundError as e:

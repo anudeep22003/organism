@@ -373,6 +373,16 @@ async def render_character_edit(
     user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     service: Annotated[CharacterService, Depends(get_character_service)],
 ) -> ImageResponseSchema:
+    """Edit an existing character render using fal's image-edit model.
+
+    Optionally accepts a reference_image_id to guide the visual style of the edit.
+    If provided, the reference image must already be uploaded and persisted as a
+    CHARACTER_REFERENCE image for this character via POST .../upload-reference-image.
+
+    Side-effect: the reference image (if provided) remains associated with this
+    character and will continue to appear in the character's referenceImages list.
+    It is not consumed or removed by this call.
+    """
     try:
         image = await service.render_character_edit(
             user_id=user_id,
@@ -381,6 +391,7 @@ async def render_character_edit(
             character_id=character_id,
             instruction=body.instruction,
             source_image_id=body.source_image_id,
+            reference_image_id=body.reference_image_id,
         )
         return ImageResponseSchema.model_validate(image)
     except NotFoundError as e:

@@ -50,3 +50,4 @@ class CharacterRefineRequest(AliasedBaseModel):
 class CharacterRenderEditRequest(AliasedBaseModel):
     instruction: str
     source_image_id: uuid.UUID
+    reference_image_id: uuid.UUID | None = None
