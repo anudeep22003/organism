@@ -185,8 +185,11 @@ def _contrast_ratio(fg: tuple[int, int, int], bg: tuple[int, int, int]) -> float
 
 
 def _compose_panel_image(image_bytes: bytes, dialogue: str) -> bytes:
-    """Extend the panel image downward with a dialogue bar.
+    """Optionally extend the panel image downward with a dialogue bar.
 
+    If dialogue is empty, returns the image unchanged (no bar added).
+
+    When dialogue is present:
     1. Find dominant colour: resize to 50×50, quantize to 8 colours,
        pick most frequent palette entry.
     2. Compute complementary colour: convert RGB → HSV (colorsys.rgb_to_hsv),
@@ -198,9 +201,12 @@ def _compose_panel_image(image_bytes: bytes, dialogue: str) -> bytes:
        complementary colour, paste original at top.
     6. Draw dialogue text centred in bar using Figtree font. Font size chosen
        to fit within bar width with 10px horizontal padding; cap at 28pt.
-       If dialogue is empty string, draw nothing.
     7. Return JPEG bytes.
     """
+    # No dialogue → return the image as-is, no bar added
+    if not dialogue.strip():
+        return image_bytes
+
     import colorsys
 
     from PIL import Image as PILImage
@@ -236,24 +242,23 @@ def _compose_panel_image(image_bytes: bytes, dialogue: str) -> bytes:
     canvas = PILImage.new("RGB", (iw, ih + bar_h), bar_colour)
     canvas.paste(img, (0, 0))
 
-    if dialogue:
-        draw = ImageDraw.Draw(canvas)
-        padding = 10
-        font_size = 28
-        font = ImageFont.truetype(str(_FONT_PATH), font_size)
-        # Shrink font until text fits within bar width
-        while font_size > 8:
-            bbox = draw.textbbox((0, 0), dialogue, font=font)
-            if bbox[2] - bbox[0] <= iw - 2 * padding:
-                break
-            font_size -= 1
-            font = ImageFont.truetype(str(_FONT_PATH), font_size)
+    draw = ImageDraw.Draw(canvas)
+    padding = 10
+    font_size = 28
+    font = ImageFont.truetype(str(_FONT_PATH), font_size)
+    # Shrink font until text fits within bar width
+    while font_size > 8:
         bbox = draw.textbbox((0, 0), dialogue, font=font)
-        text_w = bbox[2] - bbox[0]
-        text_h = bbox[3] - bbox[1]
-        tx = (iw - text_w) // 2
-        ty = ih + (bar_h - text_h) // 2
-        draw.text((tx, ty), dialogue, fill=text_colour, font=font)
+        if bbox[2] - bbox[0] <= iw - 2 * padding:
+            break
+        font_size -= 1
+        font = ImageFont.truetype(str(_FONT_PATH), font_size)
+    bbox = draw.textbbox((0, 0), dialogue, font=font)
+    text_w = bbox[2] - bbox[0]
+    text_h = bbox[3] - bbox[1]
+    tx = (iw - text_w) // 2
+    ty = ih + (bar_h - text_h) // 2
+    draw.text((tx, ty), dialogue, fill=text_colour, font=font)
 
     out = BytesIO()
     canvas.save(out, format="JPEG", quality=92)

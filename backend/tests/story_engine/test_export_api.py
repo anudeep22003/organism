@@ -22,7 +22,7 @@ Layer 3:
 Layer 4 (unit tests, no HTTP):
   test_compose_panel_image_output_is_taller
   test_compose_panel_image_width_unchanged
-  test_compose_panel_image_empty_dialogue_still_has_bar
+  test_compose_panel_image_empty_dialogue_no_bar
   test_compose_panel_image_text_colour_has_sufficient_contrast
 Layer 4 (integration):
   test_export_zip_with_dialogue_bar_images_are_taller
@@ -466,17 +466,14 @@ def test_compose_panel_image_width_unchanged() -> None:
     assert out.width == 120
 
 
-def test_compose_panel_image_empty_dialogue_still_has_bar() -> None:
-    """Empty dialogue string: bar is still added (image is taller), no text drawn."""
-    from PIL import Image as PILImage
-
+def test_compose_panel_image_empty_dialogue_no_bar() -> None:
+    """Empty dialogue string: image returned unchanged — no bar added."""
     from core.story_engine.service.export_service import _compose_panel_image
 
     jpeg = _make_jpeg(100, 100)
     result = _compose_panel_image(jpeg, "")
-    out = PILImage.open(io.BytesIO(result))
-    # Bar is still present — image is taller
-    assert out.height > 100
+    # Bytes are identical — no re-encoding happened
+    assert result == jpeg
 
 
 def test_compose_panel_image_text_colour_has_sufficient_contrast() -> None:
