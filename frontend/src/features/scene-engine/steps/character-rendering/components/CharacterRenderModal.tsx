@@ -18,7 +18,7 @@ export function CharacterRenderModal({ bundle, onDismiss }: CharacterRenderModal
   const { projectId, storyId } = useSceneEngine();
   const characterId = bundle.character.id;
 
-  const { editRender, editingIds } = useCharacterRendering(projectId, storyId);
+  const { uploadReferenceImage, editRender, editingIds } = useCharacterRendering(projectId, storyId);
   const isEditing = editingIds.has(characterId);
 
   const { data: renders, isLoading } = useQuery(
@@ -29,11 +29,19 @@ export function CharacterRenderModal({ bundle, onDismiss }: CharacterRenderModal
 
   const isCanonical = false;
 
-  const handleSend = (instruction: string) => {
+  const handleSend = async (instruction: string, files: File[]) => {
     if (!renders || renders.length === 0) return;
     const sourceImage = renders[selectedIndex];
     if (!sourceImage) return;
-    editRender({ characterId, imageId: sourceImage.id, instruction });
+
+    let referenceImageId: string | undefined;
+
+    if (files.length > 0) {
+      const updatedBundle = await uploadReferenceImage({ characterId, file: files[0] });
+      referenceImageId = updatedBundle.referenceImages.at(-1)?.id;
+    }
+
+    editRender({ characterId, imageId: sourceImage.id, instruction, referenceImageId });
   };
 
   const headerActions = (
@@ -85,7 +93,9 @@ export function CharacterRenderModal({ bundle, onDismiss }: CharacterRenderModal
           placeholder={selectedIndex === 0 ? "Describe an edit…" : "Only the most recent render can be edited"}
           disabled={isEditing || isLoading || !renders || renders.length === 0 || selectedIndex !== 0}
           enableUploads
-          maxFiles={3}
+          maxFiles={1}
+          acceptedFileTypes="image/*"
+          maxFileSizeMb={5}
           enableVoiceTranscription
         />
       </div>

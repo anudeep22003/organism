@@ -64,19 +64,39 @@ export function useCharacterRendering(projectId: string, storyId: string) {
     },
   });
 
+  const { mutateAsync: uploadReferenceImage, isPending: isUploading } = useMutation({
+    mutationFn: ({ characterId, file }: { characterId: string; file: File }) => {
+      const formData = new FormData();
+      formData.append("image", file);
+      return httpClient.post<CharacterBundle>(
+        `${STORY_API_BASE}/project/${projectId}/story/${storyId}/character/${characterId}/upload-reference-image`,
+        formData,
+      );
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: charactersQueryKey });
+    },
+  });
+
   const { mutate: editRender } = useMutation({
     mutationFn: ({
       characterId,
       imageId,
       instruction,
+      referenceImageId,
     }: {
       characterId: string;
       imageId: string;
       instruction: string;
+      referenceImageId?: string;
     }) =>
       httpClient.post<RenderRecord>(
         `${STORY_API_BASE}/project/${projectId}/story/${storyId}/character/${characterId}/render/edit`,
-        { instruction, sourceImageId: imageId },
+        {
+          instruction,
+          sourceImageId: imageId,
+          ...(referenceImageId ? { referenceImageId } : {}),
+        },
       ),
     onMutate: ({ characterId }) => {
       setEditingIds((prev) => new Set(prev).add(characterId));
@@ -110,5 +130,5 @@ export function useCharacterRendering(projectId: string, storyId: string) {
     },
   });
 
-  return { triggerRender, renderingIds, editRender, editingIds, errorIds };
+  return { triggerRender, renderingIds, uploadReferenceImage, isUploading, editRender, editingIds, errorIds };
 }
