@@ -4,7 +4,9 @@ Pydantic schemas for the panel pipeline.
 Naming conventions:
   - PanelContent / GeneratedPanelsResponse: instructor structured extraction models
   - PanelResponseSchema: API response for a single panel (no render)
-  - PanelWithRenderSchema: API response for a single panel including canonical render
+  - PanelRenderReferencesSchema: complete panel payload — panel data nested under
+    'panel' key, canonical render and reference images at top level.
+    Symmetric with CharacterRenderReferencesSchema.
 """
 
 import uuid
@@ -59,13 +61,22 @@ class PanelResponseSchema(AliasedBaseModel):
     updated_at: datetime
 
 
-class PanelWithRenderSchema(PanelResponseSchema):
-    """Panel response including the canonical render image (if any).
+class PanelRenderReferencesSchema(AliasedBaseModel):
+    """Complete panel payload: attributes, canonical render, and reference images.
 
-    Same composite pattern as CharacterWithRenderSchema (Decision 12).
+    Composed rather than flat — panel data under 'panel' key, image fields at
+    top level. Symmetric with CharacterRenderReferencesSchema.
     """
 
+    panel: PanelResponseSchema
     canonical_render: ImageResponseSchema | None = None
+    reference_images: list[ImageResponseSchema] = []
+
+
+class SetCanonicalPanelRenderRequest(AliasedBaseModel):
+    """Request body for POST .../panel/:id/set-canonical-render."""
+
+    image_id: uuid.UUID
 
 
 class PanelGenerateRequest(AliasedBaseModel):

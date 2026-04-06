@@ -108,7 +108,7 @@ async def test_generate_panels_sequential_order_index(
 
     assert response.status_code == 201
     body = response.json()
-    order_indices = [p["orderIndex"] for p in body]
+    order_indices = [p["panel"]["orderIndex"] for p in body]
     assert order_indices == list(range(len(body)))
 
 
@@ -136,7 +136,7 @@ async def test_generate_panels_creates_edit_events(
     assert response.status_code == 201
 
     # Fetch panels created during this call
-    panel_ids = [uuid.UUID(p["id"]) for p in response.json()]
+    panel_ids = [uuid.UUID(p["panel"]["id"]) for p in response.json()]
 
     for panel_id in panel_ids:
         result = await db_session.execute(
@@ -173,7 +173,7 @@ async def test_generate_panels_panel_character_slug_resolution(
         )
 
     assert response.status_code == 201
-    panel_ids = [uuid.UUID(p["id"]) for p in response.json()]
+    panel_ids = [uuid.UUID(p["panel"]["id"]) for p in response.json()]
 
     # First panel has 1 character (character.slug), second has 1 too
     for panel_id in panel_ids:
@@ -208,7 +208,7 @@ async def test_generate_panels_output_snapshot_contains_attributes(
         )
 
     assert response.status_code == 201
-    panel_ids = [uuid.UUID(p["id"]) for p in response.json()]
+    panel_ids = [uuid.UUID(p["panel"]["id"]) for p in response.json()]
 
     for panel_id in panel_ids:
         result = await db_session.execute(

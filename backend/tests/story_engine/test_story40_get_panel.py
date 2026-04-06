@@ -49,9 +49,9 @@ async def test_get_panel_returns_200(
 
     assert response.status_code == 200
     body = response.json()
-    assert body["id"] == str(panel.id)
-    assert body["orderIndex"] == 0
-    assert body["attributes"]["background"] == "Forest"
+    assert body["panel"]["id"] == str(panel.id)
+    assert body["panel"]["orderIndex"] == 0
+    assert body["panel"]["attributes"]["background"] == "Forest"
 
 
 async def test_get_panel_returns_404_when_panel_not_found(
@@ -116,7 +116,7 @@ async def test_get_panel_canonical_render_null_when_no_render(
     )
 
     assert response.status_code == 200
-    assert response.json()["canonicalRender"] is None
+    assert response.json()["canonicalRender"] is None  # top-level, not under panel
 
 
 async def test_get_panel_canonical_render_populated_when_render_exists(
@@ -153,5 +153,5 @@ async def test_get_panel_canonical_render_populated_when_render_exists(
 
     assert response.status_code == 200
     body = response.json()
-    assert body["canonicalRender"] is not None
+    assert body["canonicalRender"] is not None  # top-level, not under panel
     assert body["canonicalRender"]["id"] == str(render_image.id)

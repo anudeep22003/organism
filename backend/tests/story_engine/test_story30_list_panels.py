@@ -54,8 +54,8 @@ async def test_list_panels_returns_200_ordered_by_order_index(
     body = response.json()
     assert isinstance(body, list)
     assert len(body) == 2
-    assert body[0]["orderIndex"] == 0
-    assert body[1]["orderIndex"] == 1
+    assert body[0]["panel"]["orderIndex"] == 0
+    assert body[1]["panel"]["orderIndex"] == 1
 
 
 async def test_list_panels_returns_empty_list_when_no_panels(
@@ -107,7 +107,7 @@ async def test_list_panels_canonical_render_is_null_when_no_render(
     assert response.status_code == 200
     body = response.json()
     assert len(body) == 1
-    assert body[0]["canonicalRender"] is None
+    assert body[0]["canonicalRender"] is None  # top-level, not under panel
 
 
 async def test_list_panels_canonical_render_populated_when_render_exists(
@@ -145,5 +145,5 @@ async def test_list_panels_canonical_render_populated_when_render_exists(
     assert response.status_code == 200
     body = response.json()
     assert len(body) == 1
-    assert body[0]["canonicalRender"] is not None
+    assert body[0]["canonicalRender"] is not None  # top-level, not under panel
     assert body[0]["canonicalRender"]["id"] == str(render_image.id)

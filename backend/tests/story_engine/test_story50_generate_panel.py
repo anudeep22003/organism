@@ -75,8 +75,8 @@ async def test_generate_panel_first_call_populates_attributes(
 
     assert response.status_code == 200
     body = response.json()
-    assert body["attributes"]["background"] == "A dark forest"
-    assert body["attributes"]["dialogue"] == "We must move."
+    assert body["panel"]["attributes"]["background"] == "A dark forest"
+    assert body["panel"]["attributes"]["dialogue"] == "We must move."
 
 
 async def test_generate_panel_first_call_creates_edit_event_succeeded(

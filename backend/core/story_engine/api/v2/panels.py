@@ -26,8 +26,8 @@ from ...schemas.image import ImageResponseSchema
 from ...schemas.panel import (
     PanelGenerateRequest,
     PanelRenderEditRequest,
+    PanelRenderReferencesSchema,
     PanelResponseSchema,
-    PanelWithRenderSchema,
 )
 from ...service import PanelService
 from ..dependencies import get_panel_service
@@ -35,13 +35,22 @@ from ..dependencies import get_panel_service
 router = APIRouter(tags=["panels", "v2"])
 
 
-def _build_panel_with_render(
-    panel: object, image: object | None
-) -> PanelWithRenderSchema:
-    """Assemble a PanelWithRenderSchema from ORM objects (per Decision 12)."""
-    return PanelWithRenderSchema(
-        **PanelResponseSchema.model_validate(panel).model_dump(),
+def _build_panel_full(
+    panel: object,
+    image: object | None,
+    reference_images: list[object] | None = None,
+) -> PanelRenderReferencesSchema:
+    """Assemble a PanelRenderReferencesSchema from ORM objects.
+
+    Panel data is nested under 'panel', image fields sit at top level.
+    Symmetric with _build_character_full in character.py.
+    """
+    return PanelRenderReferencesSchema(
+        panel=PanelResponseSchema.model_validate(panel),
         canonical_render=ImageResponseSchema.model_validate(image) if image else None,
+        reference_images=[
+            ImageResponseSchema.model_validate(r) for r in (reference_images or [])
+        ],
     )
 
 
@@ -88,11 +97,11 @@ async def list_panels(
     story_id: uuid.UUID,
     user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     service: Annotated[PanelService, Depends(get_panel_service)],
-) -> list[PanelWithRenderSchema]:
+) -> list[PanelRenderReferencesSchema]:
     """Return all panels for a story ordered by order_index, with canonical renders."""
     try:
         pairs = await service.get_panels(project_id, story_id)
-        return [_build_panel_with_render(panel, render) for panel, render in pairs]
+        return [_build_panel_full(panel, render) for panel, render in pairs]
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
@@ -118,11 +127,11 @@ async def get_panel(
     panel_id: uuid.UUID,
     user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     service: Annotated[PanelService, Depends(get_panel_service)],
-) -> PanelWithRenderSchema:
+) -> PanelRenderReferencesSchema:
     """Return a single panel by ID, with canonical render."""
     try:
         panel, render = await service.get_panel(project_id, story_id, panel_id)
-        return _build_panel_with_render(panel, render)
+        return _build_panel_full(panel, render)
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
@@ -149,7 +158,7 @@ async def generate_panel(
     user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     service: Annotated[PanelService, Depends(get_panel_service)],
     body: PanelGenerateRequest | None = None,
-) -> PanelWithRenderSchema:
+) -> PanelRenderReferencesSchema:
     """Generate or regenerate content for a single panel (Decision 8).
 
     First call (empty attributes): generates from story context.
@@ -166,7 +175,7 @@ async def generate_panel(
             target_id=panel_id,
             discriminator_key=ImageDiscriminatorKey.PANEL_RENDER,
         )
-        return _build_panel_with_render(panel, render)
+        return _build_panel_full(panel, render)
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except NoCharactersError as e:
@@ -298,15 +307,16 @@ async def generate_panels(
     story_id: uuid.UUID,
     user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     service: Annotated[PanelService, Depends(get_panel_service)],
-) -> list[PanelResponseSchema]:
+) -> list[PanelRenderReferencesSchema]:
     """Generate all panels for a story from its story text.
 
     Calls the LLM to extract structured panel content, persists each panel
     with a per-panel EditEvent(GENERATE_PANEL, SUCCEEDED).
+    No render exists at this point, so canonical_render is always None.
     """
     try:
         panels = await service.generate_panels(project_id, story_id)
-        return [PanelResponseSchema.model_validate(p) for p in panels]
+        return [_build_panel_full(p, None) for p in panels]
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except NoStoryTextError as e:
