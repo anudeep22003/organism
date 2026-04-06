@@ -85,7 +85,7 @@ show_column_numbers = true
 
 # Per-module options
 [[tool.mypy.overrides]]
-module = ["socketio.*", "pulumi.*", "pulumi_gcp.*", "github.*", "git.*"]
+module = ["socketio.*", "pulumi.*", "pulumi_gcp.*", "github.*", "git.*", "reportlab.*"]
 ignore_missing_imports = true
 
 

@@ -13,6 +13,11 @@ Layer 2:
   test_export_instagram_captions_txt_has_n_lines
   test_export_instagram_422_missing_render
   test_export_instagram_401_no_token
+
+Layer 3:
+  test_export_pdf_200_starts_with_pdf_magic_bytes
+  test_export_pdf_422_missing_render
+  test_export_pdf_401_no_token
 """
 
 import io
@@ -340,5 +345,68 @@ async def test_export_instagram_401_no_token(
     """401 — no auth token returns 401."""
     response = await api_client.get(
         f"/api/comic-builder/v2/project/{project.id}/story/{story.id}/export/instagram",
+    )
+    assert response.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# Layer 3 — PDF export
+# ---------------------------------------------------------------------------
+
+
+async def test_export_pdf_200_starts_with_pdf_magic_bytes(
+    api_client: AsyncClient,
+    db_session: AsyncSession,
+    user: User,
+    project: Project,
+    story: Story,
+) -> None:
+    """200 — response body starts with %PDF magic bytes and is non-empty."""
+    await _setup_panels_with_renders(db_session, project, user, story, count=4)
+
+    jpeg = _minimal_jpeg_bytes()
+    with patch(
+        "core.story_engine.service.export_service.GCSUploadService.download_as_bytes",
+        return_value=jpeg,
+    ):
+        response = await api_client.get(
+            f"/api/comic-builder/v2/project/{project.id}/story/{story.id}/export/pdf",
+            headers=_auth_headers(user.id),
+        )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert len(response.content) > 0
+    assert response.content[:4] == b"%PDF"
+
+
+async def test_export_pdf_422_missing_render(
+    api_client: AsyncClient,
+    db_session: AsyncSession,
+    user: User,
+    project: Project,
+    story: Story,
+) -> None:
+    """422 — panel with no render blocks PDF export."""
+    panel = Panel.create(story_id=story.id, order_index=0, attributes={})
+    db_session.add(panel)
+    await db_session.commit()
+
+    response = await api_client.get(
+        f"/api/comic-builder/v2/project/{project.id}/story/{story.id}/export/pdf",
+        headers=_auth_headers(user.id),
+    )
+    assert response.status_code == 422
+    assert "0" in response.json()["detail"]
+
+
+async def test_export_pdf_401_no_token(
+    api_client: AsyncClient,
+    project: Project,
+    story: Story,
+) -> None:
+    """401 — no auth token returns 401."""
+    response = await api_client.get(
+        f"/api/comic-builder/v2/project/{project.id}/story/{story.id}/export/pdf",
     )
     assert response.status_code == 401
