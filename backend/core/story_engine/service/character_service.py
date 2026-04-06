@@ -179,6 +179,18 @@ class CharacterService:
         await self.repository_v2.character.set_canonical_render(
             character_id, story_id, image_id
         )
+
+        edit_event = EditEvent.create_edit_event(
+            project_id=project_id,
+            target_type=EditEventTargetType.CHARACTER,
+            target_id=character_id,
+            operation_type=EditEventOperationType.SET_CANONICAL_RENDER,
+            user_instruction="",
+            input_snapshot={"image_id": str(image_id)},
+            status=EditEventStatus.SUCCEEDED,
+        )
+        await self.repository_v2.edit_event.add_edit_event_to_db(edit_event)
+
         await self.db.commit()
         await self.db.refresh(character)
         return character
