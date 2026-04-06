@@ -30,6 +30,7 @@ from ...schemas.edit_event import EditEventResponseSchema
 from ...schemas.image import ImageResponseSchema
 from ...schemas.panel import (
     PanelGenerateRequest,
+    PanelRefineRequest,
     PanelRenderEditRequest,
     PanelRenderReferencesSchema,
     PanelResponseSchema,
@@ -188,6 +189,50 @@ async def generate_panel(
         raise HTTPException(
             status_code=500,
             detail="An unexpected error occurred while generating the panel",
+        )
+
+
+# ---------------------------------------------------------------------------
+# Story 55 — Refine panel attributes via user instruction
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/project/{project_id}/story/{story_id}/panel/{panel_id}/refine",
+    status_code=200,
+)
+async def refine_panel(
+    project_id: uuid.UUID,
+    story_id: uuid.UUID,
+    panel_id: uuid.UUID,
+    body: PanelRefineRequest,
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    service: Annotated[PanelService, Depends(get_panel_service)],
+) -> PanelRenderReferencesSchema:
+    """Refine a panel's attributes using a user instruction.
+
+    The panel must already have content (i.e. generate must have been called first).
+    Returns the full panel payload with updated attributes. Mirrors POST .../character/:id/refine.
+    """
+    try:
+        panel = await service.refine_panel(
+            project_id=project_id,
+            story_id=story_id,
+            panel_id=panel_id,
+            instruction=body.instruction,
+        )
+        render = await service.get_canonical_panel_render(panel_id)
+        refs = await service.get_panel_reference_images(panel_id)
+        return _build_panel_full(panel, render, refs)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except NoCharactersError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        logger.exception(f"Unexpected error refining panel {panel_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while refining the panel",
         )
 
 

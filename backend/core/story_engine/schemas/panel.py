@@ -88,6 +88,16 @@ class PanelGenerateRequest(AliasedBaseModel):
     instruction: str | None = None
 
 
+class PanelRefineRequest(AliasedBaseModel):
+    """Request body for POST .../panel/:id/refine.
+
+    instruction is required — refine always needs user direction.
+    Mirrors CharacterRefineRequest.
+    """
+
+    instruction: str
+
+
 class PanelRenderEditRequest(AliasedBaseModel):
     """Request body for editing an existing panel render via fal image-edit model."""
 

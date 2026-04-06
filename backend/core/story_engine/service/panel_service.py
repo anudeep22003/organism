@@ -242,6 +242,93 @@ class PanelService:
             await self.db.commit()
             raise
 
+    # -----------------------------------------------------------------------
+    # refine_panel (user-directed attribute update — Story 55)
+    # -----------------------------------------------------------------------
+
+    async def refine_panel(
+        self,
+        project_id: uuid.UUID,
+        story_id: uuid.UUID,
+        panel_id: uuid.UUID,
+        instruction: str,
+    ) -> Panel:
+        """Refine a panel's attributes using a user instruction.
+
+        Requires the panel to have already been generated (non-empty attributes).
+        Calls the LLM regeneration branch with the provided instruction and
+        persists the updated attributes under a REFINE_PANEL edit event.
+        Mirrors refine_character in character_service.py.
+        """
+        story = await self.repository_v2.story.get_story(project_id, story_id)
+        if story is None:
+            raise NotFoundError(f"Story {story_id} not found")
+
+        panel = await self.repository_v2.panel.get_panel(panel_id, story_id)
+        if panel is None:
+            raise NotFoundError(f"Panel {panel_id} not found in story {story_id}")
+
+        input_attrs = dict(panel.attributes)
+        if not input_attrs:
+            raise NotFoundError(
+                f"Panel {panel_id} has no content yet — generate it before refining"
+            )
+
+        characters = await self.repository_v2.character.get_all_characters_for_a_story(
+            story_id
+        )
+        character_slugs = [c.slug for c in characters]
+        if not character_slugs:
+            raise NoCharactersError(
+                f"Story {story_id} has no characters — extract characters first"
+            )
+
+        # TX1: create PENDING edit event
+        edit_event = EditEvent.create_edit_event(
+            project_id=project_id,
+            target_type=EditEventTargetType.PANEL,
+            target_id=panel_id,
+            operation_type=EditEventOperationType.REFINE_PANEL,
+            user_instruction=instruction,
+            status=EditEventStatus.PENDING,
+            input_snapshot=input_attrs,
+        )
+        await self.repository_v2.edit_event.add_edit_event_to_db(edit_event)
+        await self.db.flush()
+        edit_event_id = edit_event.id
+        await self.db.commit()
+
+        try:
+            panel_content = await self._regenerate_panel(
+                existing_attributes=input_attrs,
+                instruction=instruction,
+                character_slugs=character_slugs,
+            )
+            new_attributes = {
+                "background": panel_content.background,
+                "dialogue": panel_content.dialogue,
+                "characters": panel_content.characters,
+            }
+
+            # TX2: persist refined attributes + mark event SUCCEEDED
+            panel.attributes = new_attributes
+            panel.source_event_id = edit_event_id
+            await self.repository_v2.edit_event.update_edit_event(
+                edit_event_id,
+                EditEventStatus.SUCCEEDED,
+                output_snapshot=new_attributes,
+            )
+            await self.db.commit()
+            await self.db.refresh(panel)
+            return panel
+
+        except Exception:
+            await self.repository_v2.edit_event.update_edit_event(
+                edit_event_id, EditEventStatus.FAILED
+            )
+            await self.db.commit()
+            raise
+
     async def _generate_panel_first_time(
         self, story_text: str, order_index: int, character_slugs: list[str]
     ) -> PanelContent:
