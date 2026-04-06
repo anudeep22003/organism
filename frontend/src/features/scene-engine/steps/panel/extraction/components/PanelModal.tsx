@@ -62,7 +62,7 @@ export function PanelModal({ bundle, displayIndex, onDismiss, onImageClick, onDe
           <AlertDialogAction
             onClick={() => deletePanel({ panelId }, { onSuccess: onDeleted })}
             disabled={isDeletingPanel}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            className="bg-destructive text-white hover:bg-destructive/90"
           >
             {isDeletingPanel ? "Deleting…" : "Delete"}
           </AlertDialogAction>
