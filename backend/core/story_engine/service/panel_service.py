@@ -13,6 +13,7 @@ from io import BytesIO
 from typing import Any
 
 import httpx
+from fastapi import UploadFile
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -36,15 +37,23 @@ from ..models.image import ImageContentType, ImageDiscriminatorKey
 from ..repository import RepositoryV2
 from ..schemas.panel import GeneratedPanelsResponse, PanelContent, PanelContentBase
 from .image_service import (
+    ImageService,
     extract_image_dimensions,
     get_gcs_upload_service,
 )
 
 
 class PanelService:
-    def __init__(self, db_session: AsyncSession):
+    def __init__(
+        self,
+        db_session: AsyncSession,
+        image_service: ImageService | None = None,
+    ):
         self.db = db_session
         self.repository_v2 = RepositoryV2(db_session)
+        self.image_service = image_service or ImageService(
+            db=self.db, repository_v2=self.repository_v2
+        )
 
     # -----------------------------------------------------------------------
     # generate_panels (bulk)
@@ -443,6 +452,67 @@ class PanelService:
         await self.db.commit()
         await self.db.refresh(panel)
         return panel
+
+    # -----------------------------------------------------------------------
+    # Reference image upload / retrieval
+    # -----------------------------------------------------------------------
+
+    async def upload_reference_image(
+        self,
+        user_id: uuid.UUID,
+        project_id: uuid.UUID,
+        story_id: uuid.UUID,
+        panel_id: uuid.UUID,
+        image: UploadFile,
+    ) -> ImageModel:
+        """Upload a reference image for a panel.
+
+        Delegates to ImageService.upload_panel_reference_image which handles
+        GCS upload, Image row creation, and UPLOAD_REFERENCE_IMAGE audit event.
+        """
+        return await self.image_service.upload_panel_reference_image(
+            user_id=user_id,
+            project_id=project_id,
+            story_id=story_id,
+            panel_id=panel_id,
+            image_byte_stream=image.file,
+        )
+
+    async def get_panel_reference_images(self, panel_id: uuid.UUID) -> list[ImageModel]:
+        """Return all PANEL_REFERENCE images for a panel, newest first."""
+        return await self.repository_v2.image.get_panel_reference_images(panel_id)
+
+    async def delete_reference_image(
+        self,
+        user_id: uuid.UUID,
+        project_id: uuid.UUID,
+        story_id: uuid.UUID,
+        panel_id: uuid.UUID,
+        image_id: uuid.UUID,
+    ) -> None:
+        """Delete a PANEL_REFERENCE image from a panel.
+
+        Verifies the panel exists in the given story/project, then delegates
+        deletion to the image repository which validates target ownership and
+        discriminator before deleting.
+        """
+        from ..repository.exception import NotFoundError as RepositoryNotFoundError
+
+        story = await self.repository_v2.story.get_story(project_id, story_id)
+        if story is None:
+            raise NotFoundError(f"Story {story_id} not found in project {project_id}")
+
+        panel = await self.repository_v2.panel.get_panel(panel_id, story_id)
+        if panel is None:
+            raise NotFoundError(f"Panel {panel_id} not found in story {story_id}")
+
+        try:
+            await self.repository_v2.image.delete_panel_reference_image(
+                image_id, panel_id
+            )
+            await self.db.commit()
+        except RepositoryNotFoundError as e:
+            raise NotFoundError(str(e)) from e
 
     # -----------------------------------------------------------------------
     # get_panels (for Story 30)

@@ -24,6 +24,7 @@ from ..models import (
     EditEventStatus,
     EditEventTargetType,
     ImageContentType,
+    Panel,
 )
 from ..models import (
     Image as ImageModel,
@@ -75,24 +76,25 @@ class ImageService:
         self.gcs_upload_service = get_gcs_upload_service()
         self.image_processor = ImageProcessor()
 
-    async def upload_reference_image(
+    async def _upload_reference_image_core(
         self,
         user_id: uuid.UUID,
         project_id: uuid.UUID,
-        story_id: uuid.UUID,
-        character_id: uuid.UUID,
+        target_id: uuid.UUID,
+        target_type: EditEventTargetType,
+        discriminator_key: ImageDiscriminatorKey,
+        object_storage_key: str,
         image_byte_stream: BinaryIO,
     ) -> ImageModel:
-        character = await self._get_authorized_character(
-            user_id, project_id, story_id, character_id
-        )
-        object_storage_key = (
-            f"{user_id}/character/{character.slug}/references/{generate_slug()}"
-        )
+        """Generic reference-image upload: process bytes, upload to GCS, persist Image row.
+
+        Callers are responsible for authorization and building the object_storage_key
+        before calling this method.
+        """
         edit_event = EditEvent.create_edit_event(
             project_id=project_id,
-            target_type=EditEventTargetType.CHARACTER,
-            target_id=character_id,
+            target_type=target_type,
+            target_id=target_id,
             operation_type=EditEventOperationType.UPLOAD_REFERENCE_IMAGE,
             user_instruction="",
             input_snapshot=None,
@@ -113,14 +115,14 @@ class ImageService:
             image_model = ImageModel.create(
                 project_id=project_id,
                 user_id=user_id,
-                target_id=character_id,
+                target_id=target_id,
                 width=processed_image.width,
                 height=processed_image.height,
                 content_type=processed_image.content_type,
                 object_key=storage_receipt.object_key,
                 bucket=storage_receipt.bucket,
                 size_bytes=processed_image.size_bytes,
-                discriminator_key=ImageDiscriminatorKey.CHARACTER_REFERENCE,
+                discriminator_key=discriminator_key,
                 meta={},
             )
             image_models_to_create.append(image_model)
@@ -137,6 +139,50 @@ class ImageService:
         await self.db.commit()
         await self.db.refresh(first_image)
         return first_image
+
+    async def upload_reference_image(
+        self,
+        user_id: uuid.UUID,
+        project_id: uuid.UUID,
+        story_id: uuid.UUID,
+        character_id: uuid.UUID,
+        image_byte_stream: BinaryIO,
+    ) -> ImageModel:
+        character = await self._get_authorized_character(
+            user_id, project_id, story_id, character_id
+        )
+        object_storage_key = (
+            f"{user_id}/character/{character.slug}/references/{generate_slug()}"
+        )
+        return await self._upload_reference_image_core(
+            user_id=user_id,
+            project_id=project_id,
+            target_id=character_id,
+            target_type=EditEventTargetType.CHARACTER,
+            discriminator_key=ImageDiscriminatorKey.CHARACTER_REFERENCE,
+            object_storage_key=object_storage_key,
+            image_byte_stream=image_byte_stream,
+        )
+
+    async def upload_panel_reference_image(
+        self,
+        user_id: uuid.UUID,
+        project_id: uuid.UUID,
+        story_id: uuid.UUID,
+        panel_id: uuid.UUID,
+        image_byte_stream: BinaryIO,
+    ) -> ImageModel:
+        await self._get_authorized_panel(user_id, project_id, story_id, panel_id)
+        object_storage_key = f"{user_id}/panel/{panel_id}/references/{generate_slug()}"
+        return await self._upload_reference_image_core(
+            user_id=user_id,
+            project_id=project_id,
+            target_id=panel_id,
+            target_type=EditEventTargetType.PANEL,
+            discriminator_key=ImageDiscriminatorKey.PANEL_REFERENCE,
+            object_storage_key=object_storage_key,
+            image_byte_stream=image_byte_stream,
+        )
 
     async def get_character_reference_images(
         self,
@@ -178,6 +224,22 @@ class ImageService:
                 f"Character {character_id} not found in project {project_id} and story {story_id}"
             )
         return character
+
+    async def _get_authorized_panel(
+        self,
+        user_id: uuid.UUID,
+        project_id: uuid.UUID,
+        story_id: uuid.UUID,
+        panel_id: uuid.UUID,
+    ) -> Panel:
+        """Verify the story exists in the project, then verify the panel belongs to that story."""
+        story = await self.repository_v2.story.get_story(project_id, story_id)
+        if story is None:
+            raise NotFoundError(f"Story {story_id} not found in project {project_id}")
+        panel = await self.repository_v2.panel.get_panel(panel_id, story_id)
+        if panel is None:
+            raise NotFoundError(f"Panel {panel_id} not found in story {story_id}")
+        return panel
 
 
 class ImageProcessor:
