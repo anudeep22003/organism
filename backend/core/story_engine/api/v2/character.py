@@ -20,6 +20,7 @@ from ...schemas.character import (
     CharacterRenderReferencesSchema,
     CharacterResponseSchema,
     CharacterUpdateSchema,
+    SetCanonicalRenderRequest,
 )
 from ...schemas.edit_event import EditEventResponseSchema
 from ...schemas.image import ImageResponseSchema
@@ -403,4 +404,45 @@ async def render_character_edit(
         raise HTTPException(
             status_code=500,
             detail="An unexpected error occurred while editing the character render",
+        )
+
+
+@router.post(
+    "/project/{project_id}/story/{story_id}/character/{character_id}/set-canonical-render",
+    status_code=200,
+)
+async def set_canonical_render(
+    project_id: uuid.UUID,
+    story_id: uuid.UUID,
+    character_id: uuid.UUID,
+    body: SetCanonicalRenderRequest,
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    service: Annotated[CharacterService, Depends(get_character_service)],
+) -> CharacterRenderReferencesSchema:
+    """Set a specific render as the canonical render for a character.
+
+    The image must already exist as a CHARACTER_RENDER for this character.
+    On success the canonical render shown in all character responses will be
+    the chosen image rather than the most recently generated one.
+    """
+    try:
+        character = await service.set_canonical_render(
+            user_id=user_id,
+            project_id=project_id,
+            story_id=story_id,
+            character_id=character_id,
+            image_id=body.image_id,
+        )
+        render = await service.get_canonical_character_render(character.id)
+        refs = await service.get_character_reference_images(character.id)
+        return _build_character_full(character, render, refs)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.exception(
+            f"Unexpected error setting canonical render for character {character_id}: {e}"
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while setting the canonical render",
         )

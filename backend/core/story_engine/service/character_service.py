@@ -113,7 +113,18 @@ class CharacterService:
     async def get_canonical_character_render(
         self, character_id: uuid.UUID
     ) -> ImageModel | None:
-        """Return the most recent character_render Image for a character, or None."""
+        """Return the canonical render for a character, or None.
+
+        Prefers the user-selected canonical_render_id if set on the character.
+        Falls back to the most recent CHARACTER_RENDER image by created_at when
+        canonical_render_id is NULL (covers existing characters and the period
+        before the user has explicitly chosen one).
+        """
+        character = await self.repository_v2.character.get_character_by_id(character_id)
+        if character is not None and character.canonical_render_id is not None:
+            return await self.repository_v2.image.get_image(
+                character.canonical_render_id
+            )
         return await self.repository_v2.image.get_canonical_render(
             target_id=character_id,
             discriminator_key=ImageDiscriminatorKey.CHARACTER_RENDER,
@@ -130,6 +141,47 @@ class CharacterService:
         return await self.repository_v2.image.get_character_reference_images(
             character_id
         )
+
+    async def set_canonical_render(
+        self,
+        user_id: uuid.UUID,
+        project_id: uuid.UUID,
+        story_id: uuid.UUID,
+        character_id: uuid.UUID,
+        image_id: uuid.UUID,
+    ) -> Character:
+        """Set a specific render as the canonical render for a character.
+
+        Verifies character ownership and that the image is a CHARACTER_RENDER
+        belonging to this character. Returns the updated character.
+        """
+        character = await self.repository_v2.character.get_character_for_user_in_project_and_story(
+            user_id=user_id,
+            project_id=project_id,
+            story_id=story_id,
+            character_id=character_id,
+        )
+        if character is None:
+            raise NotFoundError(
+                f"Character {character_id} not found for user {user_id} in project {project_id}"
+            )
+
+        image = await self.repository_v2.image.get_image(image_id)
+        if (
+            image is None
+            or image.target_id != character_id
+            or image.discriminator_key != ImageDiscriminatorKey.CHARACTER_RENDER
+        ):
+            raise NotFoundError(
+                f"Render image {image_id} not found for character {character_id}"
+            )
+
+        await self.repository_v2.character.set_canonical_render(
+            character_id, story_id, image_id
+        )
+        await self.db.commit()
+        await self.db.refresh(character)
+        return character
 
     async def extract_characters_from_story(
         self, project_id: uuid.UUID, story_id: uuid.UUID
@@ -487,7 +539,10 @@ class CharacterService:
             await self.repository_v2.image.create_image(image_model)
             await self.db.flush()
 
-            # TX2: persist image row + complete edit event atomically
+            # TX2: persist image row, set canonical, complete edit event atomically
+            await self.repository_v2.character.set_canonical_render(
+                character_id, story_id, image_model.id
+            )
             await self.repository_v2.edit_event.update_edit_event(
                 edit_event_id,
                 EditEventStatus.SUCCEEDED,
@@ -649,6 +704,9 @@ class CharacterService:
             await self.repository_v2.image.create_image(image_model)
             await self.db.flush()
 
+            await self.repository_v2.character.set_canonical_render(
+                character_id, story_id, image_model.id
+            )
             await self.repository_v2.edit_event.update_edit_event(
                 edit_event_id,
                 EditEventStatus.SUCCEEDED,

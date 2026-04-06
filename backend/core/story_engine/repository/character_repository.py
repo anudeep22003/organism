@@ -33,6 +33,12 @@ class CharacterRepository:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_character_by_id(self, character_id: uuid.UUID) -> Character | None:
+        """Fetch a character by ID alone — use only when story_id is not available."""
+        stmt = select(Character).where(Character.id == character_id)
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def get_character_for_user_in_project_and_story(
         self,
         user_id: uuid.UUID,
@@ -92,6 +98,17 @@ class CharacterRepository:
         character.slug = slugify(attributes["name"])
         if source_event_id is not None:
             character.source_event_id = source_event_id
+        return character
+
+    async def set_canonical_render(
+        self, character_id: uuid.UUID, story_id: uuid.UUID, image_id: uuid.UUID
+    ) -> Character:
+        character = await self.get_character(character_id, story_id)
+        if character is None:
+            raise NotFoundError(
+                f"Character {character_id} not found in story {story_id}"
+            )
+        character.canonical_render_id = image_id
         return character
 
     async def delete_character(

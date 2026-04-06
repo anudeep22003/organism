@@ -9,6 +9,7 @@ Create Date: 2026-04-06 13:30:19.964628
 from typing import Sequence, Union
 
 import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import UUID as PGUUID
 
 from alembic import op
 
@@ -31,7 +32,7 @@ def upgrade() -> None:
         "character",
         sa.Column(
             "canonical_render_id",
-            sa.dialects.postgresql.UUID(as_uuid=True),
+            PGUUID(as_uuid=True),
             sa.ForeignKey("image.id", ondelete="SET NULL"),
             nullable=True,
         ),
