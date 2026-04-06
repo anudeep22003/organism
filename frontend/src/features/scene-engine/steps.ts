@@ -1,8 +1,8 @@
 import type { StepDef } from "./types";
 import PlaceholderStep from "./steps/PlaceholderStep";
 import StoryStep from "./steps/story/StoryStep";
-import CharacterExtractionStep from "./steps/character-extraction/CharacterExtractionStep";
-import CharacterRenderingStep from "./steps/character-rendering/CharacterRenderingStep";
+import CharacterExtractionStep from "./steps/character/extraction/CharacterExtractionStep";
+import CharacterRenderingStep from "./steps/character/rendering/CharacterRenderingStep";
 
 export const SCENE_STEPS: StepDef[] = [
   { id: 1, label: "Story",                component: StoryStep },
