@@ -301,6 +301,10 @@ class GCSUploadService:
                 f"Failed to upload image to bucket: {object_key}, {e}"
             ) from e
 
+    def download_as_bytes(self, object_key: str) -> bytes:
+        """Download a GCS blob as raw bytes. Synchronous — wrap in asyncio.to_thread."""
+        return self.bucket.blob(object_key).download_as_bytes()  # type: ignore[no-any-return]
+
     def generate_signed_url(self, object_key: str) -> tuple[str, datetime.datetime]:
         expiry = datetime.timedelta(minutes=SIGNED_URL_EXPIRY_MINUTES)
         blob = self.bucket.blob(object_key)

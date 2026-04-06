@@ -33,6 +33,7 @@ dependencies = [
     "unidecode>=1.4.0",
     "python-slugify[unidecode]>=8.0.4",
     "pillow>=12.1.1",
+    "reportlab>=4.2.0",
     "coolname>=4.1.0",
     "pydantic-settings>=2.0.0,<3.0.0",
 ]

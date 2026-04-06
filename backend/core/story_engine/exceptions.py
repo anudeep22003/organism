@@ -123,3 +123,9 @@ class PanelAlreadyGeneratedError(BaseError):
     """Panel already has generated content — use /refine to update it."""
 
     pass
+
+
+class ExportError(BaseError):
+    """Export pre-condition failed — e.g. panels missing canonical renders."""
+
+    pass
