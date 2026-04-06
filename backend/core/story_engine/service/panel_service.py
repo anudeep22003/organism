@@ -570,7 +570,7 @@ class PanelService:
         project_id: uuid.UUID,
         story_id: uuid.UUID,
         panel_id: uuid.UUID,
-    ) -> ImageModel:
+    ) -> tuple[Panel, ImageModel]:
         """Render a panel image via fal and store in GCS.
 
         Flow (Decision 16):
@@ -580,7 +580,7 @@ class PanelService:
           4. Download fal output bytes, upload to GCS.
           5. Create Image row (target_id=panel_id, discriminator_key=panel_render).
           6. Create EditEvent(RENDER_PANEL, SUCCEEDED).
-          7. Return the Image ORM object.
+          7. Return (panel, image) — mirrors render_character return signature.
         """
         story = await self.repository_v2.story.get_story(project_id, story_id)
         if story is None:
@@ -694,7 +694,14 @@ class PanelService:
             )
             await self.db.commit()
             await self.db.refresh(image_model)
-            return image_model
+
+            # Refresh panel so canonical_render_id is up-to-date
+            refreshed_panel = await self.repository_v2.panel.get_panel(
+                panel_id, story_id
+            )
+            if refreshed_panel is None:
+                raise NotFoundError(f"Panel {panel_id} not found in story {story_id}")
+            return refreshed_panel, image_model
 
         except Exception:
             await self.repository_v2.edit_event.update_edit_event(

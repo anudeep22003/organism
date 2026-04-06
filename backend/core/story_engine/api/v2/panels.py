@@ -206,20 +206,22 @@ async def render_panel(
     panel_id: uuid.UUID,
     user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     service: Annotated[PanelService, Depends(get_panel_service)],
-) -> ImageResponseSchema:
+) -> PanelRenderReferencesSchema:
     """Render a panel image via fal and store in GCS.
 
-    Returns the created Image ORM object serialized as ImageResponseSchema.
-    The panel's updated canonical render is visible on subsequent GET /panel/{id} calls.
+    Returns the full panel payload including the new canonical render and
+    reference images — mirrors render_character which returns the full
+    CharacterRenderReferencesSchema so the client can update its cache slot.
     """
     try:
-        image = await service.render_panel(
+        panel, image = await service.render_panel(
             user_id=user_id,
             project_id=project_id,
             story_id=story_id,
             panel_id=panel_id,
         )
-        return ImageResponseSchema.model_validate(image)
+        refs = await service.get_panel_reference_images(panel_id)
+        return _build_panel_full(panel, image, refs)
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
