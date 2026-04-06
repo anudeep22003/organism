@@ -6,9 +6,10 @@ import {
   Mic01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useCallback, useRef, useState } from "react";
-import WaveformIndicator from "./WaveformIndicator";
+import { useCallback, useEffect, useState } from "react";
+import { useFilePicker } from "../hooks/useFilePicker";
 import { StagedFilePill } from "./StagedFilePill";
+import WaveformIndicator from "./WaveformIndicator";
 
 type PromptInputProps = {
   onSend: (value: string, files: File[]) => void;
@@ -18,6 +19,7 @@ type PromptInputProps = {
   enableUploads?: boolean;
   acceptedFileTypes?: string;
   maxFiles?: number;
+  maxFileSizeMb?: number;
   enableVoiceTranscription?: boolean;
 };
 
@@ -29,29 +31,43 @@ export default function PromptInput({
   enableUploads = false,
   acceptedFileTypes = "image/*",
   maxFiles = 3,
+  maxFileSizeMb = 5,
   enableVoiceTranscription = false,
 }: PromptInputProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const { textareaRef, adjustHeight, resetHeight } =
-    useAutoExpandTextarea();
+  const { textareaRef, adjustHeight, resetHeight } = useAutoExpandTextarea();
   const [stagedFiles, setStagedFiles] = useState<File[]>([]);
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!validationError) return;
+    const t = setTimeout(() => setValidationError(null), 3000);
+    return () => clearTimeout(t);
+  }, [validationError]);
+
+  const { triggerPick, inputProps } = useFilePicker({
+    accept: acceptedFileTypes,
+    multiple: maxFiles !== 1,
+    maxFileSizeMb,
+    onPick: (files) =>
+      setStagedFiles((prev) => {
+        const combined = [...prev, ...files];
+        return maxFiles === Infinity ? combined : combined.slice(0, maxFiles);
+      }),
+    onReject: setValidationError,
+  });
 
   const handleTranscription = useCallback(
     (transcribed: string) => {
       const el = textareaRef.current;
       if (!el) return;
-      el.value = el.value
-        ? `${el.value}\n\n${transcribed}`
-        : transcribed;
+      el.value = el.value ? `${el.value}\n\n${transcribed}` : transcribed;
       requestAnimationFrame(adjustHeight);
     },
     [textareaRef, adjustHeight],
   );
 
   const { recordingState, visualizationData, toggleRecording } =
-    useVoiceRecorder(
-      enableVoiceTranscription ? handleTranscription : () => {},
-    );
+    useVoiceRecorder(enableVoiceTranscription ? handleTranscription : () => {});
 
   const handleSend = useCallback(() => {
     const el = textareaRef.current;
@@ -64,30 +80,15 @@ export default function PromptInput({
     setStagedFiles([]);
   }, [textareaRef, disabled, onSend, stagedFiles, resetHeight]);
 
-  const handleKeyDown = (
-    e: React.KeyboardEvent<HTMLTextAreaElement>,
-  ) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
       handleSend();
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const picked = Array.from(e.target.files ?? []);
-    if (!picked.length) return;
-    setStagedFiles((prev) => {
-      const combined = [...prev, ...picked];
-      return maxFiles === Infinity
-        ? combined
-        : combined.slice(0, maxFiles);
-    });
-    e.target.value = "";
-  };
-
-  const removeFile = (index: number) => {
+  const removeFile = (index: number) =>
     setStagedFiles((prev) => prev.filter((_, i) => i !== index));
-  };
 
   const isRecording = recordingState === "recording";
   const isTranscribing = recordingState === "transcribing";
@@ -95,16 +96,7 @@ export default function PromptInput({
 
   return (
     <div className="flex flex-col">
-      {enableUploads && (
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept={acceptedFileTypes}
-          multiple={maxFiles !== 1}
-          className="hidden"
-          onChange={handleFileChange}
-        />
-      )}
+      {enableUploads && <input {...inputProps} />}
 
       {stagedFiles.length > 0 && (
         <div className="shrink-0 border-b border-border px-3 py-1.5">
@@ -118,6 +110,12 @@ export default function PromptInput({
               />
             ))}
           </div>
+        </div>
+      )}
+
+      {validationError && (
+        <div className="shrink-0 border-b border-border bg-destructive/5 px-3 py-1.5">
+          <span className="text-[10px] text-destructive">{validationError}</span>
         </div>
       )}
 
@@ -146,7 +144,7 @@ export default function PromptInput({
         <div className="absolute right-2 bottom-2 flex gap-1">
           {enableUploads && (
             <button
-              onClick={() => fileInputRef.current?.click()}
+              onClick={triggerPick}
               disabled={disabled || uploadsAtMax}
               className="flex items-center justify-center p-1.5 text-muted-foreground hover:bg-muted/40 disabled:opacity-50"
             >
@@ -155,9 +153,7 @@ export default function PromptInput({
           )}
           {enableVoiceTranscription && (
             <button
-              onClick={() => {
-                void toggleRecording();
-              }}
+              onClick={() => { void toggleRecording(); }}
               disabled={disabled || isTranscribing}
               className={`flex items-center justify-center p-1.5 disabled:opacity-50 ${
                 isRecording
