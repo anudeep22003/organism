@@ -18,70 +18,16 @@ _FONT_PATH = (
 )
 
 
-def _grid_positions(
-    count: int,
-    is_last: bool,
-    cols: int,
-    rows: int,
-    margin: float,
-    gutter: float,
-    cell_w: float,
-    cell_h: float,
-    page_w: float,
-    page_h: float,
-) -> list[tuple[float, float]]:
-    """Return (x, y) bottom-left corner for each image slot on a page.
-
-    reportlab uses bottom-left origin; slot 0 is the top-left cell.
-    For the last page with fewer than cols*rows images, panels are centred.
-    """
-    top_y = page_h - margin - cell_h
-    bot_y = margin
-
-    # Full-page regular positions (row-major, top-to-bottom, left-to-right)
-    regular: list[tuple[float, float]] = [
-        (margin, top_y),  # slot 0: top-left
-        (margin + cell_w + gutter, top_y),  # slot 1: top-right
-        (margin, bot_y),  # slot 2: bottom-left
-        (margin + cell_w + gutter, bot_y),  # slot 3: bottom-right
-    ]
-
-    if not is_last or count == cols * rows:
-        return regular[:count]
-
-    # Last page centring logic
-    if count == 1:
-        x = (page_w - cell_w) / 2
-        return [(x, top_y)]
-    elif count == 2:
-        total_w = 2 * cell_w + gutter
-        x_start = (page_w - total_w) / 2
-        return [
-            (x_start, top_y),
-            (x_start + cell_w + gutter, top_y),
-        ]
-    else:  # count == 3
-        total_w = 2 * cell_w + gutter
-        x_start = (page_w - total_w) / 2
-        x_centre = (page_w - cell_w) / 2
-        return [
-            (x_start, top_y),
-            (x_start + cell_w + gutter, top_y),
-            (x_centre, bot_y),
-        ]
-
-
 def _build_pdf_portrait_a4(image_bytes_list: list[bytes]) -> bytes:
     """
-    Portrait A4, 2×2 grid, 10pt margins, 5pt gutter between cells.
+    Portrait A4, one panel per page, 20pt margins, centred.
 
     Page:        595×842pt (A4 portrait)
-    Margin:      10pt all sides
-    Gutter:      5pt between cells
-    Cell size:   ~285×406pt (2 cols × 2 rows)
+    Margin:      20pt all sides
+    Usable area: 555×802pt
 
-    Images are scaled to fit their cell preserving aspect ratio, then
-    centred within the cell.
+    Each image is scaled to fit the usable area preserving its aspect ratio,
+    then centred both horizontally and vertically within that area.
     """
     from io import BytesIO as _BytesIO
 
@@ -91,46 +37,23 @@ def _build_pdf_portrait_a4(image_bytes_list: list[bytes]) -> bytes:
     from reportlab.pdfgen import canvas as rl_canvas
 
     PAGE_W, PAGE_H = A4  # 595.27 × 841.89
-    MARGIN = 10.0
-    GUTTER = 5.0
-    COLS, ROWS = 2, 2
+    MARGIN = 20.0
 
     usable_w = PAGE_W - 2 * MARGIN
     usable_h = PAGE_H - 2 * MARGIN
-    cell_w = (usable_w - (COLS - 1) * GUTTER) / COLS
-    cell_h = (usable_h - (ROWS - 1) * GUTTER) / ROWS
 
     buf = _BytesIO()
     c = rl_canvas.Canvas(buf, pagesize=A4)
 
-    pages = [image_bytes_list[i : i + 4] for i in range(0, len(image_bytes_list), 4)]
-
-    for page_idx, page_images in enumerate(pages):
-        is_last = page_idx == len(pages) - 1
-        count = len(page_images)
-
-        positions = _grid_positions(
-            count,
-            is_last,
-            COLS,
-            ROWS,
-            MARGIN,
-            GUTTER,
-            cell_w,
-            cell_h,
-            PAGE_W,
-            PAGE_H,
-        )
-
-        for img_bytes, (cell_x, cell_y) in zip(page_images, positions):
-            img = PILImage.open(_BytesIO(img_bytes))
-            iw, ih = img.size
-            scale = min(cell_w / iw, cell_h / ih)
-            dw, dh = iw * scale, ih * scale
-            dx = cell_x + (cell_w - dw) / 2
-            dy = cell_y + (cell_h - dh) / 2
-            c.drawImage(ImageReader(_BytesIO(img_bytes)), dx, dy, dw, dh)
-
+    for img_bytes in image_bytes_list:
+        img = PILImage.open(_BytesIO(img_bytes))
+        iw, ih = img.size
+        scale = min(usable_w / iw, usable_h / ih)
+        dw, dh = iw * scale, ih * scale
+        # Centre within the usable area (reportlab origin is bottom-left)
+        dx = MARGIN + (usable_w - dw) / 2
+        dy = MARGIN + (usable_h - dh) / 2
+        c.drawImage(ImageReader(_BytesIO(img_bytes)), dx, dy, dw, dh)
         c.showPage()
 
     c.save()
