@@ -32,6 +32,12 @@ class Panel(ORMBase):
         default=None,
     )
     order_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    canonical_render_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("image.id", ondelete="SET NULL"),
+        nullable=True,
+        default=None,
+    )
     attributes: Mapped[dict[str, Any]] = mapped_column(
         JSONB, default=dict, nullable=False
     )

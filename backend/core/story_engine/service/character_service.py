@@ -33,7 +33,11 @@ from ..models.image import ImageContentType, ImageDiscriminatorKey
 from ..repository import NotFoundError as RepositoryNotFoundError
 from ..repository import RepositoryV2
 from ..state.character import CharacterBase as CharacterAttributes
-from .image_service import GCSUploadService, ImageService, extract_image_dimensions
+from .image_service import (
+    ImageService,
+    extract_image_dimensions,
+    get_gcs_upload_service,
+)
 
 
 class CharacterService:
@@ -109,7 +113,18 @@ class CharacterService:
     async def get_canonical_character_render(
         self, character_id: uuid.UUID
     ) -> ImageModel | None:
-        """Return the most recent character_render Image for a character, or None."""
+        """Return the canonical render for a character, or None.
+
+        Prefers the user-selected canonical_render_id if set on the character.
+        Falls back to the most recent CHARACTER_RENDER image by created_at when
+        canonical_render_id is NULL (covers existing characters and the period
+        before the user has explicitly chosen one).
+        """
+        character = await self.repository_v2.character.get_character_by_id(character_id)
+        if character is not None and character.canonical_render_id is not None:
+            return await self.repository_v2.image.get_image(
+                character.canonical_render_id
+            )
         return await self.repository_v2.image.get_canonical_render(
             target_id=character_id,
             discriminator_key=ImageDiscriminatorKey.CHARACTER_RENDER,
@@ -126,6 +141,59 @@ class CharacterService:
         return await self.repository_v2.image.get_character_reference_images(
             character_id
         )
+
+    async def set_canonical_render(
+        self,
+        user_id: uuid.UUID,
+        project_id: uuid.UUID,
+        story_id: uuid.UUID,
+        character_id: uuid.UUID,
+        image_id: uuid.UUID,
+    ) -> Character:
+        """Set a specific render as the canonical render for a character.
+
+        Verifies character ownership and that the image is a CHARACTER_RENDER
+        belonging to this character. Returns the updated character.
+        """
+        character = await self.repository_v2.character.get_character_for_user_in_project_and_story(
+            user_id=user_id,
+            project_id=project_id,
+            story_id=story_id,
+            character_id=character_id,
+        )
+        if character is None:
+            raise NotFoundError(
+                f"Character {character_id} not found for user {user_id} in project {project_id}"
+            )
+
+        image = await self.repository_v2.image.get_image(image_id)
+        if (
+            image is None
+            or image.target_id != character_id
+            or image.discriminator_key != ImageDiscriminatorKey.CHARACTER_RENDER
+        ):
+            raise NotFoundError(
+                f"Render image {image_id} not found for character {character_id}"
+            )
+
+        await self.repository_v2.character.set_canonical_render(
+            character_id, story_id, image_id
+        )
+
+        edit_event = EditEvent.create_edit_event(
+            project_id=project_id,
+            target_type=EditEventTargetType.CHARACTER,
+            target_id=character_id,
+            operation_type=EditEventOperationType.SET_CANONICAL_RENDER,
+            user_instruction="",
+            input_snapshot={"image_id": str(image_id)},
+            status=EditEventStatus.SUCCEEDED,
+        )
+        await self.repository_v2.edit_event.add_edit_event_to_db(edit_event)
+
+        await self.db.commit()
+        await self.db.refresh(character)
+        return character
 
     async def extract_characters_from_story(
         self, project_id: uuid.UUID, story_id: uuid.UUID
@@ -460,7 +528,7 @@ class CharacterService:
             width, height = extract_image_dimensions(image_bytes)  # resets seek to 0
 
             # Upload to GCS
-            gcs_service = GCSUploadService()
+            gcs_service = get_gcs_upload_service()
             object_key = (
                 f"{project_id}/character/{character_id}/renders/{edit_event_id}"
             )
@@ -483,7 +551,10 @@ class CharacterService:
             await self.repository_v2.image.create_image(image_model)
             await self.db.flush()
 
-            # TX2: persist image row + complete edit event atomically
+            # TX2: persist image row, set canonical, complete edit event atomically
+            await self.repository_v2.character.set_canonical_render(
+                character_id, story_id, image_model.id
+            )
             await self.repository_v2.edit_event.update_edit_event(
                 edit_event_id,
                 EditEventStatus.SUCCEEDED,
@@ -516,13 +587,153 @@ class CharacterService:
         character_id: uuid.UUID,
         image: UploadFile,
     ) -> ImageModel:
-        return await self.image_service.upload_reference_image(
+        return await self.image_service.upload_character_reference_image(
             user_id=user_id,
             project_id=project_id,
             story_id=story_id,
             character_id=character_id,
             image_byte_stream=image.file,
         )
+
+    async def render_character_edit(
+        self,
+        user_id: uuid.UUID,
+        project_id: uuid.UUID,
+        story_id: uuid.UUID,
+        character_id: uuid.UUID,
+        instruction: str,
+        source_image_id: uuid.UUID,
+        reference_image_id: uuid.UUID | None = None,
+    ) -> ImageModel:
+        """Edit an existing character render via fal image-edit model.
+
+        The source image is passed as a signed URL to fal alongside the user's
+        instruction. A new Image row is created for the result; the source image
+        is unchanged. The edit event records source_image_id (and reference_image_id
+        if provided) so the audit trail is durable even after signed URLs expire.
+
+        Side-effect note: if reference_image_id is provided it must already exist
+        as a CHARACTER_REFERENCE image for this character — upload it first via
+        POST .../upload-reference-image, which creates its own UPLOAD_REFERENCE_IMAGE
+        edit event and persists the image row. That image will continue to appear in
+        the character's referenceImages list after this call.
+        """
+        character = await self.repository_v2.character.get_character_for_user_in_project_and_story(
+            user_id=user_id,
+            project_id=project_id,
+            story_id=story_id,
+            character_id=character_id,
+        )
+        if character is None:
+            raise NotFoundError(
+                f"Character {character_id} not found for user {user_id} in project {project_id}"
+            )
+
+        source_image = await self.repository_v2.image.get_image(source_image_id)
+        if source_image is None or source_image.target_id != character_id:
+            raise NotFoundError(
+                f"Source image {source_image_id} not found for character {character_id}"
+            )
+
+        gcs_service = get_gcs_upload_service()
+        source_signed_url, _ = gcs_service.generate_signed_url(source_image.object_key)
+        image_urls = [source_signed_url]
+
+        input_snapshot: dict[str, str] = {"source_image_id": str(source_image_id)}
+
+        if reference_image_id is not None:
+            reference_image = await self.repository_v2.image.get_image(
+                reference_image_id
+            )
+            if reference_image is None or reference_image.target_id != character_id:
+                raise NotFoundError(
+                    f"Reference image {reference_image_id} not found for character {character_id}"
+                )
+            reference_signed_url, _ = gcs_service.generate_signed_url(
+                reference_image.object_key
+            )
+            image_urls.append(reference_signed_url)
+            input_snapshot["reference_image_id"] = str(reference_image_id)
+
+        edit_event = EditEvent.create_edit_event(
+            project_id=project_id,
+            target_type=EditEventTargetType.CHARACTER,
+            target_id=character_id,
+            operation_type=EditEventOperationType.RENDER_CHARACTER_EDIT,
+            user_instruction=instruction,
+            input_snapshot=input_snapshot,
+            status=EditEventStatus.PENDING,
+        )
+        await self.repository_v2.edit_event.add_edit_event_to_db(edit_event)
+        await self.db.flush()
+        edit_event_id = edit_event.id
+        await self.db.commit()
+
+        try:
+            fal_response = await fal_async_client.subscribe(
+                arguments={"prompt": instruction, "image_urls": image_urls},
+                on_queue_update=lambda status: logger.info(f"Fal status: {status}"),
+            )
+            fal_image_url = self._get_character_url_from_fal_client_response(
+                fal_response
+            )
+
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(fal_image_url)
+                resp.raise_for_status()
+                image_bytes = BytesIO(resp.content)
+                content_length = len(resp.content)
+                raw_content_type = (
+                    resp.headers.get("content-type", "image/jpeg").split(";")[0].strip()
+                )
+                valid_content_types = {ct.value for ct in ImageContentType}
+                content_type = (
+                    ImageContentType(raw_content_type)
+                    if raw_content_type in valid_content_types
+                    else ImageContentType.JPEG
+                )
+
+            width, height = extract_image_dimensions(image_bytes)
+
+            object_key = (
+                f"{project_id}/character/{character_id}/renders/{edit_event_id}"
+            )
+            receipt = gcs_service.upload(object_key, image_bytes, content_type)
+
+            image_model = ImageModel.create(
+                project_id=project_id,
+                user_id=user_id,
+                target_id=character_id,
+                width=width,
+                height=height,
+                content_type=content_type,
+                object_key=receipt.object_key,
+                bucket=receipt.bucket,
+                size_bytes=content_length,
+                discriminator_key=ImageDiscriminatorKey.CHARACTER_RENDER,
+                meta={},
+            )
+            await self.repository_v2.image.create_image(image_model)
+            await self.db.flush()
+
+            await self.repository_v2.character.set_canonical_render(
+                character_id, story_id, image_model.id
+            )
+            await self.repository_v2.edit_event.update_edit_event(
+                edit_event_id,
+                EditEventStatus.SUCCEEDED,
+                output_snapshot={"image_id": str(image_model.id)},
+            )
+            await self.db.commit()
+            await self.db.refresh(image_model)
+            return image_model
+
+        except Exception:
+            await self.repository_v2.edit_event.update_edit_event(
+                edit_event_id, EditEventStatus.FAILED
+            )
+            await self.db.commit()
+            raise
 
     async def delete_reference_image(
         self,

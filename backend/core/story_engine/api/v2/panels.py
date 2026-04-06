@@ -12,21 +12,28 @@ Stories covered here:
 """
 
 import uuid
+from collections.abc import Sequence
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from loguru import logger
 
 from core.auth.dependencies import get_current_user_id
 
-from ...exceptions import NoCharactersError, NoStoryTextError, NotFoundError
-from ...models.image import ImageDiscriminatorKey
+from ...exceptions import (
+    NoCharactersError,
+    NoStoryTextError,
+    NotFoundError,
+    UploadImageError,
+)
 from ...schemas.edit_event import EditEventResponseSchema
 from ...schemas.image import ImageResponseSchema
 from ...schemas.panel import (
     PanelGenerateRequest,
+    PanelRenderEditRequest,
+    PanelRenderReferencesSchema,
     PanelResponseSchema,
-    PanelWithRenderSchema,
+    SetCanonicalPanelRenderRequest,
 )
 from ...service import PanelService
 from ..dependencies import get_panel_service
@@ -34,13 +41,22 @@ from ..dependencies import get_panel_service
 router = APIRouter(tags=["panels", "v2"])
 
 
-def _build_panel_with_render(
-    panel: object, image: object | None
-) -> PanelWithRenderSchema:
-    """Assemble a PanelWithRenderSchema from ORM objects (per Decision 12)."""
-    return PanelWithRenderSchema(
-        **PanelResponseSchema.model_validate(panel).model_dump(),
+def _build_panel_full(
+    panel: object,
+    image: object | None,
+    reference_images: Sequence[object] | None = None,
+) -> PanelRenderReferencesSchema:
+    """Assemble a PanelRenderReferencesSchema from ORM objects.
+
+    Panel data is nested under 'panel', image fields sit at top level.
+    Symmetric with _build_character_full in character.py.
+    """
+    return PanelRenderReferencesSchema(
+        panel=PanelResponseSchema.model_validate(panel),
         canonical_render=ImageResponseSchema.model_validate(image) if image else None,
+        reference_images=[
+            ImageResponseSchema.model_validate(r) for r in (reference_images or [])
+        ],
     )
 
 
@@ -87,11 +103,11 @@ async def list_panels(
     story_id: uuid.UUID,
     user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     service: Annotated[PanelService, Depends(get_panel_service)],
-) -> list[PanelWithRenderSchema]:
+) -> list[PanelRenderReferencesSchema]:
     """Return all panels for a story ordered by order_index, with canonical renders."""
     try:
         pairs = await service.get_panels(project_id, story_id)
-        return [_build_panel_with_render(panel, render) for panel, render in pairs]
+        return [_build_panel_full(panel, render) for panel, render in pairs]
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
@@ -117,11 +133,11 @@ async def get_panel(
     panel_id: uuid.UUID,
     user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     service: Annotated[PanelService, Depends(get_panel_service)],
-) -> PanelWithRenderSchema:
+) -> PanelRenderReferencesSchema:
     """Return a single panel by ID, with canonical render."""
     try:
         panel, render = await service.get_panel(project_id, story_id, panel_id)
-        return _build_panel_with_render(panel, render)
+        return _build_panel_full(panel, render)
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
@@ -148,7 +164,7 @@ async def generate_panel(
     user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     service: Annotated[PanelService, Depends(get_panel_service)],
     body: PanelGenerateRequest | None = None,
-) -> PanelWithRenderSchema:
+) -> PanelRenderReferencesSchema:
     """Generate or regenerate content for a single panel (Decision 8).
 
     First call (empty attributes): generates from story context.
@@ -161,11 +177,8 @@ async def generate_panel(
             panel_id=panel_id,
             instruction=body.instruction if body is not None else None,
         )
-        render = await service.repository_v2.image.get_canonical_render(
-            target_id=panel_id,
-            discriminator_key=ImageDiscriminatorKey.PANEL_RENDER,
-        )
-        return _build_panel_with_render(panel, render)
+        render = await service.get_canonical_panel_render(panel_id)
+        return _build_panel_full(panel, render)
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except NoCharactersError as e:
@@ -297,15 +310,16 @@ async def generate_panels(
     story_id: uuid.UUID,
     user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     service: Annotated[PanelService, Depends(get_panel_service)],
-) -> list[PanelResponseSchema]:
+) -> list[PanelRenderReferencesSchema]:
     """Generate all panels for a story from its story text.
 
     Calls the LLM to extract structured panel content, persists each panel
     with a per-panel EditEvent(GENERATE_PANEL, SUCCEEDED).
+    No render exists at this point, so canonical_render is always None.
     """
     try:
         panels = await service.generate_panels(project_id, story_id)
-        return [PanelResponseSchema.model_validate(p) for p in panels]
+        return [_build_panel_full(p, None) for p in panels]
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except NoStoryTextError as e:
@@ -319,4 +333,208 @@ async def generate_panels(
         raise HTTPException(
             status_code=500,
             detail="An unexpected error occurred while generating panels",
+        )
+
+
+@router.post(
+    "/project/{project_id}/story/{story_id}/panel/{panel_id}/render/edit",
+    status_code=201,
+)
+async def render_panel_edit(
+    project_id: uuid.UUID,
+    story_id: uuid.UUID,
+    panel_id: uuid.UUID,
+    body: PanelRenderEditRequest,
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    service: Annotated[PanelService, Depends(get_panel_service)],
+) -> ImageResponseSchema:
+    """Edit an existing panel render using fal's image-edit model.
+
+    Optionally accepts a reference_image_id to guide the visual style of the edit.
+    If provided, the reference image must already exist as a render for this panel.
+
+    Side-effect: the reference image (if provided) is not consumed or removed by
+    this call — it remains associated with the panel independently.
+    """
+    try:
+        image = await service.render_panel_edit(
+            user_id=user_id,
+            project_id=project_id,
+            story_id=story_id,
+            panel_id=panel_id,
+            instruction=body.instruction,
+            source_image_id=body.source_image_id,
+            reference_image_id=body.reference_image_id,
+        )
+        return ImageResponseSchema.model_validate(image)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.exception(f"Unexpected error editing render for panel {panel_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while editing the panel render",
+        )
+
+
+# ---------------------------------------------------------------------------
+# set-canonical-render
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/project/{project_id}/story/{story_id}/panel/{panel_id}/set-canonical-render",
+    status_code=200,
+)
+async def set_canonical_render(
+    project_id: uuid.UUID,
+    story_id: uuid.UUID,
+    panel_id: uuid.UUID,
+    body: SetCanonicalPanelRenderRequest,
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    service: Annotated[PanelService, Depends(get_panel_service)],
+) -> PanelRenderReferencesSchema:
+    """Set a specific render image as the canonical render for a panel.
+
+    The chosen image must already exist as a PANEL_RENDER for this panel.
+    Returns the full panel payload with the updated canonical render.
+    """
+    try:
+        panel = await service.set_canonical_render(
+            user_id=user_id,
+            project_id=project_id,
+            story_id=story_id,
+            panel_id=panel_id,
+            image_id=body.image_id,
+        )
+        render = await service.get_canonical_panel_render(panel.id)
+        return _build_panel_full(panel, render)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.exception(
+            f"Unexpected error setting canonical render for panel {panel_id}: {e}"
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while setting the canonical render",
+        )
+
+
+# ---------------------------------------------------------------------------
+# upload-reference-image
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/project/{project_id}/story/{story_id}/panel/{panel_id}/upload-reference-image",
+    status_code=status.HTTP_201_CREATED,
+)
+async def upload_reference_image(
+    project_id: uuid.UUID,
+    story_id: uuid.UUID,
+    panel_id: uuid.UUID,
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    service: Annotated[PanelService, Depends(get_panel_service)],
+    image: UploadFile = File(...),
+) -> PanelRenderReferencesSchema:
+    """Upload a reference image for a panel.
+
+    The uploaded image is stored as a PANEL_REFERENCE and returned in the
+    referenceImages list of the full panel payload.
+    """
+    try:
+        await service.upload_reference_image(
+            user_id=user_id,
+            project_id=project_id,
+            story_id=story_id,
+            panel_id=panel_id,
+            image=image,
+        )
+        panel, render = await service.get_panel(project_id, story_id, panel_id)
+        refs = await service.get_panel_reference_images(panel_id)
+        return _build_panel_full(panel, render, refs)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except UploadImageError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+    except Exception as e:
+        logger.exception(
+            f"Unexpected error uploading reference image for panel {panel_id}: {e}"
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while uploading the reference image",
+        )
+
+
+# ---------------------------------------------------------------------------
+# reference-images (list)
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/project/{project_id}/story/{story_id}/panel/{panel_id}/reference-images",
+    status_code=200,
+)
+async def list_panel_reference_images(
+    project_id: uuid.UUID,
+    story_id: uuid.UUID,
+    panel_id: uuid.UUID,
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    service: Annotated[PanelService, Depends(get_panel_service)],
+) -> list[ImageResponseSchema]:
+    """Return all reference images for a panel, ordered newest first."""
+    try:
+        # Verify panel exists within story/project scope
+        await service.get_panel(project_id, story_id, panel_id)
+        images = await service.get_panel_reference_images(panel_id)
+        return [ImageResponseSchema.model_validate(img) for img in images]
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.exception(
+            f"Unexpected error listing reference images for panel {panel_id}: {e}"
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while listing reference images",
+        )
+
+
+# ---------------------------------------------------------------------------
+# delete-reference-image
+# ---------------------------------------------------------------------------
+
+
+@router.delete(
+    "/project/{project_id}/story/{story_id}/panel/{panel_id}/reference-image/{image_id}",
+    status_code=204,
+)
+async def delete_panel_reference_image(
+    project_id: uuid.UUID,
+    story_id: uuid.UUID,
+    panel_id: uuid.UUID,
+    image_id: uuid.UUID,
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    service: Annotated[PanelService, Depends(get_panel_service)],
+) -> None:
+    """Delete a reference image from a panel."""
+    try:
+        await service.delete_reference_image(
+            user_id=user_id,
+            project_id=project_id,
+            story_id=story_id,
+            panel_id=panel_id,
+            image_id=image_id,
+        )
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.exception(
+            f"Unexpected error deleting reference image {image_id} for panel {panel_id}: {e}"
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while deleting the reference image",
         )

@@ -19,18 +19,50 @@ class ImageRepository:
     async def get_image(self, image_id: uuid.UUID) -> Image | None:
         return await self.db.get(Image, image_id)
 
-    async def get_character_reference_images(
-        self, character_id: uuid.UUID
+    async def _get_reference_images(
+        self, target_id: uuid.UUID, discriminator_key: ImageDiscriminatorKey
     ) -> list[Image]:
+        """Return all reference images for a target, newest first."""
         result = await self.db.execute(
             select(Image)
             .where(
-                Image.target_id == character_id,
-                Image.discriminator_key == ImageDiscriminatorKey.CHARACTER_REFERENCE,
+                Image.target_id == target_id,
+                Image.discriminator_key == discriminator_key,
             )
             .order_by(Image.created_at.desc())
         )
         return list(result.scalars().all())
+
+    async def _delete_reference_image(
+        self,
+        image_id: uuid.UUID,
+        target_id: uuid.UUID,
+        discriminator_key: ImageDiscriminatorKey,
+        target_label: str,
+    ) -> None:
+        """Delete a single reference image, verifying target ownership and discriminator."""
+        image = await self.get_image(image_id)
+        if (
+            image is None
+            or image.target_id != target_id
+            or image.discriminator_key != discriminator_key
+        ):
+            raise NotFoundError(
+                f"Reference image {image_id} not found for {target_label} {target_id}"
+            )
+        await self.db.delete(image)
+
+    async def get_character_reference_images(
+        self, character_id: uuid.UUID
+    ) -> list[Image]:
+        return await self._get_reference_images(
+            character_id, ImageDiscriminatorKey.CHARACTER_REFERENCE
+        )
+
+    async def get_panel_reference_images(self, panel_id: uuid.UUID) -> list[Image]:
+        return await self._get_reference_images(
+            panel_id, ImageDiscriminatorKey.PANEL_REFERENCE
+        )
 
     async def get_canonical_render(
         self, target_id: uuid.UUID, discriminator_key: ImageDiscriminatorKey
@@ -76,13 +108,20 @@ class ImageRepository:
         self, image_id: uuid.UUID, character_id: uuid.UUID
     ) -> None:
         """Delete a single CHARACTER_REFERENCE image, verifying it belongs to the character."""
-        image = await self.get_image(image_id)
-        if (
-            image is None
-            or image.target_id != character_id
-            or image.discriminator_key != ImageDiscriminatorKey.CHARACTER_REFERENCE
-        ):
-            raise NotFoundError(
-                f"Reference image {image_id} not found for character {character_id}"
-            )
-        await self.db.delete(image)
+        await self._delete_reference_image(
+            image_id,
+            character_id,
+            ImageDiscriminatorKey.CHARACTER_REFERENCE,
+            "character",
+        )
+
+    async def delete_panel_reference_image(
+        self, image_id: uuid.UUID, panel_id: uuid.UUID
+    ) -> None:
+        """Delete a single PANEL_REFERENCE image, verifying it belongs to the panel."""
+        await self._delete_reference_image(
+            image_id,
+            panel_id,
+            ImageDiscriminatorKey.PANEL_REFERENCE,
+            "panel",
+        )

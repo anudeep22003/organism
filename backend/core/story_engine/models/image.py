@@ -26,6 +26,7 @@ class ImageDiscriminatorKey(StrEnum):
     CHARACTER_REFERENCE = "character_reference"
     CHARACTER_RENDER = "character_render"
     PANEL_RENDER = "panel_render"
+    PANEL_REFERENCE = "panel_reference"
 
 
 class Image(ORMBase):

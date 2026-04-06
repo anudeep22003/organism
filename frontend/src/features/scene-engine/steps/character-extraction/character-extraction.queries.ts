@@ -31,4 +31,5 @@ export const charactersOptions = (projectId: string, storyId: string) =>
         `${STORY_API_BASE}/project/${projectId}/story/${storyId}/characters`,
       ),
     enabled: !!projectId && !!storyId,
+    staleTime: Infinity,
   });

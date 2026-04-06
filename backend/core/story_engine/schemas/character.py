@@ -45,3 +45,13 @@ class CharacterUpdateSchema(AliasedBaseModel):
 
 class CharacterRefineRequest(AliasedBaseModel):
     instruction: str
+
+
+class CharacterRenderEditRequest(AliasedBaseModel):
+    instruction: str
+    source_image_id: uuid.UUID
+    reference_image_id: uuid.UUID | None = None
+
+
+class SetCanonicalRenderRequest(AliasedBaseModel):
+    image_id: uuid.UUID

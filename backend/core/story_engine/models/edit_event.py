@@ -25,8 +25,11 @@ class EditEventOperationType(StrEnum):
     REFINE_CHARACTER = "refine_character"
     UPLOAD_REFERENCE_IMAGE = "upload_reference_image"
     RENDER_CHARACTER = "render_character"
+    RENDER_CHARACTER_EDIT = "render_character_edit"
+    SET_CANONICAL_RENDER = "set_canonical_render"
     GENERATE_PANEL = "generate_panel"
     RENDER_PANEL = "render_panel"
+    RENDER_PANEL_EDIT = "render_panel_edit"
 
 
 class EditEventStatus(StrEnum):

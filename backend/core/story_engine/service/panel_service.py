@@ -13,6 +13,7 @@ from io import BytesIO
 from typing import Any
 
 import httpx
+from fastapi import UploadFile
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -35,13 +36,24 @@ from ..models.image import Image as ImageModel
 from ..models.image import ImageContentType, ImageDiscriminatorKey
 from ..repository import RepositoryV2
 from ..schemas.panel import GeneratedPanelsResponse, PanelContent, PanelContentBase
-from .image_service import GCSUploadService, extract_image_dimensions
+from .image_service import (
+    ImageService,
+    extract_image_dimensions,
+    get_gcs_upload_service,
+)
 
 
 class PanelService:
-    def __init__(self, db_session: AsyncSession):
+    def __init__(
+        self,
+        db_session: AsyncSession,
+        image_service: ImageService | None = None,
+    ):
         self.db = db_session
         self.repository_v2 = RepositoryV2(db_session)
+        self.image_service = image_service or ImageService(
+            db=self.db, repository_v2=self.repository_v2
+        )
 
     # -----------------------------------------------------------------------
     # generate_panels (bulk)
@@ -366,6 +378,143 @@ class PanelService:
         )
 
     # -----------------------------------------------------------------------
+    # get_canonical_panel_render
+    # -----------------------------------------------------------------------
+
+    async def get_canonical_panel_render(
+        self, panel_id: uuid.UUID
+    ) -> ImageModel | None:
+        """Return the canonical render for a panel.
+
+        Prefers canonical_render_id if explicitly set on the panel; falls back
+        to the most-recently created PANEL_RENDER image when the pointer is NULL.
+        Mirrors get_canonical_character_render in character_service.py.
+        """
+        panel = await self.repository_v2.panel.get_panel_by_id(panel_id)
+        if panel is not None and panel.canonical_render_id is not None:
+            return await self.repository_v2.image.get_image(panel.canonical_render_id)
+        return await self.repository_v2.image.get_canonical_render(
+            target_id=panel_id,
+            discriminator_key=ImageDiscriminatorKey.PANEL_RENDER,
+        )
+
+    # -----------------------------------------------------------------------
+    # set_canonical_render (explicit user override)
+    # -----------------------------------------------------------------------
+
+    async def set_canonical_render(
+        self,
+        user_id: uuid.UUID,
+        project_id: uuid.UUID,
+        story_id: uuid.UUID,
+        panel_id: uuid.UUID,
+        image_id: uuid.UUID,
+    ) -> Panel:
+        """Set a specific render as the canonical render for a panel.
+
+        Verifies story/panel ownership and that the image is a PANEL_RENDER
+        belonging to this panel. Creates a SET_CANONICAL_RENDER audit event
+        immediately as SUCCEEDED (no PENDING state). Returns the updated panel.
+        """
+        story = await self.repository_v2.story.get_story(project_id, story_id)
+        if story is None:
+            raise NotFoundError(f"Story {story_id} not found in project {project_id}")
+
+        panel = await self.repository_v2.panel.get_panel(panel_id, story_id)
+        if panel is None:
+            raise NotFoundError(f"Panel {panel_id} not found in story {story_id}")
+
+        image = await self.repository_v2.image.get_image(image_id)
+        if (
+            image is None
+            or image.target_id != panel_id
+            or image.discriminator_key != ImageDiscriminatorKey.PANEL_RENDER
+        ):
+            raise NotFoundError(
+                f"Render image {image_id} not found for panel {panel_id}"
+            )
+
+        await self.repository_v2.panel.set_canonical_render(
+            panel_id, story_id, image_id
+        )
+
+        edit_event = EditEvent.create_edit_event(
+            project_id=project_id,
+            target_type=EditEventTargetType.PANEL,
+            target_id=panel_id,
+            operation_type=EditEventOperationType.SET_CANONICAL_RENDER,
+            user_instruction="",
+            input_snapshot={"image_id": str(image_id)},
+            status=EditEventStatus.SUCCEEDED,
+        )
+        await self.repository_v2.edit_event.add_edit_event_to_db(edit_event)
+
+        await self.db.commit()
+        await self.db.refresh(panel)
+        return panel
+
+    # -----------------------------------------------------------------------
+    # Reference image upload / retrieval
+    # -----------------------------------------------------------------------
+
+    async def upload_reference_image(
+        self,
+        user_id: uuid.UUID,
+        project_id: uuid.UUID,
+        story_id: uuid.UUID,
+        panel_id: uuid.UUID,
+        image: UploadFile,
+    ) -> ImageModel:
+        """Upload a reference image for a panel.
+
+        Delegates to ImageService.upload_panel_reference_image which handles
+        GCS upload, Image row creation, and UPLOAD_REFERENCE_IMAGE audit event.
+        """
+        return await self.image_service.upload_panel_reference_image(
+            user_id=user_id,
+            project_id=project_id,
+            story_id=story_id,
+            panel_id=panel_id,
+            image_byte_stream=image.file,
+        )
+
+    async def get_panel_reference_images(self, panel_id: uuid.UUID) -> list[ImageModel]:
+        """Return all PANEL_REFERENCE images for a panel, newest first."""
+        return await self.repository_v2.image.get_panel_reference_images(panel_id)
+
+    async def delete_reference_image(
+        self,
+        user_id: uuid.UUID,
+        project_id: uuid.UUID,
+        story_id: uuid.UUID,
+        panel_id: uuid.UUID,
+        image_id: uuid.UUID,
+    ) -> None:
+        """Delete a PANEL_REFERENCE image from a panel.
+
+        Verifies the panel exists in the given story/project, then delegates
+        deletion to the image repository which validates target ownership and
+        discriminator before deleting.
+        """
+        from ..repository.exception import NotFoundError as RepositoryNotFoundError
+
+        story = await self.repository_v2.story.get_story(project_id, story_id)
+        if story is None:
+            raise NotFoundError(f"Story {story_id} not found in project {project_id}")
+
+        panel = await self.repository_v2.panel.get_panel(panel_id, story_id)
+        if panel is None:
+            raise NotFoundError(f"Panel {panel_id} not found in story {story_id}")
+
+        try:
+            await self.repository_v2.image.delete_panel_reference_image(
+                image_id, panel_id
+            )
+            await self.db.commit()
+        except RepositoryNotFoundError as e:
+            raise NotFoundError(str(e)) from e
+
+    # -----------------------------------------------------------------------
     # get_panels (for Story 30)
     # -----------------------------------------------------------------------
 
@@ -386,10 +535,7 @@ class PanelService:
 
         result: list[tuple[Panel, ImageModel | None]] = []
         for panel in panels:
-            render = await self.repository_v2.image.get_canonical_render(
-                target_id=panel.id,
-                discriminator_key=ImageDiscriminatorKey.PANEL_RENDER,
-            )
+            render = await self.get_canonical_panel_render(panel.id)
             result.append((panel, render))
 
         return result
@@ -402,7 +548,6 @@ class PanelService:
         self, project_id: uuid.UUID, story_id: uuid.UUID, panel_id: uuid.UUID
     ) -> tuple[Panel, Any]:
         """Return a single panel with its canonical render."""
-        from ..models.image import Image as ImageModel
 
         story = await self.repository_v2.story.get_story(project_id, story_id)
         if story is None:
@@ -412,10 +557,7 @@ class PanelService:
         if panel is None:
             raise NotFoundError(f"Panel {panel_id} not found in story {story_id}")
 
-        render: ImageModel | None = await self.repository_v2.image.get_canonical_render(
-            target_id=panel_id,
-            discriminator_key=ImageDiscriminatorKey.PANEL_RENDER,
-        )
+        render = await self.get_canonical_panel_render(panel_id)
         return panel, render
 
     # -----------------------------------------------------------------------
@@ -470,7 +612,7 @@ class PanelService:
             character_ids = await self.repository_v2.panel.get_character_ids_for_panel(
                 panel_id
             )
-            gcs_service = GCSUploadService()
+            gcs_service = get_gcs_upload_service()
             image_urls: list[str] = []
             for character_id in character_ids:
                 character_render = await self.repository_v2.image.get_canonical_render(
@@ -539,7 +681,145 @@ class PanelService:
             await self.repository_v2.image.create_image(image_model)
             await self.db.flush()
 
+            # Auto-set canonical render pointer (no edit event — RENDER_PANEL records it)
+            await self.repository_v2.panel.set_canonical_render(
+                panel_id, story_id, image_model.id
+            )
+
             # TX2: complete edit event
+            await self.repository_v2.edit_event.update_edit_event(
+                edit_event_id,
+                EditEventStatus.SUCCEEDED,
+                output_snapshot={"image_id": str(image_model.id)},
+            )
+            await self.db.commit()
+            await self.db.refresh(image_model)
+            return image_model
+
+        except Exception:
+            await self.repository_v2.edit_event.update_edit_event(
+                edit_event_id, EditEventStatus.FAILED
+            )
+            await self.db.commit()
+            raise
+
+    async def render_panel_edit(
+        self,
+        user_id: uuid.UUID,
+        project_id: uuid.UUID,
+        story_id: uuid.UUID,
+        panel_id: uuid.UUID,
+        instruction: str,
+        source_image_id: uuid.UUID,
+        reference_image_id: uuid.UUID | None = None,
+    ) -> ImageModel:
+        """Edit an existing panel render via fal image-edit model.
+
+        The source image is passed as a signed URL to fal alongside the user's
+        instruction. A new Image row is created for the result; the source image
+        is unchanged. The edit event records source_image_id (and reference_image_id
+        if provided) for a durable audit trail.
+
+        Side-effect note: if reference_image_id is provided it must already exist
+        as a PANEL_RENDER image for this panel — upload or render it first via the
+        appropriate endpoint. That image persists independently of this call.
+        """
+        story = await self.repository_v2.story.get_story(project_id, story_id)
+        if story is None:
+            raise NotFoundError(f"Story {story_id} not found")
+
+        panel = await self.repository_v2.panel.get_panel(panel_id, story_id)
+        if panel is None:
+            raise NotFoundError(f"Panel {panel_id} not found in story {story_id}")
+
+        source_image = await self.repository_v2.image.get_image(source_image_id)
+        if source_image is None or source_image.target_id != panel_id:
+            raise NotFoundError(
+                f"Source image {source_image_id} not found for panel {panel_id}"
+            )
+
+        gcs_service = get_gcs_upload_service()
+        source_signed_url, _ = gcs_service.generate_signed_url(source_image.object_key)
+        image_urls = [source_signed_url]
+
+        input_snapshot: dict[str, str] = {"source_image_id": str(source_image_id)}
+
+        if reference_image_id is not None:
+            reference_image = await self.repository_v2.image.get_image(
+                reference_image_id
+            )
+            if reference_image is None or reference_image.target_id != panel_id:
+                raise NotFoundError(
+                    f"Reference image {reference_image_id} not found for panel {panel_id}"
+                )
+            reference_signed_url, _ = gcs_service.generate_signed_url(
+                reference_image.object_key
+            )
+            image_urls.append(reference_signed_url)
+            input_snapshot["reference_image_id"] = str(reference_image_id)
+
+        edit_event = EditEvent.create_edit_event(
+            project_id=project_id,
+            target_type=EditEventTargetType.PANEL,
+            target_id=panel_id,
+            operation_type=EditEventOperationType.RENDER_PANEL_EDIT,
+            user_instruction=instruction,
+            input_snapshot=input_snapshot,
+            status=EditEventStatus.PENDING,
+        )
+        await self.repository_v2.edit_event.add_edit_event_to_db(edit_event)
+        await self.db.flush()
+        edit_event_id = edit_event.id
+        await self.db.commit()
+
+        try:
+            fal_response = await fal_async_client.subscribe(
+                arguments={"prompt": instruction, "image_urls": image_urls},
+                on_queue_update=lambda status: logger.debug(f"Fal status: {status}"),
+            )
+            fal_image_url = self._extract_fal_image_url(fal_response)
+
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(fal_image_url)
+                resp.raise_for_status()
+                image_bytes = BytesIO(resp.content)
+                content_length = len(resp.content)
+                raw_ct = (
+                    resp.headers.get("content-type", "image/jpeg").split(";")[0].strip()
+                )
+                valid_cts = {ct.value for ct in ImageContentType}
+                content_type = (
+                    ImageContentType(raw_ct)
+                    if raw_ct in valid_cts
+                    else ImageContentType.JPEG
+                )
+
+            width, height = extract_image_dimensions(image_bytes)
+
+            object_key = f"{project_id}/panel/{panel_id}/renders/{edit_event_id}"
+            receipt = gcs_service.upload(object_key, image_bytes, content_type)
+
+            image_model = ImageModel.create(
+                project_id=project_id,
+                user_id=user_id,
+                target_id=panel_id,
+                width=width,
+                height=height,
+                content_type=content_type,
+                object_key=receipt.object_key,
+                bucket=receipt.bucket,
+                size_bytes=content_length,
+                discriminator_key=ImageDiscriminatorKey.PANEL_RENDER,
+                meta={},
+            )
+            await self.repository_v2.image.create_image(image_model)
+            await self.db.flush()
+
+            # Auto-set canonical render pointer (no edit event — RENDER_PANEL_EDIT records it)
+            await self.repository_v2.panel.set_canonical_render(
+                panel_id, story_id, image_model.id
+            )
+
             await self.repository_v2.edit_event.update_edit_event(
                 edit_event_id,
                 EditEventStatus.SUCCEEDED,

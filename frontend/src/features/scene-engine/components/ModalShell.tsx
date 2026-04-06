@@ -22,7 +22,7 @@ export function ModalShell({
       <div
         className={`absolute inset-0 ${zClass} flex items-center justify-center p-4`}
       >
-        <div className="flex w-full max-w-2xl max-h-[90vh] flex-col border border-border bg-background">
+        <div className="flex w-full max-w-2xl h-full flex-col border border-border bg-background">
           <div className="flex shrink-0 items-center justify-between border-b border-border px-3 py-2">
             <div className="min-w-0 flex-1">
               {typeof header === "string" ? (
@@ -42,7 +42,7 @@ export function ModalShell({
             </div>
           </div>
 
-          <div className="relative flex flex-col">{children}</div>
+          <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
         </div>
       </div>
     </>
