@@ -1,4 +1,15 @@
 import { useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { ModalShell } from "@scene-engine/components/ModalShell";
 import PromptInput from "@scene-engine/components/PromptInput";
 import { ValidationErrorBlock } from "@scene-engine/components/ValidationErrorBlock";
@@ -14,11 +25,12 @@ type PanelModalProps = {
   displayIndex: number;
   onDismiss: () => void;
   onImageClick: (imageId: string) => void;
+  onDeleted: () => void;
 };
 
-export function PanelModal({ bundle, displayIndex, onDismiss, onImageClick }: PanelModalProps) {
+export function PanelModal({ bundle, displayIndex, onDismiss, onImageClick, onDeleted }: PanelModalProps) {
   const { projectId, storyId } = useSceneEngine();
-  const { refinePanel, isRefining, uploadReferenceImage, isUploading } =
+  const { refinePanel, isRefining, uploadReferenceImage, isUploading, deletePanel, isDeletingPanel } =
     usePanelExtraction(projectId, storyId);
 
   const panelId = bundle.panel.id;
@@ -31,8 +43,36 @@ export function PanelModal({ bundle, displayIndex, onDismiss, onImageClick }: Pa
     onReject: setValidationError,
   });
 
+  const headerActions = (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <button className="border border-destructive/40 px-2 py-1 text-[10px] text-destructive hover:bg-destructive/10 disabled:opacity-50">
+          Delete
+        </button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete Panel {displayIndex}?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This cannot be undone. The panel and all its renders will be permanently removed.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => deletePanel({ panelId }, { onSuccess: onDeleted })}
+            disabled={isDeletingPanel}
+            className="bg-destructive text-white hover:bg-destructive/90"
+          >
+            {isDeletingPanel ? "Deleting…" : "Delete"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
   return (
-    <ModalShell header={`Panel ${displayIndex}`} onDismiss={onDismiss}>
+    <ModalShell header={`Panel ${displayIndex}`} onDismiss={onDismiss} headerActions={headerActions}>
       <div className="flex min-h-0 flex-1">
         <div className="min-h-0 flex-1 overflow-y-auto p-3">
           <PanelAttributes panel={bundle.panel} />
