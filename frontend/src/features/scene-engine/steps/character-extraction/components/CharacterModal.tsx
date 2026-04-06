@@ -14,7 +14,7 @@ type CharacterModalProps = {
 
 export function CharacterModal({ bundle, onDismiss, onImageClick }: CharacterModalProps) {
   const { projectId, storyId } = useSceneEngine();
-  const { refineCharacter, isRefining, uploadReferenceImage, isUploading } =
+  const { refineCharacter, isRefining } =
     useCharacterExtraction(projectId, storyId);
 
   const characterId = bundle.character.id;
@@ -34,13 +34,9 @@ export function CharacterModal({ bundle, onDismiss, onImageClick }: CharacterMod
       <div className="shrink-0 border-t border-border">
         <PromptInput
           onSend={(instruction) => refineCharacter({ characterId, instruction })}
-          onUpload={(files) =>
-            files.forEach((file) => uploadReferenceImage({ characterId, file }))
-          }
-          showUpload={true}
-          acceptedFileTypes="image/*"
           placeholder="Refine this character…"
-          disabled={isRefining || isUploading}
+          disabled={isRefining}
+          enableVoiceTranscription
         />
       </div>
     </ModalShell>

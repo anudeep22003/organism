@@ -53,7 +53,11 @@ function ChatPanel({ onSend }: { onSend: (value: string) => void }) {
   return (
     <div className="flex h-full w-full flex-col border border-border">
       <div className="flex-1" />
-      <PromptInput onSend={onSend} showUpload={false} placeholder="Write your story prompt..." />
+      <PromptInput
+        onSend={(value) => onSend(value)}
+        placeholder="Write your story prompt..."
+        enableVoiceTranscription
+      />
     </div>
   );
 }

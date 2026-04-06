@@ -82,9 +82,11 @@ export function CharacterRenderModal({ bundle, onDismiss }: CharacterRenderModal
       <div className="shrink-0 border-t border-border">
         <PromptInput
           onSend={handleSend}
-          showUpload={false}
           placeholder={selectedIndex === 0 ? "Describe an edit…" : "Only the most recent render can be edited"}
           disabled={isEditing || isLoading || !renders || renders.length === 0 || selectedIndex !== 0}
+          enableUploads
+          maxFiles={3}
+          enableVoiceTranscription
         />
       </div>
     </ModalShell>
