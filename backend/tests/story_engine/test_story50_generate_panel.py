@@ -4,12 +4,13 @@ Story 50 test gate — POST /panel/{panel_id}/generate endpoint.
 Test invariants:
   1. First call (empty attributes): creates EditEvent(GENERATE_PANEL, SUCCEEDED),
      panel.attributes is populated, panel.source_event_id is set.
-  2. Second call (populated attributes): updates panel.attributes, creates a
-     new EditEvent(GENERATE_PANEL, SUCCEEDED), source_event_id updated.
-  3. input_snapshot on the EditEvent contains the attributes before the change.
+  2. Calling generate on a panel that already has content returns 400.
+  3. input_snapshot on the EditEvent is empty dict (first-gen has no prior attrs).
   4. output_snapshot contains the new attributes.
   5. Returns 404 for a panel that does not exist.
   6. EditEvent is marked FAILED (not left as PENDING) when the LLM call raises.
+  7. generate creates panel_character join rows for characters in the LLM response.
+  8. generate with a character slug not in the story does not create a join row for it.
 """
 
 import uuid
@@ -28,6 +29,7 @@ from core.story_engine.models.edit_event import (
     EditEventStatus,
     EditEventTargetType,
 )
+from core.story_engine.models.panel_character import PanelCharacter
 
 
 def _auth_headers(user_id: uuid.UUID) -> dict[str, str]:
@@ -153,7 +155,7 @@ async def test_generate_panel_first_call_sets_source_event_id(
     assert refreshed_panel.source_event_id is not None
 
 
-async def test_generate_panel_input_snapshot_contains_before_attributes(
+async def test_generate_panel_returns_400_if_already_generated(
     api_client: AsyncClient,
     db_session: AsyncSession,
     user: User,
@@ -161,13 +163,37 @@ async def test_generate_panel_input_snapshot_contains_before_attributes(
     story: Story,
     character: Character,
 ) -> None:
-    """input_snapshot on EditEvent captures attributes before the change."""
-    initial_attrs = {"background": "Forest", "dialogue": "Hello", "characters": []}
-    panel = Panel.create(story_id=story.id, order_index=0, attributes=initial_attrs)
+    """400 when panel already has content — caller should use /refine instead."""
+    panel = Panel.create(
+        story_id=story.id,
+        order_index=0,
+        attributes={"background": "Forest", "dialogue": "Hello", "characters": []},
+    )
     db_session.add(panel)
     await db_session.commit()
 
-    mock_content = _mock_panel_content(background="Mountain")
+    response = await api_client.post(
+        f"/api/comic-builder/v2/project/{project.id}/story/{story.id}"
+        f"/panel/{panel.id}/generate",
+        headers=_auth_headers(user.id),
+    )
+    assert response.status_code == 400
+
+
+async def test_generate_panel_input_snapshot_is_empty_on_first_gen(
+    api_client: AsyncClient,
+    db_session: AsyncSession,
+    user: User,
+    project: Project,
+    story: Story,
+    character: Character,
+) -> None:
+    """input_snapshot is empty dict on first generation (no prior attributes)."""
+    panel = Panel.create(story_id=story.id, order_index=0, attributes={})
+    db_session.add(panel)
+    await db_session.commit()
+
+    mock_content = _mock_panel_content()
 
     with patch(
         "core.story_engine.service.panel_service.instructor_client.chat.completions.create",
@@ -177,7 +203,6 @@ async def test_generate_panel_input_snapshot_contains_before_attributes(
         await api_client.post(
             f"/api/comic-builder/v2/project/{project.id}/story/{story.id}"
             f"/panel/{panel.id}/generate",
-            json={"instruction": "Change location"},
             headers=_auth_headers(user.id),
         )
 
@@ -188,7 +213,7 @@ async def test_generate_panel_input_snapshot_contains_before_attributes(
         )
     )
     event = result.scalar_one()
-    assert event.input_snapshot == initial_attrs
+    assert event.input_snapshot == {}
 
 
 async def test_generate_panel_output_snapshot_contains_new_attributes(
@@ -279,3 +304,80 @@ async def test_generate_panel_edit_event_marked_failed_on_llm_error(
     event = result.scalar_one_or_none()
     assert event is not None
     assert event.status == EditEventStatus.FAILED
+
+
+async def test_generate_panel_creates_panel_character_join_rows(
+    api_client: AsyncClient,
+    db_session: AsyncSession,
+    user: User,
+    project: Project,
+    story: Story,
+    character: Character,
+) -> None:
+    """generate creates panel_character rows for characters in the LLM response."""
+    panel = Panel.create(story_id=story.id, order_index=0, attributes={})
+    db_session.add(panel)
+    await db_session.commit()
+
+    # LLM returns the character's slug
+    mock_content = _mock_panel_content(characters=[character.slug])
+
+    with patch(
+        "core.story_engine.service.panel_service.instructor_client.chat.completions.create",
+        new_callable=AsyncMock,
+        return_value=mock_content,
+    ):
+        response = await api_client.post(
+            f"/api/comic-builder/v2/project/{project.id}/story/{story.id}"
+            f"/panel/{panel.id}/generate",
+            headers=_auth_headers(user.id),
+        )
+
+    assert response.status_code == 200
+
+    result = await db_session.execute(
+        select(PanelCharacter).where(PanelCharacter.panel_id == panel.id)
+    )
+    rows = list(result.scalars().all())
+    assert len(rows) == 1
+    assert rows[0].character_id == character.id
+
+
+async def test_generate_panel_skips_unknown_slug_in_join_rows(
+    api_client: AsyncClient,
+    db_session: AsyncSession,
+    user: User,
+    project: Project,
+    story: Story,
+    character: Character,
+) -> None:
+    """generate skips panel_character creation for slugs not in the story."""
+    panel = Panel.create(story_id=story.id, order_index=0, attributes={})
+    db_session.add(panel)
+    await db_session.commit()
+
+    # LLM returns one valid slug and one that doesn't exist
+    mock_content = _mock_panel_content(
+        characters=[character.slug, "nonexistent-character"]
+    )
+
+    with patch(
+        "core.story_engine.service.panel_service.instructor_client.chat.completions.create",
+        new_callable=AsyncMock,
+        return_value=mock_content,
+    ):
+        response = await api_client.post(
+            f"/api/comic-builder/v2/project/{project.id}/story/{story.id}"
+            f"/panel/{panel.id}/generate",
+            headers=_auth_headers(user.id),
+        )
+
+    assert response.status_code == 200
+
+    result = await db_session.execute(
+        select(PanelCharacter).where(PanelCharacter.panel_id == panel.id)
+    )
+    rows = list(result.scalars().all())
+    # Only one row — the invalid slug was silently dropped
+    assert len(rows) == 1
+    assert rows[0].character_id == character.id

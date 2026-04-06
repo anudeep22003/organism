@@ -24,12 +24,12 @@ from ...exceptions import (
     NoCharactersError,
     NoStoryTextError,
     NotFoundError,
+    PanelAlreadyGeneratedError,
     UploadImageError,
 )
 from ...schemas.edit_event import EditEventResponseSchema
 from ...schemas.image import ImageResponseSchema
 from ...schemas.panel import (
-    PanelGenerateRequest,
     PanelRefineRequest,
     PanelRenderEditRequest,
     PanelRenderReferencesSchema,
@@ -164,22 +164,22 @@ async def generate_panel(
     panel_id: uuid.UUID,
     user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     service: Annotated[PanelService, Depends(get_panel_service)],
-    body: PanelGenerateRequest | None = None,
 ) -> PanelRenderReferencesSchema:
-    """Generate or regenerate content for a single panel (Decision 8).
+    """Generate content for a single panel for the first time.
 
-    First call (empty attributes): generates from story context.
-    Subsequent calls: refines using the optional instruction.
+    Only valid when the panel has no content yet. Returns 400 if the panel
+    already has generated content — use POST .../refine to update it.
     """
     try:
         panel = await service.generate_panel(
             project_id=project_id,
             story_id=story_id,
             panel_id=panel_id,
-            instruction=body.instruction if body is not None else None,
         )
         render = await service.get_canonical_panel_render(panel_id)
         return _build_panel_full(panel, render)
+    except PanelAlreadyGeneratedError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except NoCharactersError as e:

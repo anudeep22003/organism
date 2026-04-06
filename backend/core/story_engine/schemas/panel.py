@@ -80,12 +80,14 @@ class SetCanonicalPanelRenderRequest(AliasedBaseModel):
 
 
 class PanelGenerateRequest(AliasedBaseModel):
-    """Request body for the single-panel generate/regenerate endpoint.
+    """Request body for the single-panel first-generation endpoint.
 
-    instruction is optional — absent on first generation, present on regeneration.
+    No fields required — the panel is generated from story context alone.
+    Kept as an explicit schema (rather than dropping the body entirely) so
+    the endpoint signature is consistent and extensible.
     """
 
-    instruction: str | None = None
+    pass
 
 
 class PanelRefineRequest(AliasedBaseModel):

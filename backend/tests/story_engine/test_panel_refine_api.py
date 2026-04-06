@@ -9,6 +9,9 @@ Test invariants:
   3. 404 — panel does not exist
   4. 404 — panel exists but has no attributes yet (must generate before refining)
   5. 401 — no auth token
+  6. refine with a new character added → panel_character row created
+  7. refine with a character removed → stale panel_character row deleted
+  8. refine with unchanged character list → join rows unchanged
 """
 
 import uuid
@@ -26,6 +29,7 @@ from core.story_engine.models.edit_event import (
     EditEventOperationType,
     EditEventStatus,
 )
+from core.story_engine.models.panel_character import PanelCharacter
 
 _jwt = JWTTokenManager()
 
@@ -204,3 +208,144 @@ async def test_refine_panel_401_no_token(
         json={"instruction": "Make it better."},
     )
     assert response.status_code == 401
+
+
+async def test_refine_panel_adds_panel_character_row_for_new_character(
+    api_client: AsyncClient,
+    db_session: AsyncSession,
+    user: User,
+    project: Project,
+    story: Story,
+    character: Character,
+) -> None:
+    """refine with a new character in the LLM response creates the panel_character row."""
+    # Panel starts with no characters
+    panel = Panel.create(
+        story_id=story.id,
+        order_index=0,
+        attributes={"background": "Forest", "dialogue": "Hi.", "characters": []},
+    )
+    db_session.add(panel)
+    await db_session.commit()
+
+    # LLM returns the character as newly added
+    mock_response = _mock_regenerate_response()
+    mock_response.characters = [character.slug]  # type: ignore[attr-defined]
+
+    with patch(
+        "core.story_engine.service.panel_service.instructor_client.chat.completions.create",
+        new_callable=AsyncMock,
+        return_value=mock_response,
+    ):
+        response = await api_client.post(
+            _url(project.id, story.id, panel.id),
+            json={"instruction": f"Add {character.slug} to the scene."},
+            headers=_auth_headers(user.id),
+        )
+
+    assert response.status_code == 200
+
+    result = await db_session.execute(
+        select(PanelCharacter).where(PanelCharacter.panel_id == panel.id)
+    )
+    rows = list(result.scalars().all())
+    assert len(rows) == 1
+    assert rows[0].character_id == character.id
+
+
+async def test_refine_panel_removes_panel_character_row_for_dropped_character(
+    api_client: AsyncClient,
+    db_session: AsyncSession,
+    user: User,
+    project: Project,
+    story: Story,
+    character: Character,
+) -> None:
+    """refine with character removed from LLM response deletes the panel_character row."""
+    panel = Panel.create(
+        story_id=story.id,
+        order_index=0,
+        attributes={
+            "background": "Forest",
+            "dialogue": "Hi.",
+            "characters": [character.slug],
+        },
+    )
+    db_session.add(panel)
+    await db_session.flush()
+
+    # Pre-existing join row
+    db_session.add(PanelCharacter(panel_id=panel.id, character_id=character.id))
+    await db_session.commit()
+
+    # LLM returns no characters — character was removed
+    mock_response = _mock_regenerate_response()
+    mock_response.characters = []  # type: ignore[attr-defined]
+
+    with patch(
+        "core.story_engine.service.panel_service.instructor_client.chat.completions.create",
+        new_callable=AsyncMock,
+        return_value=mock_response,
+    ):
+        response = await api_client.post(
+            _url(project.id, story.id, panel.id),
+            json={"instruction": "Remove all characters from the scene."},
+            headers=_auth_headers(user.id),
+        )
+
+    assert response.status_code == 200
+
+    result = await db_session.execute(
+        select(PanelCharacter).where(PanelCharacter.panel_id == panel.id)
+    )
+    rows = list(result.scalars().all())
+    assert len(rows) == 0
+
+
+async def test_refine_panel_unchanged_character_list_keeps_join_rows(
+    api_client: AsyncClient,
+    db_session: AsyncSession,
+    user: User,
+    project: Project,
+    story: Story,
+    character: Character,
+) -> None:
+    """refine with unchanged character list leaves panel_character rows intact."""
+    panel = Panel.create(
+        story_id=story.id,
+        order_index=0,
+        attributes={
+            "background": "Forest",
+            "dialogue": "Hi.",
+            "characters": [character.slug],
+        },
+    )
+    db_session.add(panel)
+    await db_session.flush()
+
+    db_session.add(PanelCharacter(panel_id=panel.id, character_id=character.id))
+    await db_session.commit()
+
+    # LLM returns the same character
+    mock_response = _mock_regenerate_response()
+    mock_response.characters = [character.slug]  # type: ignore[attr-defined]
+
+    with patch(
+        "core.story_engine.service.panel_service.instructor_client.chat.completions.create",
+        new_callable=AsyncMock,
+        return_value=mock_response,
+    ):
+        response = await api_client.post(
+            _url(project.id, story.id, panel.id),
+            json={"instruction": "Make the dialogue more dramatic."},
+            headers=_auth_headers(user.id),
+        )
+
+    assert response.status_code == 200
+
+    result = await db_session.execute(
+        select(PanelCharacter).where(PanelCharacter.panel_id == panel.id)
+    )
+    rows = list(result.scalars().all())
+    assert len(rows) == 1
+    assert rows[0].character_id == character.id
