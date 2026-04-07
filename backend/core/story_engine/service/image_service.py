@@ -1,11 +1,11 @@
 import datetime
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 from functools import lru_cache
 from io import BytesIO
 from typing import BinaryIO
 
-from coolname.impl import generate_slug
 from google.cloud.storage import Client  # type: ignore[import-untyped]
 from google.oauth2 import service_account
 from loguru import logger
@@ -30,6 +30,7 @@ from ..models import (
     Image as ImageModel,
 )
 from ..repository import RepositoryV2
+from ..storage_keys import character_reference_key, panel_reference_key
 
 ORIGINAL_QUALITY = 90
 IMAGE_FORMAT = "jpeg"
@@ -83,13 +84,14 @@ class ImageService:
         target_id: uuid.UUID,
         target_type: EditEventTargetType,
         discriminator_key: ImageDiscriminatorKey,
-        object_storage_key: str,
+        key_builder: Callable[[uuid.UUID], str],
         image_byte_stream: BinaryIO,
     ) -> ImageModel:
         """Generic reference-image upload: process bytes, upload to GCS, persist Image row.
 
-        Callers are responsible for authorization and building the object_storage_key
-        before calling this method.
+        key_builder receives the edit_event_id once it exists and returns the
+        GCS object key — this ensures every reference image key is traceable
+        to its edit event, consistent with render key behaviour.
         """
         edit_event = EditEvent.create_edit_event(
             project_id=project_id,
@@ -103,6 +105,7 @@ class ImageService:
         await self.repository_v2.edit_event.add_edit_event_to_db(edit_event)
         await self.db.flush()
         edit_event_id = edit_event.id
+        object_storage_key = key_builder(edit_event_id)
         processed_images = self.image_processor.process(image_byte_stream)
 
         image_models_to_create: list[ImageModel] = []
@@ -151,16 +154,15 @@ class ImageService:
         character = await self._get_authorized_character(
             user_id, project_id, story_id, character_id
         )
-        object_storage_key = (
-            f"{user_id}/character/{character.slug}/references/{generate_slug()}"
-        )
         return await self._upload_reference_image_core(
             user_id=user_id,
             project_id=project_id,
             target_id=character_id,
             target_type=EditEventTargetType.CHARACTER,
             discriminator_key=ImageDiscriminatorKey.CHARACTER_REFERENCE,
-            object_storage_key=object_storage_key,
+            key_builder=lambda eid: character_reference_key(
+                user_id, project_id, story_id, character.slug, eid
+            ),
             image_byte_stream=image_byte_stream,
         )
 
@@ -173,14 +175,15 @@ class ImageService:
         image_byte_stream: BinaryIO,
     ) -> ImageModel:
         await self._get_authorized_panel(user_id, project_id, story_id, panel_id)
-        object_storage_key = f"{user_id}/panel/{panel_id}/references/{generate_slug()}"
         return await self._upload_reference_image_core(
             user_id=user_id,
             project_id=project_id,
             target_id=panel_id,
             target_type=EditEventTargetType.PANEL,
             discriminator_key=ImageDiscriminatorKey.PANEL_REFERENCE,
-            object_storage_key=object_storage_key,
+            key_builder=lambda eid: panel_reference_key(
+                user_id, project_id, story_id, panel_id, eid
+            ),
             image_byte_stream=image_byte_stream,
         )
 
