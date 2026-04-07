@@ -33,6 +33,7 @@ from ..models.image import ImageContentType, ImageDiscriminatorKey
 from ..repository import NotFoundError as RepositoryNotFoundError
 from ..repository import RepositoryV2
 from ..state.character import CharacterBase as CharacterAttributes
+from ..storage_keys import character_render_key
 from .image_service import (
     ImageService,
     extract_image_dimensions,
@@ -529,8 +530,8 @@ class CharacterService:
 
             # Upload to GCS
             gcs_service = get_gcs_upload_service()
-            object_key = (
-                f"{project_id}/character/{character_id}/renders/{edit_event_id}"
+            object_key = character_render_key(
+                user_id, project_id, story_id, character_id, edit_event_id
             )
             receipt = gcs_service.upload(object_key, image_bytes, content_type)
 
@@ -695,8 +696,8 @@ class CharacterService:
 
             width, height = extract_image_dimensions(image_bytes)
 
-            object_key = (
-                f"{project_id}/character/{character_id}/renders/{edit_event_id}"
+            object_key = character_render_key(
+                user_id, project_id, story_id, character_id, edit_event_id
             )
             receipt = gcs_service.upload(object_key, image_bytes, content_type)
 
