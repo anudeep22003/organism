@@ -1,11 +1,11 @@
 import type { RouteObject } from "react-router";
+import StoryWorkspace from "./phases/story-phase/ui/StoryWorkspace";
 import ProjectHome from "./projects/ui/ProjectHome";
 import ProjectList from "./projects/ui/ProjectList";
-import StoryWorkspace from "./phases/story-phase/ui/StoryWorkspace";
 
-const ROOT_PATH = "/story";
+const ROOT_PATH = "/storyOld";
 
-export const storyRoutes: RouteObject[] = [
+export const storyRoutesOld: RouteObject[] = [
   {
     path: ROOT_PATH,
     element: <ProjectList />,
