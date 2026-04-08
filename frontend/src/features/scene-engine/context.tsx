@@ -7,12 +7,6 @@ import {
 } from "react";
 import { SCENE_STEPS } from "./steps";
 
-const TEST_PROJECT_ID = "9c10291d-4b0a-4c2f-8deb-417d36a12d7b";
-const TEST_STORY_ID = "f4ca0d39-4801-4e6c-b932-889f27048b09";
-// const TEST_STORY_ID = "e446a444-2480-4e38-9560-3aa90d806494";
-// const TEST_PROJECT_ID = "030e47de-02d0-451a-ac94-fe00f84b065e";
-// const TEST_STORY_ID = "b9f99a77-4582-4798-8ade-d1340a6f2e4e";
-
 type SceneEngineContextValue = {
   currentStep: number;
   goTo: (id: number) => void;
@@ -20,21 +14,21 @@ type SceneEngineContextValue = {
   goBack: () => void;
   projectId: string;
   storyId: string;
-  setProjectId: (id: string) => void;
-  setStoryId: (id: string) => void;
 };
 
 const SceneEngineContext =
   createContext<SceneEngineContextValue | null>(null);
 
 export function SceneEngineProvider({
+  projectId,
+  storyId,
   children,
 }: {
+  projectId: string;
+  storyId: string;
   children: ReactNode;
 }) {
   const [currentStep, setCurrentStep] = useState(1);
-  const [projectId, setProjectId] = useState(TEST_PROJECT_ID);
-  const [storyId, setStoryId] = useState(TEST_STORY_ID);
 
   const goTo = useCallback((id: number) => {
     const valid = SCENE_STEPS.find((s) => s.id === id);
@@ -62,8 +56,6 @@ export function SceneEngineProvider({
         goBack,
         projectId,
         storyId,
-        setProjectId,
-        setStoryId,
       }}
     >
       {children}
