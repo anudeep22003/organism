@@ -106,8 +106,8 @@ export function NewStoryModal({ projectId, onDismiss }: NewStoryModalProps) {
         },
       },
       {
-        onSuccess: (story) => {
-          void navigate(`/story/${story.id}`);
+        onSuccess: () => {
+          void navigate("/stories");
         },
       },
     );
