@@ -75,3 +75,15 @@ class ProjectRepository:
         )
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
+
+    async def get_default_project_of_user(self, user_id: uuid.UUID) -> Project | None:
+        """Return the user's oldest project with stories eager-loaded, or None."""
+        query = (
+            select(Project)
+            .where(Project.user_id == user_id)
+            .options(selectinload(Project.stories))
+            .order_by(Project.created_at.asc())
+            .limit(1)
+        )
+        result = await self.db.execute(query)
+        return result.scalar_one_or_none()
