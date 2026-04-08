@@ -1,4 +1,5 @@
 import { useCreateStory } from "@/features/story/projects/hooks/useCreateStory";
+import VoiceTextarea from "@scene-engine/components/VoiceTextarea";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 
@@ -136,12 +137,11 @@ export function NewStoryModal({ projectId, onDismiss }: NewStoryModalProps) {
         </Field>
 
         <Field label="What is this story about?">
-          <textarea
+          <VoiceTextarea
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            onChange={setDescription}
             placeholder="Describe your story..."
             rows={3}
-            className="w-full resize-none border border-border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground"
           />
         </Field>
 
