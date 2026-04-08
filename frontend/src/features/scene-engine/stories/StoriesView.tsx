@@ -20,12 +20,12 @@ function StoryGrid({ stories }: { stories: StoryListEntryType[] }) {
   }
 
   return (
-    <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
+    <div className="grid grid-cols-2 items-start gap-2 md:grid-cols-3">
       {stories.map((story) => (
         <div
           key={story.id}
           onClick={() => void navigate(`/story/${story.id}`)}
-          className="flex h-32 cursor-pointer flex-col justify-end gap-1 border border-border bg-muted/20 p-3 hover:bg-muted/40"
+          className="flex cursor-pointer flex-col gap-1 border border-border bg-muted/20 p-3 hover:bg-muted/40"
         >
           <span className="line-clamp-1 text-xs font-medium text-foreground">
             {story.name ?? "Untitled story"}
