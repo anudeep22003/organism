@@ -1,7 +1,21 @@
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useCreateStory } from "@/features/story/projects/hooks/useCreateStory";
+import type { StoryListEntryType } from "@/features/story/shared/story.types";
 import VoiceTextarea from "@scene-engine/components/VoiceTextarea";
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import { useDeleteStory } from "./hooks/useDeleteStory";
+import { useUpdateStory } from "./hooks/useUpdateStory";
 
 type RadioGroupProps = {
   options: string[];
@@ -70,59 +84,102 @@ function Field({
   );
 }
 
-type NewStoryModalProps = {
+type StoryModalProps = {
   projectId: string;
   onDismiss: () => void;
+  story?: StoryListEntryType;
 };
 
-export function NewStoryModal({ projectId, onDismiss }: NewStoryModalProps) {
+export function NewStoryModal({ projectId, onDismiss, story }: StoryModalProps) {
   const navigate = useNavigate();
   const createStory = useCreateStory();
+  const updateStory = useUpdateStory();
+  const deleteStory = useDeleteStory();
 
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [hasBackdrop, setHasBackdrop] = useState("");
-  const [backdrop, setBackdrop] = useState("");
-  const [tone, setTone] = useState("");
-  const [comicStyle, setComicStyle] = useState("");
-  const [forSomeone, setForSomeone] = useState("");
-  const [relationship, setRelationship] = useState("");
-  const [feeling, setFeeling] = useState<string[]>([]);
+  const isEditMode = story !== undefined;
+
+  const meta = story?.meta ?? {};
+
+  const [name, setName] = useState(story?.name ?? "");
+  const [description, setDescription] = useState(story?.description ?? "");
+  const [hasBackdrop, setHasBackdrop] = useState((meta.hasBackdrop as string) ?? "");
+  const [backdrop, setBackdrop] = useState((meta.backdrop as string) ?? "");
+  const [tone, setTone] = useState((meta.tone as string) ?? "");
+  const [comicStyle, setComicStyle] = useState((meta.comicStyle as string) ?? "");
+  const [forSomeone, setForSomeone] = useState((meta.forSomeone as string) ?? "");
+  const [relationship, setRelationship] = useState((meta.relationship as string) ?? "");
+  const [feeling, setFeeling] = useState<string[]>((meta.feeling as string[]) ?? []);
+
+  const currentMeta = { tone, comicStyle, hasBackdrop, backdrop, forSomeone, relationship, feeling };
 
   const handleCreate = () => {
     createStory.mutate(
-      {
-        projectId,
-        name,
-        description,
-        meta: {
-          tone,
-          comicStyle,
-          hasBackdrop,
-          backdrop,
-          forSomeone,
-          relationship,
-          feeling,
-        },
-      },
-      {
-        onSuccess: () => {
-          void navigate("/stories");
-        },
-      },
+      { projectId, name, description, meta: currentMeta },
+      { onSuccess: () => void navigate("/stories") },
     );
   };
+
+  const handleSave = () => {
+    if (!story) return;
+    updateStory.mutate(
+      { projectId, storyId: story.id, name, description, meta: currentMeta },
+      { onSuccess: onDismiss },
+    );
+  };
+
+  const handleDelete = () => {
+    if (!story) return;
+    deleteStory.mutate(
+      { projectId, storyId: story.id },
+      { onSuccess: onDismiss },
+    );
+  };
+
+  const isPending = createStory.isPending || updateStory.isPending;
+
+  const deleteButton = isEditMode ? (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <button className="border border-destructive/40 px-2 py-1 text-[10px] text-destructive hover:bg-destructive/10 disabled:opacity-50">
+          Delete
+        </button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete story?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This cannot be undone. The story and all its content will be permanently removed.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleDelete}
+            disabled={deleteStory.isPending}
+            className="bg-destructive text-white hover:bg-destructive/90"
+          >
+            {deleteStory.isPending ? "Deleting…" : "Delete"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  ) : null;
 
   return (
     <div className="absolute inset-0 z-20 flex flex-col bg-background">
       <div className="flex shrink-0 items-center justify-between border-b border-border px-6 py-3">
-        <span className="text-sm font-medium">New Story</span>
-        <button
-          onClick={onDismiss}
-          className="bg-foreground px-2 py-1 text-xs text-background hover:bg-foreground/80"
-        >
-          ✕
-        </button>
+        <span className="text-sm font-medium">
+          {isEditMode ? "Edit Story" : "New Story"}
+        </span>
+        <div className="flex items-center gap-2">
+          {deleteButton}
+          <button
+            onClick={onDismiss}
+            className="bg-foreground px-2 py-1 text-xs text-background hover:bg-foreground/80"
+          >
+            ✕
+          </button>
+        </div>
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-6 py-4">
@@ -172,13 +229,7 @@ export function NewStoryModal({ projectId, onDismiss }: NewStoryModalProps) {
 
         <Field label="What comic style do you like?">
           <MultiSelect
-            options={[
-              "Western",
-              "Cartoon",
-              "Manga",
-              "Chinese doujin",
-              "Korean manhwa",
-            ]}
+            options={["Western", "Cartoon", "Manga", "Chinese doujin", "Korean manhwa"]}
             value={comicStyle ? [comicStyle] : []}
             onChange={(v) => setComicStyle(v[v.length - 1] ?? "")}
           />
@@ -209,14 +260,7 @@ export function NewStoryModal({ projectId, onDismiss }: NewStoryModalProps) {
                   What do you want them to feel? (select all that apply)
                 </span>
                 <MultiSelect
-                  options={[
-                    "Loved",
-                    "Inspired",
-                    "Nostalgic",
-                    "Amused",
-                    "Moved",
-                    "Seen",
-                  ]}
+                  options={["Loved", "Inspired", "Nostalgic", "Amused", "Moved", "Seen"]}
                   value={feeling}
                   onChange={setFeeling}
                 />
@@ -228,11 +272,13 @@ export function NewStoryModal({ projectId, onDismiss }: NewStoryModalProps) {
 
       <div className="flex shrink-0 justify-end border-t border-border px-6 py-3">
         <button
-          onClick={handleCreate}
-          disabled={!name.trim() || createStory.isPending}
+          onClick={isEditMode ? handleSave : handleCreate}
+          disabled={!name.trim() || isPending}
           className="bg-foreground px-4 py-1.5 text-xs text-background hover:bg-foreground/80 disabled:opacity-50"
         >
-          {createStory.isPending ? "Creating…" : "Create Story"}
+          {isPending
+            ? isEditMode ? "Saving…" : "Creating…"
+            : isEditMode ? "Save" : "Create Story"}
         </button>
       </div>
     </div>
