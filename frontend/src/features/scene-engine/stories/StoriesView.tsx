@@ -1,15 +1,12 @@
 import { myProjectOptions } from "@/features/story/projects/projects.queries";
+import type { StoryListEntryType } from "@/features/story/shared/story.types";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { Skeleton } from "../components/Skeleton";
 import { NewStoryModal } from "./NewStoryModal";
 
-function StoryGrid({
-  stories,
-}: {
-  stories: { id: string; storyText: string; userInputText: string }[];
-}) {
+function StoryGrid({ stories }: { stories: StoryListEntryType[] }) {
   const navigate = useNavigate();
 
   if (stories.length === 0) {
@@ -28,11 +25,16 @@ function StoryGrid({
         <div
           key={story.id}
           onClick={() => void navigate(`/story/${story.id}`)}
-          className="flex h-32 cursor-pointer flex-col items-start justify-end border border-border bg-muted/20 p-3 hover:bg-muted/40"
+          className="flex h-32 cursor-pointer flex-col justify-end gap-1 border border-border bg-muted/20 p-3 hover:bg-muted/40"
         >
-          <span className="line-clamp-2 text-xs text-muted-foreground">
-            {story.userInputText || story.storyText || "Untitled story"}
+          <span className="line-clamp-1 text-xs font-medium text-foreground">
+            {story.name ?? "Untitled story"}
           </span>
+          {story.description && (
+            <span className="line-clamp-2 text-[10px] text-muted-foreground">
+              {story.description}
+            </span>
+          )}
         </div>
       ))}
     </div>
