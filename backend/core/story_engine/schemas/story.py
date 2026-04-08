@@ -22,6 +22,8 @@ class StoryResponseSchema(StorySchemaBase):
     id: uuid.UUID
     project_id: uuid.UUID
     source_event_id: uuid.UUID | None = None
+    name: str | None = None
+    description: str | None = None
 
 
 class GenerateStoryRequest(AliasedBaseModel):

@@ -6,6 +6,7 @@ from ..exceptions import NotFoundError
 from ..models import Project, Story
 from ..repository import RepositoryV2
 from ..repository.exception import NotFoundError as RepoNotFoundError
+from .story_identity_service import generate_story_identity
 
 
 class ProjectService:
@@ -81,6 +82,14 @@ class ProjectService:
         )
         await self.db.commit()
         await self.db.refresh(story)
+
+        if meta:
+            identity = await generate_story_identity(meta)
+            if identity:
+                story.name, story.description = identity
+                await self.db.commit()
+                await self.db.refresh(story)
+
         return story
 
     async def delete_story(self, project_id: uuid.UUID, story_id: uuid.UUID) -> None:
