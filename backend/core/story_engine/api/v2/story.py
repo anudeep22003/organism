@@ -12,6 +12,7 @@ from ...schemas.edit_event import EditEventResponseSchema
 from ...schemas.story import (
     GenerateStoryRequest,
     StoryResponseSchema,
+    StoryUpdateSchema,
 )
 from ...service import StoryService
 from ..dependencies import get_story_service
@@ -58,6 +59,33 @@ async def generate_story(
         )
     except (InvalidUserIDError, NotFoundError, NotOwnedError) as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.patch("/project/{project_id}/story/{story_id}")
+async def update_story(
+    project_id: uuid.UUID,
+    story_id: uuid.UUID,
+    body: StoryUpdateSchema,
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    service: Annotated[StoryService, Depends(get_story_service)],
+) -> StoryResponseSchema:
+    """Partially update a story's meta, name, and/or description.
+
+    Only fields present in the request body are written — omitted fields are untouched.
+    """
+    try:
+        story = await service.update_story(
+            project_id,
+            story_id,
+            meta=body.meta,
+            name=body.name,
+            description=body.description,
+        )
+    except NotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Story not found in project"
+        )
+    return StoryResponseSchema.model_validate(story)
 
 
 @router.get("/project/{project_id}/story/{story_id}/history")

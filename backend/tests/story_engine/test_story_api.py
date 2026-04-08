@@ -306,3 +306,118 @@ async def test_get_story_history_limit_param(
 
     assert response.status_code == 200
     assert len(response.json()) <= 2
+
+
+# ---------------------------------------------------------------------------
+# PATCH /project/{project_id}/story/{story_id} — update meta/name/description
+# ---------------------------------------------------------------------------
+
+
+async def test_patch_story_updates_meta(
+    api_client: AsyncClient,
+    user: User,
+    project: Project,
+    story: Story,
+) -> None:
+    """Sending a new meta object replaces the stored meta."""
+    new_meta = {"tone": "Comedic", "comicStyle": "Manga"}
+    response = await api_client.patch(
+        _story_url(project.id, story.id),
+        headers=_auth_headers(user.id),
+        json={"meta": new_meta},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["meta"] == new_meta
+
+
+async def test_patch_story_updates_name(
+    api_client: AsyncClient,
+    user: User,
+    project: Project,
+    story: Story,
+) -> None:
+    """Sending a new name updates it while leaving description untouched."""
+    original_description = story.description
+    new_name = "A Brand New Title"
+    response = await api_client.patch(
+        _story_url(project.id, story.id),
+        headers=_auth_headers(user.id),
+        json={"name": new_name},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["name"] == new_name
+    assert body["description"] == original_description
+
+
+async def test_patch_story_updates_description(
+    api_client: AsyncClient,
+    user: User,
+    project: Project,
+    story: Story,
+) -> None:
+    """Sending a new description updates it while leaving name untouched."""
+    original_name = story.name
+    new_description = "A completely revised one-liner for this comic."
+    response = await api_client.patch(
+        _story_url(project.id, story.id),
+        headers=_auth_headers(user.id),
+        json={"description": new_description},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["description"] == new_description
+    assert body["name"] == original_name
+
+
+async def test_patch_story_updates_all_fields(
+    api_client: AsyncClient,
+    user: User,
+    project: Project,
+    story: Story,
+) -> None:
+    """All three fields can be updated in a single request."""
+    new_meta = {"tone": "Dark", "comicStyle": "Noir"}
+    new_name = "Shadows of the Cart"
+    new_description = "A noir retelling of Chekhov set in rural Russia."
+    response = await api_client.patch(
+        _story_url(project.id, story.id),
+        headers=_auth_headers(user.id),
+        json={"meta": new_meta, "name": new_name, "description": new_description},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["meta"] == new_meta
+    assert body["name"] == new_name
+    assert body["description"] == new_description
+
+
+async def test_patch_story_404_unknown_story(
+    api_client: AsyncClient,
+    user: User,
+    project: Project,
+) -> None:
+    """Patching a non-existent story returns 404."""
+    response = await api_client.patch(
+        _story_url(project.id, uuid.uuid4()),
+        headers=_auth_headers(user.id),
+        json={"name": "Ghost Story"},
+    )
+    assert response.status_code == 404
+
+
+async def test_patch_story_401_no_token(
+    api_client: AsyncClient,
+    project: Project,
+    story: Story,
+) -> None:
+    """PATCH without a token returns 401."""
+    response = await api_client.patch(
+        _story_url(project.id, story.id),
+        json={"name": "Unauthorized"},
+    )
+    assert response.status_code == 401
