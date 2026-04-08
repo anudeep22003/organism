@@ -12,6 +12,8 @@ class StorySchemaBase(AliasedBaseModel):
     story_text: str = ""
     user_input_text: str = ""
     meta: dict[str, Any] = Field(default_factory=dict)
+    name: str | None = None
+    description: str | None = None
 
 
 class StoryCreateSchema(StorySchemaBase):
@@ -22,8 +24,6 @@ class StoryResponseSchema(StorySchemaBase):
     id: uuid.UUID
     project_id: uuid.UUID
     source_event_id: uuid.UUID | None = None
-    name: str | None = None
-    description: str | None = None
 
 
 class GenerateStoryRequest(AliasedBaseModel):

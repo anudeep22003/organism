@@ -75,18 +75,25 @@ class ProjectService:
         return project
 
     async def create_story(
-        self, project_id: uuid.UUID, meta: dict | None = None
+        self,
+        project_id: uuid.UUID,
+        meta: dict | None = None,
+        name: str | None = None,
+        description: str | None = None,
     ) -> Story:
         story = await self.repository_v2.story.create_new_story(
-            project_id, meta=meta or {}
+            project_id, meta=meta or {}, name=name, description=description
         )
         await self.db.commit()
         await self.db.refresh(story)
 
-        if meta:
+        if meta and not (story.name and story.description):
             identity = await generate_story_identity(meta)
             if identity:
-                story.name, story.description = identity
+                if not story.name:
+                    story.name = identity[0]
+                if not story.description:
+                    story.description = identity[1]
                 await self.db.commit()
                 await self.db.refresh(story)
 

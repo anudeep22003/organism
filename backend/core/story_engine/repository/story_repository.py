@@ -13,9 +13,15 @@ class StoryRepository:
         self.db = db
 
     async def create_new_story(
-        self, project_id: uuid.UUID, meta: dict | None = None
+        self,
+        project_id: uuid.UUID,
+        meta: dict | None = None,
+        name: str | None = None,
+        description: str | None = None,
     ) -> Story:
-        story = Story(project_id=project_id, meta=meta or {})
+        story = Story(
+            project_id=project_id, meta=meta or {}, name=name, description=description
+        )
         self.db.add(story)
         return story
 
