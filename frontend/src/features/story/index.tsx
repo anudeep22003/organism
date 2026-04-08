@@ -1,1 +1,1 @@
-export { storyRoutes } from "./routes";
+export { storyRoutesOld } from "./routes";
