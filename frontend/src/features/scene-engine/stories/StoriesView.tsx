@@ -31,7 +31,7 @@ function StoryGrid({ stories }: { stories: StoryListEntryType[] }) {
             {story.name ?? "Untitled story"}
           </span>
           {story.description && (
-            <span className="line-clamp-2 text-[10px] text-muted-foreground">
+            <span className="text-[10px] text-muted-foreground">
               {story.description}
             </span>
           )}
