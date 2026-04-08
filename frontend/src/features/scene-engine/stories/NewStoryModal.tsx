@@ -78,7 +78,8 @@ export function NewStoryModal({ projectId, onDismiss }: NewStoryModalProps) {
   const navigate = useNavigate();
   const createStory = useCreateStory();
 
-  const [about, setAbout] = useState("");
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [hasBackdrop, setHasBackdrop] = useState("");
   const [backdrop, setBackdrop] = useState("");
   const [tone, setTone] = useState("");
@@ -91,8 +92,9 @@ export function NewStoryModal({ projectId, onDismiss }: NewStoryModalProps) {
     createStory.mutate(
       {
         projectId,
+        name,
+        description,
         meta: {
-          about,
           tone,
           comicStyle,
           hasBackdrop,
@@ -123,10 +125,20 @@ export function NewStoryModal({ projectId, onDismiss }: NewStoryModalProps) {
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-6 py-4">
-        <Field label="What is the story about?">
+        <Field label="Story name">
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Give your story a name..."
+            className="w-full border border-border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground"
+          />
+        </Field>
+
+        <Field label="What is this story about?">
           <textarea
-            value={about}
-            onChange={(e) => setAbout(e.target.value)}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
             placeholder="Describe your story..."
             rows={3}
             className="w-full resize-none border border-border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground"
@@ -217,7 +229,7 @@ export function NewStoryModal({ projectId, onDismiss }: NewStoryModalProps) {
       <div className="flex shrink-0 justify-end border-t border-border px-6 py-3">
         <button
           onClick={handleCreate}
-          disabled={!about.trim() || createStory.isPending}
+          disabled={!name.trim() || createStory.isPending}
           className="bg-foreground px-4 py-1.5 text-xs text-background hover:bg-foreground/80 disabled:opacity-50"
         >
           {createStory.isPending ? "Creating…" : "Create Story"}
