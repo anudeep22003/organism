@@ -26,5 +26,11 @@ class StoryResponseSchema(StorySchemaBase):
     source_event_id: uuid.UUID | None = None
 
 
+class StoryUpdateSchema(AliasedBaseModel):
+    meta: dict[str, Any] | None = None
+    name: str | None = None
+    description: str | None = None
+
+
 class GenerateStoryRequest(AliasedBaseModel):
     story_prompt: str

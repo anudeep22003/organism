@@ -15,8 +15,9 @@ from ...schemas import (
     StoryCreateSchema,
     StoryResponseSchema,
 )
-from ...service import ProjectService
-from ..dependencies import get_project_service
+from ...schemas.story import StoryUpdateSchema
+from ...service import ProjectService, StoryService
+from ..dependencies import get_project_service, get_story_service
 
 router = APIRouter(tags=["comic", "builder", "v2", "projects"])
 
@@ -121,6 +122,33 @@ async def create_story(
         name=story_data.name,
         description=story_data.description,
     )
+    return StoryResponseSchema.model_validate(story)
+
+
+@router.patch("/projects/{project_id}/story/{story_id}")
+async def update_story(
+    project_id: uuid.UUID,
+    story_id: uuid.UUID,
+    body: StoryUpdateSchema,
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    service: Annotated[StoryService, Depends(get_story_service)],
+) -> StoryResponseSchema:
+    """Partially update a story's meta, name, and/or description.
+
+    Only fields present in the request body are written — omitted fields are untouched.
+    """
+    try:
+        story = await service.update_story(
+            project_id,
+            story_id,
+            meta=body.meta,
+            name=body.name,
+            description=body.description,
+        )
+    except NotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Story not found in project"
+        )
     return StoryResponseSchema.model_validate(story)
 
 

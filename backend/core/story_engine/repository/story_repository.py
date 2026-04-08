@@ -45,6 +45,30 @@ class StoryRepository:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def update_story_meta_and_identity(
+        self,
+        project_id: uuid.UUID,
+        story_id: uuid.UUID,
+        meta: dict | None,
+        name: str | None,
+        description: str | None,
+    ) -> Story:
+        """Update meta, name, and/or description on a story.
+
+        Only fields that are not None are written — omitted fields are untouched.
+        Raises NotFoundError if the story does not exist in the given project.
+        """
+        story = await self.get_story(project_id, story_id)
+        if story is None:
+            raise NotFoundError(f"Story {story_id} not found in project {project_id}")
+        if meta is not None:
+            story.meta = meta
+        if name is not None:
+            story.name = name
+        if description is not None:
+            story.description = description
+        return story
+
     async def update_story_with_story_text_and_user_input_text(
         self,
         story_id: uuid.UUID,
