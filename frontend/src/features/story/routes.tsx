@@ -3,9 +3,9 @@ import StoryWorkspace from "./phases/story-phase/ui/StoryWorkspace";
 import ProjectHome from "./projects/ui/ProjectHome";
 import ProjectList from "./projects/ui/ProjectList";
 
-const ROOT_PATH = "/storyOld";
+const ROOT_PATH = "/legacy/story";
 
-export const storyRoutesOld: RouteObject[] = [
+export const legacyStoryRoutes: RouteObject[] = [
   {
     path: ROOT_PATH,
     element: <ProjectList />,

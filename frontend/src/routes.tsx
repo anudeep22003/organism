@@ -1,7 +1,7 @@
 import { Navigate } from "react-router";
 import { AuthPage, RequireAuth, RequireGuest } from "./features/auth";
 import { sceneEngineRoutes } from "./features/scene-engine/routes";
-import { storyRoutesOld } from "./features/story";
+import { legacyStoryRoutes } from "./features/story";
 import { comicBuilderRoutes } from "./pages/comic-builder/routes";
 import HumanAiWorkspace from "./pages/HumanAiWorkspace";
 
@@ -11,7 +11,7 @@ export const routes = [
     children: [
       {
         path: "/",
-        element: <Navigate to="/scene" replace />,
+        element: <Navigate to="/stories" replace />,
       },
       {
         path: "/generative-space",
@@ -19,7 +19,7 @@ export const routes = [
       },
       ...sceneEngineRoutes,
       ...comicBuilderRoutes,
-      ...storyRoutesOld,
+      ...legacyStoryRoutes,
     ],
   },
   {
