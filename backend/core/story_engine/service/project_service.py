@@ -73,8 +73,12 @@ class ProjectService:
         assert project is not None  # guaranteed — we just created it
         return project
 
-    async def create_story(self, project_id: uuid.UUID) -> Story:
-        story = await self.repository_v2.story.create_new_story(project_id)
+    async def create_story(
+        self, project_id: uuid.UUID, meta: dict | None = None
+    ) -> Story:
+        story = await self.repository_v2.story.create_new_story(
+            project_id, meta=meta or {}
+        )
         await self.db.commit()
         await self.db.refresh(story)
         return story
