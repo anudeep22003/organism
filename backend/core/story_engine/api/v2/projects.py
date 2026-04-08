@@ -49,6 +49,19 @@ async def create_project(
     return ProjectResponseSchema.model_validate(project)
 
 
+@router.get("/projects/me")
+async def get_my_project(
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    service: Annotated[ProjectService, Depends(get_project_service)],
+) -> ProjectRelationalStateSchema:
+    """Return the user's default project, creating one if none exists.
+
+    Idempotent — safe to call on every login. Never returns 404.
+    """
+    project = await service.get_or_create_default_project(user_id)
+    return ProjectRelationalStateSchema.model_validate(project)
+
+
 @router.get("/projects/{project_id}")
 async def get_project(
     project_id: uuid.UUID,

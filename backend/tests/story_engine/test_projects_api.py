@@ -597,3 +597,146 @@ async def test_delete_story_requires_auth(
     """DELETE /projects/{id}/story/{id} without a token returns 401."""
     response = await api_client.delete(_story_url(project.id, story.id))
     assert response.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# GET /projects/me — get-or-create default project
+# ---------------------------------------------------------------------------
+
+
+def _my_project_url() -> str:
+    return "/api/comic-builder/v2/projects/me"
+
+
+async def test_my_project_creates_on_first_call(
+    api_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    """A brand new user gets a project created automatically on first call."""
+    from core.auth.models.user import User as UserModel
+
+    new_user = UserModel(
+        email=f"my-project-new-{uuid.uuid4()}@example.com", password_hash="x"
+    )
+    db_session.add(new_user)
+    await db_session.commit()
+    await db_session.refresh(new_user)
+
+    response = await api_client.get(
+        _my_project_url(), headers=_auth_headers(new_user.id)
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert "id" in body
+    uuid.UUID(body["id"])  # must be a valid UUID
+    assert body["stories"] == []
+
+    await db_session.execute(
+        text('DELETE FROM "user" WHERE id = :id'), {"id": new_user.id}
+    )
+    await db_session.commit()
+
+
+async def test_my_project_is_idempotent(
+    api_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    """Calling /projects/me twice returns the same project ID both times."""
+    from core.auth.models.user import User as UserModel
+
+    new_user = UserModel(
+        email=f"my-project-idempotent-{uuid.uuid4()}@example.com", password_hash="x"
+    )
+    db_session.add(new_user)
+    await db_session.commit()
+    await db_session.refresh(new_user)
+
+    first = await api_client.get(_my_project_url(), headers=_auth_headers(new_user.id))
+    second = await api_client.get(_my_project_url(), headers=_auth_headers(new_user.id))
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.json()["id"] == second.json()["id"]
+
+    # Only one project row should exist for this user
+    result = await db_session.execute(
+        text("SELECT COUNT(*) FROM project WHERE user_id = :uid"),
+        {"uid": new_user.id},
+    )
+    assert result.scalar() == 1
+
+    await db_session.execute(
+        text('DELETE FROM "user" WHERE id = :id'), {"id": new_user.id}
+    )
+    await db_session.commit()
+
+
+async def test_my_project_returns_existing_project(
+    api_client: AsyncClient,
+    user: User,
+    project: Project,
+) -> None:
+    """If a project already exists, /projects/me returns that same project."""
+    response = await api_client.get(_my_project_url(), headers=_auth_headers(user.id))
+
+    assert response.status_code == 200
+    assert response.json()["id"] == str(project.id)
+
+
+async def test_my_project_includes_stories(
+    api_client: AsyncClient,
+    user: User,
+    project: Project,
+    story: Story,
+) -> None:
+    """Stories belonging to the project are included in the response."""
+    response = await api_client.get(_my_project_url(), headers=_auth_headers(user.id))
+
+    assert response.status_code == 200
+    body = response.json()
+    assert "stories" in body
+    story_ids = [s["id"] for s in body["stories"]]
+    assert str(story.id) in story_ids
+
+
+async def test_my_project_401_no_token(
+    api_client: AsyncClient,
+) -> None:
+    """GET /projects/me without a token returns 401."""
+    response = await api_client.get(_my_project_url())
+    assert response.status_code == 401
+
+
+async def test_my_project_user_isolation(
+    api_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    """Two different users each get their own distinct project."""
+    from core.auth.models.user import User as UserModel
+
+    user_a = UserModel(
+        email=f"isolation-a-{uuid.uuid4()}@example.com", password_hash="x"
+    )
+    user_b = UserModel(
+        email=f"isolation-b-{uuid.uuid4()}@example.com", password_hash="x"
+    )
+    db_session.add_all([user_a, user_b])
+    await db_session.commit()
+    await db_session.refresh(user_a)
+    await db_session.refresh(user_b)
+
+    resp_a = await api_client.get(_my_project_url(), headers=_auth_headers(user_a.id))
+    resp_b = await api_client.get(_my_project_url(), headers=_auth_headers(user_b.id))
+
+    assert resp_a.status_code == 200
+    assert resp_b.status_code == 200
+    assert resp_a.json()["id"] != resp_b.json()["id"]
+
+    await db_session.execute(
+        text('DELETE FROM "user" WHERE id = :id'), {"id": user_a.id}
+    )
+    await db_session.execute(
+        text('DELETE FROM "user" WHERE id = :id'), {"id": user_b.id}
+    )
+    await db_session.commit()

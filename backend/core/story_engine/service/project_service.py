@@ -59,6 +59,20 @@ class ProjectService:
     ) -> Project | None:
         return await self.repository_v2.project.get_project_details(user_id, project_id)
 
+    async def get_or_create_default_project(self, user_id: uuid.UUID) -> Project:
+        """Return the user's default project, creating one if none exists.
+
+        Always returns a Project with stories eager-loaded.
+        """
+        project = await self.repository_v2.project.get_default_project_of_user(user_id)
+        if project is not None:
+            return project
+        await self.repository_v2.project.create_project(user_id, name=None)
+        await self.db.commit()
+        project = await self.repository_v2.project.get_default_project_of_user(user_id)
+        assert project is not None  # guaranteed — we just created it
+        return project
+
     async def create_story(self, project_id: uuid.UUID) -> Story:
         story = await self.repository_v2.story.create_new_story(project_id)
         await self.db.commit()
