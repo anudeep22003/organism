@@ -12,6 +12,8 @@ export type StoryListEntryType = {
   storyText: string;
   userInputText: string;
   meta: Record<string, unknown>;
+  name: string | null;
+  description: string | null;
 };
 
 export type ProjectHomeType = ProjectListEntryType & {
