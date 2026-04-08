@@ -489,6 +489,34 @@ async def test_create_story_story_text_starts_empty(
     await db_session.commit()
 
 
+async def test_create_story_persists_meta(
+    api_client: AsyncClient,
+    user: User,
+    project: Project,
+    db_session: AsyncSession,
+) -> None:
+    """Meta supplied at creation is stored and returned in the response."""
+    meta_payload = {
+        "about": "Anton Chekhov's - In the Cart",
+        "tone": "Emotional",
+        "comicStyle": "Western",
+    }
+    response = await api_client.post(
+        _stories_url(project.id),
+        headers=_auth_headers(user.id),
+        json={"meta": meta_payload},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["meta"] == meta_payload
+
+    await db_session.execute(
+        text("DELETE FROM story WHERE id = :id"), {"id": uuid.UUID(body["id"])}
+    )
+    await db_session.commit()
+
+
 async def test_create_story_requires_auth(
     api_client: AsyncClient,
     project: Project,
