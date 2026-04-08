@@ -7,7 +7,7 @@ export const sceneEngineRoutes: RouteObject[] = [
     element: <SceneEngineLayout />,
     children: [
       {
-        path: "/scene",
+        path: "/story/:storyId",
         element: <SceneEngine />,
       },
     ],

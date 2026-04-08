@@ -1,5 +1,7 @@
 import { useTheme } from "@/context/ThemeContext";
-import { Outlet } from "react-router";
+import { myProjectOptions } from "@/features/story/projects/projects.queries";
+import { useQuery } from "@tanstack/react-query";
+import { Outlet, useNavigate, useParams } from "react-router";
 import { useAuth } from "../auth/model/auth.context";
 import { SceneEngineProvider, useSceneEngine } from "./context";
 import { SCENE_STEPS } from "./steps";
@@ -10,6 +12,7 @@ function SceneEngineShell() {
   const { signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { currentStep, goTo } = useSceneEngine();
+  const navigate = useNavigate();
   const isDark = theme === "dark";
 
   return (
@@ -18,7 +21,10 @@ function SceneEngineShell() {
         <div className="flex items-center gap-3">
           <span className="text-xs text-muted-foreground">Organism</span>
           <div className="h-2.5 w-px bg-border" />
-          <button className="text-[10px] text-muted-foreground hover:text-foreground">
+          <button
+            onClick={() => void navigate("/stories")}
+            className="text-[10px] text-muted-foreground hover:text-foreground"
+          >
             Stories
           </button>
         </div>
@@ -56,10 +62,25 @@ function SceneEngineShell() {
   );
 }
 
-export default function SceneEngineLayout() {
+function SceneEngineLayoutInner() {
+  const { storyId } = useParams<{ storyId: string }>();
+  const { data: myProject } = useQuery(myProjectOptions);
+
+  if (!myProject || !storyId) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <span className="text-xs text-muted-foreground">Loading...</span>
+      </div>
+    );
+  }
+
   return (
-    <SceneEngineProvider>
+    <SceneEngineProvider projectId={myProject.id} storyId={storyId}>
       <SceneEngineShell />
     </SceneEngineProvider>
   );
+}
+
+export default function SceneEngineLayout() {
+  return <SceneEngineLayoutInner />;
 }
