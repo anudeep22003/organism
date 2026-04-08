@@ -13,7 +13,6 @@ import { useCreateStory } from "@/features/story/projects/hooks/useCreateStory";
 import type { StoryListEntryType } from "@/features/story/shared/story.types";
 import VoiceTextarea from "@scene-engine/components/VoiceTextarea";
 import { useState } from "react";
-import { useNavigate } from "react-router";
 import { useDeleteStory } from "./hooks/useDeleteStory";
 import { useUpdateStory } from "./hooks/useUpdateStory";
 
@@ -91,7 +90,6 @@ type StoryModalProps = {
 };
 
 export function NewStoryModal({ projectId, onDismiss, story }: StoryModalProps) {
-  const navigate = useNavigate();
   const createStory = useCreateStory();
   const updateStory = useUpdateStory();
   const deleteStory = useDeleteStory();
@@ -115,7 +113,7 @@ export function NewStoryModal({ projectId, onDismiss, story }: StoryModalProps) 
   const handleCreate = () => {
     createStory.mutate(
       { projectId, name, description, meta: currentMeta },
-      { onSuccess: () => void navigate("/stories") },
+      { onSuccess: onDismiss },
     );
   };
 
