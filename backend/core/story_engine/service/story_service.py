@@ -21,6 +21,7 @@ from ..models.edit_event import (
     EditEventTargetType,
 )
 from ..repository import RepositoryV2
+from ..repository.exception import NotFoundError as RepoNotFoundError
 from ..schemas.story import GenerateStoryRequest
 
 
@@ -135,6 +136,29 @@ class StoryService:
         return await self.repository_v2.edit_event.get_edit_events_for_target(
             target_type=EditEventTargetType.STORY, target_id=story_id, limit=limit
         )
+
+    async def update_story(
+        self,
+        project_id: uuid.UUID,
+        story_id: uuid.UUID,
+        meta: dict | None = None,
+        name: str | None = None,
+        description: str | None = None,
+    ) -> Story:
+        """Update meta, name, and/or description on a story.
+
+        Only fields that are not None are written — omitted fields are untouched.
+        Raises NotFoundError if the story does not exist in the given project.
+        """
+        try:
+            story = await self.repository_v2.story.update_story_meta_and_identity(
+                project_id, story_id, meta=meta, name=name, description=description
+            )
+        except RepoNotFoundError as e:
+            raise NotFoundError(str(e)) from e
+        await self.db.commit()
+        await self.db.refresh(story)
+        return story
 
     async def generate_story(
         self,
