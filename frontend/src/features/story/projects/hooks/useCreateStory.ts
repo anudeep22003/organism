@@ -5,7 +5,6 @@ import type { StoryListEntryType } from "../../shared/story.types";
 import { myProjectOptions } from "../projects.queries";
 
 type StoryMeta = {
-  about: string;
   tone: string;
   comicStyle: string;
   hasBackdrop: string;
@@ -17,6 +16,8 @@ type StoryMeta = {
 
 type CreateStoryPayload = {
   projectId: string;
+  name: string;
+  description: string;
   meta: StoryMeta;
 };
 
@@ -24,10 +25,10 @@ export const useCreateStory = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ projectId, meta }: CreateStoryPayload) =>
+    mutationFn: ({ projectId, name, description, meta }: CreateStoryPayload) =>
       httpClient.post<StoryListEntryType>(
         `${STORY_API_BASE}/projects/${projectId}/story`,
-        { meta },
+        { name, description, meta },
       ),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: myProjectOptions.queryKey }),
