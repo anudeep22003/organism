@@ -61,7 +61,12 @@ async def generate_story(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.patch("/project/{project_id}/story/{story_id}")
+# NOTE: This endpoint uses the plural "/projects/" prefix to match the projects
+# router convention, even though all other endpoints in this file use singular
+# "/project/". It lives here (story router) rather than the projects router solely
+# to avoid leaking StoryService into that router. All story-level paths will be
+# normalised to plural in a subsequent PR.
+@router.patch("/projects/{project_id}/story/{story_id}")
 async def update_story(
     project_id: uuid.UUID,
     story_id: uuid.UUID,
