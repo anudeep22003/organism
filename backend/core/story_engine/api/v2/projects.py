@@ -115,7 +115,12 @@ async def create_story(
     story_data: StoryCreateSchema,
     service: Annotated[ProjectService, Depends(get_project_service)],
 ) -> StoryResponseSchema:
-    story = await service.create_story(project_id, meta=story_data.meta)
+    story = await service.create_story(
+        project_id,
+        meta=story_data.meta,
+        name=story_data.name,
+        description=story_data.description,
+    )
     return StoryResponseSchema.model_validate(story)
 
 

@@ -581,6 +581,75 @@ async def test_create_story_persists_meta(
     await db_session.commit()
 
 
+async def test_create_story_with_name_and_description_skips_llm(
+    api_client: AsyncClient,
+    user: User,
+    project: Project,
+    db_session: AsyncSession,
+) -> None:
+    """When name and description are both provided, the LLM is not called and the
+    exact values sent are returned unchanged."""
+    provided_name = "Echoes of the Steppe"
+    provided_description = "A quiet Western set in rural Russia, gifted to a friend."
+    response = await api_client.post(
+        _stories_url(project.id),
+        headers=_auth_headers(user.id),
+        json={
+            "name": provided_name,
+            "description": provided_description,
+            "meta": {
+                "about": "Anton Chekhov's - In the Cart",
+                "tone": "Emotional",
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["name"] == provided_name
+    assert body["description"] == provided_description
+
+    await db_session.execute(
+        text("DELETE FROM story WHERE id = :id"), {"id": uuid.UUID(body["id"])}
+    )
+    await db_session.commit()
+
+
+async def test_create_story_with_partial_identity_fills_missing_field(
+    api_client: AsyncClient,
+    user: User,
+    project: Project,
+    db_session: AsyncSession,
+) -> None:
+    """When only name is provided, the LLM fills in the missing description
+    without overwriting the user-supplied name."""
+    provided_name = "Echoes of the Steppe"
+    response = await api_client.post(
+        _stories_url(project.id),
+        headers=_auth_headers(user.id),
+        json={
+            "name": provided_name,
+            "meta": {
+                "about": "Anton Chekhov's - In the Cart",
+                "tone": "Emotional",
+                "comicStyle": "Western",
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["name"] == provided_name
+    assert body["description"] is not None
+    assert isinstance(body["description"], str)
+    assert len(body["description"]) > 0
+
+    await db_session.execute(
+        text("DELETE FROM story WHERE id = :id"), {"id": uuid.UUID(body["id"])}
+    )
+    await db_session.commit()
+
+
 async def test_create_story_requires_auth(
     api_client: AsyncClient,
     project: Project,
