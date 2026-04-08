@@ -34,6 +34,8 @@ class Story(ORMBase):
     story_text: Mapped[str] = mapped_column(Text, default="")
     user_input_text: Mapped[str] = mapped_column(Text, default="")
     meta: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    name: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
 
     project: Mapped[Project] = relationship("Project", back_populates="stories")
     source_event: Mapped[EditEvent | None] = relationship(

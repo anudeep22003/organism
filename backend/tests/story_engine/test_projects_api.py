@@ -489,6 +489,70 @@ async def test_create_story_story_text_starts_empty(
     await db_session.commit()
 
 
+async def test_create_story_with_meta_generates_name_and_description(
+    api_client: AsyncClient,
+    user: User,
+    project: Project,
+    db_session: AsyncSession,
+) -> None:
+    """Sending metadata at story creation causes the LLM to populate name and description."""
+    meta_payload = {
+        "about": "Anton Chekhov's - In the Cart",
+        "tone": "Emotional",
+        "comicStyle": "Western",
+        "hasBackdrop": "Yes",
+        "backdrop": "1900 rural Russia village",
+        "forSomeone": "Yes",
+        "relationship": "friend who is interested in stories",
+        "feeling": ["Moved"],
+    }
+    response = await api_client.post(
+        _stories_url(project.id),
+        headers=_auth_headers(user.id),
+        json={"meta": meta_payload},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+
+    assert body["name"] is not None
+    assert isinstance(body["name"], str)
+    assert 0 < len(body["name"]) <= 100
+
+    assert body["description"] is not None
+    assert isinstance(body["description"], str)
+    assert 0 < len(body["description"]) <= 300
+
+    await db_session.execute(
+        text("DELETE FROM story WHERE id = :id"), {"id": uuid.UUID(body["id"])}
+    )
+    await db_session.commit()
+
+
+async def test_create_story_without_meta_has_null_name_and_description(
+    api_client: AsyncClient,
+    user: User,
+    project: Project,
+    db_session: AsyncSession,
+) -> None:
+    """A story created with no metadata has null name and description."""
+    response = await api_client.post(
+        _stories_url(project.id),
+        headers=_auth_headers(user.id),
+        json={},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["name"] is None
+    assert body["description"] is None
+
+    await db_session.execute(
+        text("DELETE FROM story WHERE id = :id"), {"id": uuid.UUID(body["id"])}
+    )
+    await db_session.commit()
+
+
 async def test_create_story_persists_meta(
     api_client: AsyncClient,
     user: User,
