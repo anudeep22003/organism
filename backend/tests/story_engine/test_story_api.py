@@ -49,6 +49,11 @@ def _story_url(project_id: uuid.UUID, story_id: uuid.UUID) -> str:
     return f"/api/comic-builder/v2/project/{project_id}/story/{story_id}"
 
 
+def _patch_story_url(project_id: uuid.UUID, story_id: uuid.UUID) -> str:
+    # Uses plural "/projects/" — see NOTE in story.py update_story handler.
+    return f"/api/comic-builder/v2/projects/{project_id}/story/{story_id}"
+
+
 def _history_url(project_id: uuid.UUID, story_id: uuid.UUID) -> str:
     return f"/api/comic-builder/v2/project/{project_id}/story/{story_id}/history"
 
@@ -322,7 +327,7 @@ async def test_patch_story_updates_meta(
     """Sending a new meta object replaces the stored meta."""
     new_meta = {"tone": "Comedic", "comicStyle": "Manga"}
     response = await api_client.patch(
-        _story_url(project.id, story.id),
+        _patch_story_url(project.id, story.id),
         headers=_auth_headers(user.id),
         json={"meta": new_meta},
     )
@@ -341,7 +346,7 @@ async def test_patch_story_updates_name(
     original_description = story.description
     new_name = "A Brand New Title"
     response = await api_client.patch(
-        _story_url(project.id, story.id),
+        _patch_story_url(project.id, story.id),
         headers=_auth_headers(user.id),
         json={"name": new_name},
     )
@@ -362,7 +367,7 @@ async def test_patch_story_updates_description(
     original_name = story.name
     new_description = "A completely revised one-liner for this comic."
     response = await api_client.patch(
-        _story_url(project.id, story.id),
+        _patch_story_url(project.id, story.id),
         headers=_auth_headers(user.id),
         json={"description": new_description},
     )
@@ -384,7 +389,7 @@ async def test_patch_story_updates_all_fields(
     new_name = "Shadows of the Cart"
     new_description = "A noir retelling of Chekhov set in rural Russia."
     response = await api_client.patch(
-        _story_url(project.id, story.id),
+        _patch_story_url(project.id, story.id),
         headers=_auth_headers(user.id),
         json={"meta": new_meta, "name": new_name, "description": new_description},
     )
@@ -403,7 +408,7 @@ async def test_patch_story_404_unknown_story(
 ) -> None:
     """Patching a non-existent story returns 404."""
     response = await api_client.patch(
-        _story_url(project.id, uuid.uuid4()),
+        _patch_story_url(project.id, uuid.uuid4()),
         headers=_auth_headers(user.id),
         json={"name": "Ghost Story"},
     )
@@ -417,7 +422,7 @@ async def test_patch_story_401_no_token(
 ) -> None:
     """PATCH without a token returns 401."""
     response = await api_client.patch(
-        _story_url(project.id, story.id),
+        _patch_story_url(project.id, story.id),
         json={"name": "Unauthorized"},
     )
     assert response.status_code == 401
