@@ -249,6 +249,20 @@ class CloudRunServiceAccount(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self),
         )
 
+        # --- IAM signing: allow the SA to sign blobs as itself ---
+        # generate_signed_url() on Cloud Run uses the IAM Credentials API
+        # (iamcredentials.googleapis.com / signBlob) instead of a local
+        # private key. Binding Token Creator *on the SA resource itself*
+        # (not project-wide) grants only iam.serviceAccounts.signBlob for
+        # this one identity — least privilege.
+        gcp.serviceaccount.IAMMember(
+            f"{name}-token-creator-self",
+            service_account_id=self.account.name,
+            role="roles/iam.serviceAccountTokenCreator",
+            member=member,
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+
         # --- Cloud SQL: allow the SA to open connections to any Cloud SQL
         # instance in the project. Project-level because Cloud SQL IAM
         # works at the project level. Grants network-level access only —

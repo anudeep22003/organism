@@ -6,8 +6,9 @@ from functools import lru_cache
 from io import BytesIO
 from typing import BinaryIO
 
+import google.auth
+from google.auth.transport.requests import Request
 from google.cloud.storage import Client  # type: ignore[import-untyped]
-from google.oauth2 import service_account
 from loguru import logger
 from PIL import Image as PILImage
 from PIL import ImageOps
@@ -274,19 +275,23 @@ class ImageProcessor:
 
 class GCSUploadService:
     def __init__(self) -> None:
-        # Locally, load credentials explicitly from the service account key file so
-        # generate_signed_url (which requires a private key) works. On Cloud Run
-        # google_application_credentials is unset so credentials=None is passed,
-        # letting the GCS client fall back to ADC via Workload Identity (also has a
-        # private key and can sign).
-        credentials = (
-            service_account.Credentials.from_service_account_file(
-                settings.google_application_credentials
-            )
-            if settings.google_application_credentials
-            else None
+        # google.auth.default() resolves credentials from the environment:
+        #   - Locally: picks up the JSON key file via GOOGLE_APPLICATION_CREDENTIALS.
+        #              These are ServiceAccountCredentials — they hold a private key
+        #              and implement google.auth.credentials.Signing directly.
+        #   - Cloud Run: picks up the attached service account via the metadata server.
+        #              These are ComputeEngine.Credentials — they hold only a token,
+        #              NOT a private key. generate_signed_url() must therefore use
+        #              the IAM signBlob API path (access_token + service_account_email).
+        #
+        # On Cloud Run, ADC provides tokens, not a local private key. Signed URL
+        # generation therefore uses IAM-based signing (signBlob) — the SA needs
+        # roles/iam.serviceAccountTokenCreator on itself (set in infra/iam.py).
+        self.credentials, project_id = google.auth.default()
+        self.client = Client(
+            project=settings.gcp_project_id or project_id,
+            credentials=self.credentials,
         )
-        self.client = Client(project=settings.gcp_project_id, credentials=credentials)
         self.bucket = self.client.bucket(settings.gcp_storage_bucket)
 
     def upload(
@@ -311,10 +316,31 @@ class GCSUploadService:
     def generate_signed_url(self, object_key: str) -> tuple[str, datetime.datetime]:
         expiry = datetime.timedelta(minutes=SIGNED_URL_EXPIRY_MINUTES)
         blob = self.bucket.blob(object_key)
+
+        # Locally (ServiceAccountCredentials from JSON key file): credentials
+        # implement google.auth.credentials.Signing, so generate_signed_url()
+        # signs the URL locally with the private key — no extra args needed.
+        #
+        # On Cloud Run (ComputeEngine.Credentials): credentials hold only a
+        # token, not a private key. We must use the IAM signBlob API path by
+        # passing both access_token and service_account_email. The SDK branches
+        # on `if access_token and service_account_email` to call signBlob via
+        # the IAM Credentials API instead of credentials.sign_bytes().
+        # Requires roles/iam.serviceAccountTokenCreator on the SA (iam.py).
+        extra: dict = {}
+        if not hasattr(self.credentials, "sign_bytes"):
+            # Refresh to ensure token and service_account_email are populated.
+            self.credentials.refresh(Request())
+            extra = {
+                "service_account_email": self.credentials.service_account_email,
+                "access_token": self.credentials.token,
+            }
+
         url = blob.generate_signed_url(
             expiration=expiry,
             method="GET",
             version="v4",
+            **extra,
         )
         expires_at = datetime.datetime.now(datetime.timezone.utc) + expiry
         return url, expires_at
