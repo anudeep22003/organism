@@ -1,3 +1,6 @@
+import { BACKEND_URL } from "@/constants";
+import { AUTH_V2_SERVICE_ENDPOINTS } from "../api/auth.constants";
+
 const GoogleLogo = () => {
   return (
     <svg
@@ -27,7 +30,9 @@ const GoogleLogo = () => {
 
 const AuthPage = () => {
   const handleGoogleSignIn = () => {
-    console.log("Google sign-in clicked");
+    window.location.assign(
+      `${BACKEND_URL}${AUTH_V2_SERVICE_ENDPOINTS.GOOGLE_LOGIN}`
+    );
   };
 
   return (
