@@ -1,4 +1,3 @@
-import os
 from typing import AsyncGenerator
 
 import socketio
@@ -53,7 +52,7 @@ fastapi_app.add_middleware(
 # CORS_ORIGINS is a comma-separated list of allowed origins.
 # Defaults to localhost:5173 for local dev — no .env.local change needed.
 # In Cloud Run, injected as a plain env var from infra/components/cloudrun.py.
-_cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
+_cors_origins = settings.cors_origins.split(",")
 
 fastapi_app.add_middleware(
     CORSMiddleware,

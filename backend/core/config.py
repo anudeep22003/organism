@@ -28,6 +28,7 @@ class AppSettings(BaseSettings):
     jwt_secret_key: str
     auth_session_secret: str
     google_oauth_client_id: str
+    cors_origins: str
     # Optional — only needed locally for GCS access outside Cloud Run.
     # Cloud Run services authenticate via the attached service account (no key file).
     google_application_credentials: str = ""
