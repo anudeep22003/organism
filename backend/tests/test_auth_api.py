@@ -1,11 +1,11 @@
 """
 API tests for authentication endpoints.
 
-POST /api/auth/signup
-POST /api/auth/signin
-POST /api/auth/logout
-POST /api/auth/refresh
-GET  /api/auth/me
+POST /api/legacy-auth/signup
+POST /api/legacy-auth/signin
+POST /api/legacy-auth/logout
+POST /api/legacy-auth/refresh
+GET  /api/legacy-auth/me
 
 Tests focus on observable side effects and invariants:
 - Correct response shapes (field names, types)
@@ -44,7 +44,7 @@ def _unique_email() -> str:
 
 
 # ---------------------------------------------------------------------------
-# POST /api/auth/signup
+# POST /api/legacy-auth/signup
 # ---------------------------------------------------------------------------
 
 
@@ -55,7 +55,7 @@ async def test_signup_creates_user_and_returns_token(
     """Signing up returns an access token and the new user's email."""
     email = _unique_email()
     response = await api_client.post(
-        "/api/auth/signup",
+        "/api/legacy-auth/signup",
         json={"email": email, "password": "correct-horse-battery"},
     )
 
@@ -80,7 +80,7 @@ async def test_signup_sets_refresh_token_cookie(
     """Signup sets an HttpOnly refresh_token cookie."""
     email = _unique_email()
     response = await api_client.post(
-        "/api/auth/signup",
+        "/api/legacy-auth/signup",
         json={"email": email, "password": "correct-horse-battery"},
     )
 
@@ -99,7 +99,7 @@ async def test_signup_duplicate_email_returns_400(
 ) -> None:
     """Registering with an already-used email returns 400."""
     response = await api_client.post(
-        "/api/auth/signup",
+        "/api/legacy-auth/signup",
         json={"email": user.email, "password": "doesnt-matter"},
     )
 
@@ -116,7 +116,7 @@ async def test_signup_response_shape(
     """
     email = _unique_email()
     response = await api_client.post(
-        "/api/auth/signup",
+        "/api/legacy-auth/signup",
         json={"email": email, "password": "shape-test-password"},
     )
 
@@ -138,7 +138,7 @@ async def test_signup_response_shape(
 
 
 # ---------------------------------------------------------------------------
-# POST /api/auth/signin
+# POST /api/legacy-auth/signin
 # ---------------------------------------------------------------------------
 
 
@@ -152,13 +152,13 @@ async def test_signin_returns_token(
 
     # Register first
     signup_resp = await api_client.post(
-        "/api/auth/signup", json={"email": email, "password": password}
+        "/api/legacy-auth/signup", json={"email": email, "password": password}
     )
     assert signup_resp.status_code == 200
 
     # Sign in
     response = await api_client.post(
-        "/api/auth/signin", json={"email": email, "password": password}
+        "/api/legacy-auth/signin", json={"email": email, "password": password}
     )
 
     assert response.status_code == 200
@@ -178,7 +178,7 @@ async def test_signin_wrong_password_returns_401(
 ) -> None:
     """Wrong password on a real user returns 401."""
     response = await api_client.post(
-        "/api/auth/signin",
+        "/api/legacy-auth/signin",
         json={"email": user.email, "password": "definitely-wrong"},
     )
 
@@ -194,7 +194,7 @@ async def test_signin_unknown_email_returns_401(
     Distinct from the Pydantic validation path tested below.
     """
     response = await api_client.post(
-        "/api/auth/signin",
+        "/api/legacy-auth/signin",
         json={"email": "nobody@example.com", "password": "irrelevant"},
     )
 
@@ -210,7 +210,7 @@ async def test_signin_invalid_email_format_returns_422(
     not at the auth/DB layer.  The two error paths are distinct invariants.
     """
     response = await api_client.post(
-        "/api/auth/signin",
+        "/api/legacy-auth/signin",
         json={"email": "not-an-email", "password": "irrelevant"},
     )
 
@@ -226,10 +226,10 @@ async def test_signin_creates_session_row(
     password = "session-row-test"
 
     await api_client.post(
-        "/api/auth/signup", json={"email": email, "password": password}
+        "/api/legacy-auth/signup", json={"email": email, "password": password}
     )
     await api_client.post(
-        "/api/auth/signin", json={"email": email, "password": password}
+        "/api/legacy-auth/signin", json={"email": email, "password": password}
     )
 
     # Confirm at least one un-revoked session exists for this user
@@ -250,7 +250,7 @@ async def test_signin_creates_session_row(
 
 
 # ---------------------------------------------------------------------------
-# POST /api/auth/logout
+# POST /api/legacy-auth/logout
 # ---------------------------------------------------------------------------
 
 
@@ -264,7 +264,7 @@ async def test_logout_revokes_session(
 
     # Signup to get a session cookie
     signup_resp = await api_client.post(
-        "/api/auth/signup", json={"email": email, "password": password}
+        "/api/legacy-auth/signup", json={"email": email, "password": password}
     )
     assert signup_resp.status_code == 200
     refresh_token = signup_resp.cookies.get("refresh_token")
@@ -272,7 +272,7 @@ async def test_logout_revokes_session(
 
     # Logout using the cookie
     logout_resp = await api_client.post(
-        "/api/auth/logout",
+        "/api/legacy-auth/logout",
         cookies={"refresh_token": refresh_token},
     )
     assert logout_resp.status_code == 200
@@ -300,7 +300,7 @@ async def test_logout_without_cookie_returns_401(
     api_client: AsyncClient,
 ) -> None:
     """Logout without a refresh token cookie returns 401."""
-    response = await api_client.post("/api/auth/logout")
+    response = await api_client.post("/api/legacy-auth/logout")
     assert response.status_code == 401
 
 
@@ -311,14 +311,14 @@ async def test_logout_clears_cookie(
     """The logout response deletes the refresh_token cookie."""
     email = _unique_email()
     signup_resp = await api_client.post(
-        "/api/auth/signup",
+        "/api/legacy-auth/signup",
         json={"email": email, "password": "cookie-clear-test"},
     )
     refresh_token = signup_resp.cookies.get("refresh_token")
     assert refresh_token
 
     logout_resp = await api_client.post(
-        "/api/auth/logout",
+        "/api/legacy-auth/logout",
         cookies={"refresh_token": refresh_token},
     )
     assert logout_resp.status_code == 200
@@ -333,7 +333,7 @@ async def test_logout_clears_cookie(
 
 
 # ---------------------------------------------------------------------------
-# POST /api/auth/refresh
+# POST /api/legacy-auth/refresh
 # ---------------------------------------------------------------------------
 
 
@@ -344,7 +344,7 @@ async def test_refresh_returns_new_access_token(
     """A valid refresh token cookie yields a new access token."""
     email = _unique_email()
     signup_resp = await api_client.post(
-        "/api/auth/signup",
+        "/api/legacy-auth/signup",
         json={"email": email, "password": "refresh-test-pw"},
     )
     assert signup_resp.status_code == 200
@@ -352,7 +352,7 @@ async def test_refresh_returns_new_access_token(
     assert refresh_token
 
     refresh_resp = await api_client.post(
-        "/api/auth/refresh",
+        "/api/legacy-auth/refresh",
         cookies={"refresh_token": refresh_token},
     )
 
@@ -371,7 +371,7 @@ async def test_refresh_without_cookie_returns_401(
     api_client: AsyncClient,
 ) -> None:
     """Calling /refresh with no cookie returns 401."""
-    response = await api_client.post("/api/auth/refresh")
+    response = await api_client.post("/api/legacy-auth/refresh")
     assert response.status_code == 401
 
 
@@ -382,7 +382,7 @@ async def test_refresh_after_logout_returns_401(
     """Using a revoked refresh token to refresh returns 401."""
     email = _unique_email()
     signup_resp = await api_client.post(
-        "/api/auth/signup",
+        "/api/legacy-auth/signup",
         json={"email": email, "password": "revoke-test-pw"},
     )
     refresh_token = signup_resp.cookies.get("refresh_token")
@@ -390,13 +390,13 @@ async def test_refresh_after_logout_returns_401(
 
     # Revoke it via logout
     await api_client.post(
-        "/api/auth/logout",
+        "/api/legacy-auth/logout",
         cookies={"refresh_token": refresh_token},
     )
 
     # Try to refresh with the now-revoked token
     response = await api_client.post(
-        "/api/auth/refresh",
+        "/api/legacy-auth/refresh",
         cookies={"refresh_token": refresh_token},
     )
     assert response.status_code == 401
@@ -408,7 +408,7 @@ async def test_refresh_after_logout_returns_401(
 
 
 # ---------------------------------------------------------------------------
-# GET /api/auth/me
+# GET /api/legacy-auth/me
 # ---------------------------------------------------------------------------
 
 
@@ -417,7 +417,9 @@ async def test_me_returns_user(
     user: User,
 ) -> None:
     """GET /me with a valid token returns the authenticated user's data."""
-    response = await api_client.get("/api/auth/me", headers=_auth_headers(user.id))
+    response = await api_client.get(
+        "/api/legacy-auth/me", headers=_auth_headers(user.id)
+    )
 
     assert response.status_code == 200
     body = response.json()
@@ -429,7 +431,7 @@ async def test_me_without_token_returns_401(
     api_client: AsyncClient,
 ) -> None:
     """GET /me without an auth header returns 401."""
-    response = await api_client.get("/api/auth/me")
+    response = await api_client.get("/api/legacy-auth/me")
     assert response.status_code == 401
 
 
@@ -438,7 +440,7 @@ async def test_me_with_malformed_token_returns_401(
 ) -> None:
     """GET /me with a garbage token returns 401."""
     response = await api_client.get(
-        "/api/auth/me",
+        "/api/legacy-auth/me",
         headers={"Authorization": "Bearer this.is.garbage"},
     )
     assert response.status_code == 401
@@ -452,7 +454,9 @@ async def test_me_response_shape(
 
     If UserResponse gains or loses a field, this test should catch it.
     """
-    response = await api_client.get("/api/auth/me", headers=_auth_headers(user.id))
+    response = await api_client.get(
+        "/api/legacy-auth/me", headers=_auth_headers(user.id)
+    )
 
     assert response.status_code == 200
     body = response.json()

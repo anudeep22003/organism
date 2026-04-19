@@ -42,7 +42,7 @@ from .schemas.user import UserResponse, UserSchemaCreate, UserSchemaSignin
 
 logger = logger.bind(name=__name__)
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+router = APIRouter(prefix="/legacy-auth", tags=["auth", "legacy-auth"])
 
 
 class LoginResponse(AliasedBaseModel):
