@@ -1,39 +1,41 @@
-from typing import Literal
+from authlib.integrations.starlette_client import OAuth
+from fastapi import APIRouter, Request
+from fastapi.responses import RedirectResponse
 
-from fastapi import APIRouter
-from pydantic import BaseModel
+from core.config import settings
 
 router = APIRouter(prefix="/google-auth", tags=["auth", "google-auth"])
 
 
-class PlaceholderResponse(BaseModel):
-    endpoint: Literal["login", "callback", "me"]
-    status: Literal["NOT_IMPLEMENTED"]
-    message: str
+oauth = OAuth()
+oauth.register(
+    name="google",
+    client_id=settings.google_oauth_client_id,
+    client_secret=settings.google_oauth_client_secret,
+    server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
+    client_kwargs={
+        "scope": "openid email profile",
+        "access_type": "offline",  # request refresh token (for future Google API use)
+        "prompt": "consent",  # ensure refresh token is returned
+    },
+)
 
 
-@router.get("/login", response_model=PlaceholderResponse)
-async def login() -> PlaceholderResponse:
-    return PlaceholderResponse(
-        endpoint="login",
-        status="NOT_IMPLEMENTED",
-        message="google auth v2 login is not implemented yet",
-    )
+@router.get("/login")
+async def login(request: Request) -> RedirectResponse:
+    google = oauth.create_client("google")
+    redirect_uri = str(request.url_for("callback"))
+    # The callback URL is the endpoint that Google will redirect the user to after they complete authentication.
+    # Here, request.url_for("callback") dynamically generates the absolute URL for the "/callback" route,
+    # ensuring that OAuth will return the authenticated user to the correct handler in this FastAPI app.
+    return await google.authorize_redirect(request, redirect_uri)  # type: ignore[no-any-return]
 
 
-@router.get("/callback", response_model=PlaceholderResponse)
-async def callback() -> PlaceholderResponse:
-    return PlaceholderResponse(
-        endpoint="callback",
-        status="NOT_IMPLEMENTED",
-        message="google auth v2 callback is not implemented yet",
-    )
+@router.get("/callback", response_model=dict)
+async def callback() -> dict:
+    return {}
 
 
-@router.get("/me", response_model=PlaceholderResponse)
-async def me() -> PlaceholderResponse:
-    return PlaceholderResponse(
-        endpoint="me",
-        status="NOT_IMPLEMENTED",
-        message="google auth v2 me is not implemented yet",
-    )
+@router.get("/me", response_model=dict)
+async def me() -> dict:
+    return {}
