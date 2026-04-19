@@ -36,6 +36,7 @@ dependencies = [
     "reportlab>=4.2.0",
     "coolname>=4.1.0",
     "pydantic-settings>=2.0.0,<3.0.0",
+    "authlib>=1.7.0",
 ]
 
 [dependency-groups]
