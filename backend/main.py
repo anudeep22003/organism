@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.concurrency import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
+from starlette.middleware.sessions import SessionMiddleware
 
 from core.api.routers import router as v1_router
 from core.config import settings
@@ -36,6 +37,17 @@ fastapi_app = FastAPI(
     docs_url=None if _is_production else "/docs",
     redoc_url=None if _is_production else "/redoc",
     openapi_url=None if _is_production else "/openapi.json",
+)
+
+fastapi_app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.auth_session_secret,
+    session_cookie="oauth_session",
+    max_age=10 * 60,  # 10 minutes, in seconds
+    path="/",
+    same_site="lax",
+    https_only=settings.env == "production",
+    domain=None,  # [TODO] how is this used
 )
 
 # CORS_ORIGINS is a comma-separated list of allowed origins.
