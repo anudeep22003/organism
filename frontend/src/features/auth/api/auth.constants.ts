@@ -27,6 +27,7 @@ export const AUTH_SERVICE_ENDPOINTS = {
 
 export const AUTH_ROUTES = {
   ROOT: "/auth",
+  LEGACY: "/auth/legacy",
   HOME_FALLBACK: "/",
 } as const;
 

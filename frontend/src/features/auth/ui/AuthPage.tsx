@@ -1,160 +1,76 @@
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
-import { getAxiosErrorDetails } from "@/lib/httpClient";
-import { authLogger } from "@/lib/logger";
-import { useCallback, useEffect, useState } from "react";
-import {
-  useLocation,
-  useNavigate,
-  useSearchParams,
-} from "react-router";
-import {
-  AUTH_QUERY_PARAMS,
-  AUTH_ROUTES,
-  AUTH_TABS,
-  HTTP_STATUS,
-  type AuthTab,
-} from "../api/auth.constants";
-import { useAuth } from "../model/auth.context";
-import {
-  buildAuthRoute,
-  getAuthTabFromSearchParams,
-  getRedirectFromSearchParams,
-} from "../routing/auth-redirect";
-import { SignInForm } from "./components/SignInForm";
-import { SignUpForm } from "./components/SignUpForm";
+import { GoogleIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Link, useLocation } from "react-router";
+import { AUTH_ROUTES } from "../api/auth.constants";
+import { getRedirectFromSearchParams } from "../routing/auth-redirect";
 
 const AuthPage = () => {
-  const [, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
   const location = useLocation();
-  const { signIn, signUp } = useAuth();
-
-  const tabFromUrl = getAuthTabFromSearchParams(location.search);
   const redirectTarget = getRedirectFromSearchParams(location.search);
-  const [activeTab, setActiveTab] = useState<AuthTab>(tabFromUrl);
 
-  useEffect(() => {
-    setActiveTab(tabFromUrl);
-  }, [tabFromUrl]);
-
-  const handleTabChange = useCallback(
-    (tab: AuthTab) => {
-      setActiveTab(tab);
-
-      const nextSearchParams = new URLSearchParams({
-        [AUTH_QUERY_PARAMS.TAB]: tab,
-      });
-
-      if (redirectTarget) {
-        nextSearchParams.set(
-          AUTH_QUERY_PARAMS.REDIRECT,
-          redirectTarget
-        );
-      }
-
-      setSearchParams(nextSearchParams);
-    },
-    [redirectTarget, setSearchParams]
-  );
-
-  const onSignIn = useCallback(
-    async (credentials: { email: string; password: string }) => {
-      try {
-        await signIn(credentials);
-        navigate(redirectTarget ?? AUTH_ROUTES.HOME_FALLBACK, {
-          replace: true,
-        });
-      } catch (err) {
-        const { status } = getAxiosErrorDetails(err);
-        authLogger.error("Sign in failed:", err);
-        if (status === HTTP_STATUS.UNAUTHORIZED) {
-          navigate(
-            buildAuthRoute({
-              tab: AUTH_TABS.SIGNUP,
-              redirectTo: redirectTarget,
-            }),
-            {
-              replace: true,
-            }
-          );
-        }
-      }
-    },
-    [navigate, redirectTarget, signIn]
-  );
-
-  const onSignUp = useCallback(
-    async (credentials: {
-      fullName: string;
-      email: string;
-      password: string;
-      acceptTerms: boolean;
-    }) => {
-      try {
-        await signUp(credentials);
-        navigate(redirectTarget ?? AUTH_ROUTES.HOME_FALLBACK, {
-          replace: true,
-        });
-      } catch (err) {
-        const { status } = getAxiosErrorDetails(err);
-        authLogger.error("Sign up failed:", err);
-        if (status === HTTP_STATUS.BAD_REQUEST) {
-          navigate(
-            buildAuthRoute({
-              tab: AUTH_TABS.SIGNIN,
-              redirectTo: redirectTarget,
-            }),
-            {
-              replace: true,
-            }
-          );
-        }
-      }
-    },
-    [navigate, redirectTarget, signUp]
-  );
+  const handleGoogleSignIn = () => {
+    console.log("Google sign-in clicked", { redirectTarget });
+  };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-black p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">
-            Welcome
-          </CardTitle>
-          <CardDescription className="text-center">
-            Sign in to your account or create a new one
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs
-            value={activeTab}
-            onValueChange={(tab) => handleTabChange(tab as AuthTab)}
-          >
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value={AUTH_TABS.SIGNIN}>Sign In</TabsTrigger>
-              <TabsTrigger value={AUTH_TABS.SIGNUP}>Sign Up</TabsTrigger>
-            </TabsList>
-            <TabsContent value={AUTH_TABS.SIGNIN} className="mt-6">
-              <SignInForm onSubmit={onSignIn} />
-            </TabsContent>
-            <TabsContent value={AUTH_TABS.SIGNUP} className="mt-6">
-              <SignUpForm onSubmit={onSignUp} />
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+    <div className="flex min-h-screen flex-col bg-background">
+      <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-1.5">
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-muted-foreground">Organism</span>
+          <div className="h-2.5 w-px bg-border" />
+          <span className="text-[10px] text-foreground">Sign in</span>
+        </div>
+        <Link
+          to={AUTH_ROUTES.LEGACY}
+          className="text-[10px] text-muted-foreground hover:text-foreground"
+        >
+          Legacy auth
+        </Link>
+      </div>
+
+      <div className="flex min-h-0 flex-1 items-center justify-center p-4">
+        <div className="flex w-full max-w-md flex-col border border-border bg-muted/10">
+          <div className="border-b border-border px-4 py-3">
+            <span className="text-[10px] text-muted-foreground">
+              Authentication
+            </span>
+          </div>
+
+          <div className="flex flex-col gap-6 px-4 py-6 sm:px-6">
+            <div className="space-y-2">
+              <h1 className="text-base text-foreground">
+                Continue with Google
+              </h1>
+              <p className="text-xs text-muted-foreground">
+                Sign in with your Google account to verify your email and enter
+                Organism.
+              </p>
+              {redirectTarget ? (
+                <p className="text-[10px] text-muted-foreground">
+                  Redirect after sign-in: {redirectTarget}
+                </p>
+              ) : null}
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              className="flex items-center justify-between border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted/40"
+            >
+              <span className="flex items-center gap-2">
+                <HugeiconsIcon icon={GoogleIcon} size={16} />
+                <span>Continue with Google</span>
+              </span>
+              <span className="text-[10px] text-muted-foreground">SSO</span>
+            </button>
+
+            <p className="text-[10px] text-muted-foreground">
+              Google SSO is the new auth path. The legacy email/password screen
+              remains available during migration.
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
