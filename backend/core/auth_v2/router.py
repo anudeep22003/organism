@@ -1,10 +1,11 @@
 from authlib.integrations.starlette_client import OAuth
 from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
+from loguru import logger
 
 from core.config import settings
 
-router = APIRouter(prefix="/google-auth", tags=["auth", "google-auth"])
+router = APIRouter(prefix="/auth", tags=["auth", "google-auth"])
 
 
 oauth = OAuth()
@@ -28,6 +29,7 @@ async def login(request: Request) -> RedirectResponse:
     # The callback URL is the endpoint that Google will redirect the user to after they complete authentication.
     # Here, request.url_for("callback") dynamically generates the absolute URL for the "/callback" route,
     # ensuring that OAuth will return the authenticated user to the correct handler in this FastAPI app.
+    logger.info(f"Redirecting to Google OAuth: {redirect_uri}")
     return await google.authorize_redirect(request, redirect_uri)  # type: ignore[no-any-return]
 
 
