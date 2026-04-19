@@ -1,5 +1,10 @@
 import { Navigate } from "react-router";
-import { AuthPage, RequireAuth, RequireGuest } from "./features/auth";
+import {
+  AuthPage,
+  LegacyAuthPage,
+  RequireAuth,
+  RequireGuest,
+} from "./features/auth";
 import { sceneEngineRoutes } from "./features/scene-engine/routes";
 import { storiesRoutes } from "./features/scene-engine/stories/stories.routes";
 import { legacyStoryRoutes } from "./features/story";
@@ -30,6 +35,10 @@ export const routes = [
       {
         path: "/auth",
         element: <AuthPage />,
+      },
+      {
+        path: "/auth/legacy",
+        element: <LegacyAuthPage />,
       },
     ],
   },
