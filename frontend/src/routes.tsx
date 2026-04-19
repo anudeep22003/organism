@@ -1,10 +1,10 @@
 import { Navigate } from "react-router";
 import {
-  AuthPage,
   LegacyAuthPage,
   RequireAuth,
   RequireGuest,
 } from "./features/auth";
+import { AuthPage } from "./features/auth_v2";
 import { sceneEngineRoutes } from "./features/scene-engine/routes";
 import { storiesRoutes } from "./features/scene-engine/stories/stories.routes";
 import { legacyStoryRoutes } from "./features/story";
