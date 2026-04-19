@@ -18,11 +18,11 @@ export const AUTH_FIELDS = {
 } as const;
 
 export const AUTH_SERVICE_ENDPOINTS = {
-  ME: "/api/auth/me",
-  SIGNIN: "/api/auth/signin",
-  SIGNUP: "/api/auth/signup",
-  REFRESH: "/api/auth/refresh",
-  LOGOUT: "/api/auth/logout",
+  ME: "/api/legacy-auth/me",
+  SIGNIN: "/api/legacy-auth/signin",
+  SIGNUP: "/api/legacy-auth/signup",
+  REFRESH: "/api/legacy-auth/refresh",
+  LOGOUT: "/api/legacy-auth/logout",
 } as const;
 
 export const AUTH_ROUTES = {

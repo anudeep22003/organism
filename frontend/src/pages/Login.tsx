@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { AUTH_SERVICE_ENDPOINTS } from "@/features/auth/api/auth.constants";
 import { Input } from "@/components/ui/input";
 import { httpClient } from "@/lib/httpClient";
 import { useNavigate } from "react-router";
@@ -37,7 +38,7 @@ export default function Login() {
     try {
       const credentials: LoginCredentials = { email, password };
       const response = await httpClient.post<LoginResponse>(
-        "/api/auth/login",
+        AUTH_SERVICE_ENDPOINTS.SIGNIN,
         credentials
       );
 

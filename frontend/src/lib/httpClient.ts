@@ -1,11 +1,10 @@
 import { BACKEND_URL } from "@/constants";
+import { AUTH_SERVICE_ENDPOINTS } from "@/features/auth/api/auth.constants";
 import axios, { AxiosError, type AxiosInstance } from "axios";
 import { apiLogger, authLogger } from "./logger";
 
 const ACCESS_TOKEN_EXPIRY_TIME = 1000 * 60 * 30;
 const HTTP_STATUS_UNAUTHORIZED = 401;
-const AUTH_REFRESH_ENDPOINT = "/api/auth/refresh";
-const AUTH_LOGOUT_ENDPOINT = "/api/auth/logout";
 
 type RefreshResponse = {
   accessToken: string;
@@ -143,7 +142,10 @@ class HttpClient {
 
     this.refreshPromise = (async () => {
       const { accessToken: newAccessToken } =
-        await this.post<RefreshResponse>(AUTH_REFRESH_ENDPOINT, {});
+        await this.post<RefreshResponse>(
+          AUTH_SERVICE_ENDPOINTS.REFRESH,
+          {}
+        );
       this.setAccessToken(newAccessToken);
     })();
 
@@ -158,10 +160,10 @@ class HttpClient {
     const isUnauthorized =
       error.response?.status === HTTP_STATUS_UNAUTHORIZED;
     const isRefreshRequest = error.config?.url?.includes(
-      AUTH_REFRESH_ENDPOINT
+      AUTH_SERVICE_ENDPOINTS.REFRESH
     );
     const isLogoutRequest = error.config?.url?.includes(
-      AUTH_LOGOUT_ENDPOINT
+      AUTH_SERVICE_ENDPOINTS.LOGOUT
     );
 
     return isUnauthorized && !isRefreshRequest && !isLogoutRequest;
