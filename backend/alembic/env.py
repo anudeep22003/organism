@@ -24,8 +24,7 @@ load_dotenv(override=False, dotenv_path=".env.local")
 DATABASE_URL = os.environ["DATABASE_URL"]
 
 # Model imports for autogenerate support (alembic revision --autogenerate).
-# These drag in core.auth, core.services.database etc. — all safe now.
-from core.auth import models  # noqa: F401, E402
+from core.auth_v2 import models as auth_v2_models  # noqa: F401, E402
 from core.common import ORMBase  # noqa: E402
 
 # from core.comic_builder import models as comic_builder_models  # noqa: F401
