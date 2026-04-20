@@ -1,11 +1,14 @@
-import json
+from typing import Annotated
 
 from authlib.integrations.starlette_client import OAuth
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
 from loguru import logger
 
 from core.config import settings
+
+from .api import get_auth_service
+from .service import AuthService
 
 router = APIRouter(prefix="/auth", tags=["auth", "google-auth"])
 
@@ -20,6 +23,11 @@ oauth.register(
         "scope": "openid email profile",
     },
 )
+
+
+def _frontend_auth_redirect(path: str) -> str:
+    frontend_base_url = settings.frontend_url or settings.cors_origins
+    return f"{frontend_base_url.rstrip('/')}{path}"
 
 
 @router.get("/login")
@@ -39,17 +47,15 @@ async def login(request: Request) -> RedirectResponse:
 
 
 @router.get("/callback")
-async def callback(request: Request) -> RedirectResponse:
+async def callback(
+    request: Request,
+    service: Annotated[AuthService, Depends(get_auth_service)],
+) -> RedirectResponse:
     try:
         google = oauth.create_client("google")
         token = await google.authorize_access_token(request)
-        logger.info(json.dumps(token, indent=4))
-        return RedirectResponse(url=f"{settings.cors_origins}/auth/success")
+        await service.handle_google_callback(token=token)
+        return RedirectResponse(url=_frontend_auth_redirect("/auth/success"))
     except Exception as e:
         logger.error(f"Error authorizing access token: {e}")
-        return RedirectResponse(url=f"{settings.cors_origins}/auth/failure")
-
-
-@router.get("/me", response_model=dict)
-async def me() -> dict:
-    return {}
+        return RedirectResponse(url=_frontend_auth_redirect("/auth/failure"))
