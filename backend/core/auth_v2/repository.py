@@ -1,6 +1,4 @@
 import uuid
-from datetime import datetime
-from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,12 +21,8 @@ class UserRepository:
 
     async def create_user(
         self,
-        *,
-        email: str,
-        password_hash: str,
-        meta: dict[str, Any] | None = None,
+        user: User,
     ) -> User:
-        user = User(email=email, password_hash=password_hash, meta=meta or {})
         self.db.add(user)
         return user
 
@@ -61,59 +55,15 @@ class GoogleOAuthAccountRepository:
 
     async def create_google_oauth_account(
         self,
-        *,
-        user_id: uuid.UUID,
-        google_sub: str,
-        email: str,
-        email_verified: bool,
-        access_token: str,
-        refresh_token: str | None = None,
-        id_token: str | None = None,
-        scope: str | None = None,
-        name: str | None = None,
-        picture_url: str | None = None,
-        token_expires_at: datetime | None = None,
+        google_oauth_account: GoogleOAuthAccount,
     ) -> GoogleOAuthAccount:
-        google_oauth_account = GoogleOAuthAccount(
-            user_id=user_id,
-            google_sub=google_sub,
-            email=email,
-            email_verified=email_verified,
-            access_token=access_token,
-            refresh_token=refresh_token,
-            id_token=id_token,
-            scope=scope,
-            name=name,
-            picture_url=picture_url,
-            token_expires_at=token_expires_at,
-        )
         self.db.add(google_oauth_account)
         return google_oauth_account
 
     async def update_google_oauth_account(
         self,
         google_oauth_account: GoogleOAuthAccount,
-        *,
-        email: str,
-        email_verified: bool,
-        access_token: str,
-        refresh_token: str | None,
-        id_token: str | None,
-        scope: str | None,
-        name: str | None,
-        picture_url: str | None,
-        token_expires_at: datetime | None,
     ) -> GoogleOAuthAccount:
-        google_oauth_account.email = email
-        google_oauth_account.email_verified = email_verified
-        google_oauth_account.access_token = access_token
-        google_oauth_account.refresh_token = refresh_token
-        google_oauth_account.id_token = id_token
-        google_oauth_account.scope = scope
-        google_oauth_account.name = name
-        google_oauth_account.picture_url = picture_url
-        google_oauth_account.token_expires_at = token_expires_at
-        google_oauth_account.revoked_at = None
         return google_oauth_account
 
 

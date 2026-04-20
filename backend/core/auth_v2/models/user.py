@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import DateTime
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -39,3 +39,17 @@ class User(ORMBase):
 
     def __repr__(self) -> str:
         return f"User(email={self.email}, id={self.id})"
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        email: str,
+        password_hash: str,
+        meta: dict[str, Any] | None = None,
+    ) -> "User":
+        return cls(
+            email=email,
+            password_hash=password_hash,
+            meta=meta or {},
+        )
