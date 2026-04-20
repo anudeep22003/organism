@@ -5,7 +5,7 @@ from datetime import timedelta
 from ..config import REFRESH_TOKEN_TTL_SECONDS
 from ..exceptions import InvalidRefreshTokenError
 from ..models import AuthSession
-from ..repositories import AuthRepositoryV2
+from ..repositories import AuthRepository
 from ..security import AccessTokenManager, RefreshTokenManager
 from ..utils import get_current_datetime_utc
 
@@ -19,11 +19,11 @@ class AuthTokens:
 class SessionService:
     def __init__(
         self,
-        repository_v2: AuthRepositoryV2,
+        repository: AuthRepository,
         access_token_manager: AccessTokenManager,
         refresh_token_manager: RefreshTokenManager,
     ) -> None:
-        self.repository_v2 = repository_v2
+        self.repository = repository
         self.access_token_manager = access_token_manager
         self.refresh_token_manager = refresh_token_manager
 
@@ -47,13 +47,13 @@ class SessionService:
         )
         session.refresh_token_hash = refresh_token_hash
         session.touch()
-        await self.repository_v2.session.create_session(session)
+        await self.repository.session.create_session(session)
         access_token = self.access_token_manager.create_access_token(user_id)
         return AuthTokens(access_token=access_token, refresh_token=refresh_token)
 
     async def refresh_session(self, refresh_token: str) -> AuthTokens:
         token_parts = self.refresh_token_manager.parse_refresh_token(refresh_token)
-        session = await self.repository_v2.session.get_session_by_id(
+        session = await self.repository.session.get_session_by_id(
             token_parts.session_id
         )
         if session is None:
@@ -84,10 +84,10 @@ class SessionService:
         )
         new_session.refresh_token_hash = new_secret_hash
         new_session.touch()
-        await self.repository_v2.session.create_session(new_session)
-        await self.repository_v2.db.flush()
+        await self.repository.session.create_session(new_session)
+        await self.repository.db.flush()
         session.rotate(new_session.id)
-        await self.repository_v2.session.update_session(session)
+        await self.repository.session.update_session(session)
         return AuthTokens(
             access_token=self.access_token_manager.create_access_token(user_id),
             refresh_token=new_refresh_token,
@@ -101,7 +101,7 @@ class SessionService:
         except InvalidRefreshTokenError:
             return
 
-        session = await self.repository_v2.session.get_session_by_id(
+        session = await self.repository.session.get_session_by_id(
             token_parts.session_id
         )
         if session is None:
@@ -114,4 +114,4 @@ class SessionService:
 
         if session.revoked_at is None:
             session.revoke()
-            await self.repository_v2.session.update_session(session)
+            await self.repository.session.update_session(session)

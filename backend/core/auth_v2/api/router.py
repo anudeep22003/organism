@@ -14,7 +14,7 @@ from ..services import AuthService
 from .cookies import clear_auth_cookies, set_auth_cookies
 from .dependencies import (
     get_auth_service,
-    get_current_user_id_v2,
+    get_current_user_id,
     get_request_client_context,
 )
 from .oauth_client import oauth
@@ -71,7 +71,7 @@ async def callback(
 
 @router.get("/me")
 async def me(
-    user_id: Annotated[uuid.UUID, Depends(get_current_user_id_v2)],
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     service: Annotated[AuthService, Depends(get_auth_service)],
 ) -> UserResponse:
     try:

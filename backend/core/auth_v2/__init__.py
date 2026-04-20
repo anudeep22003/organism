@@ -1,12 +1,12 @@
 from . import models
 from .api import oauth, router
-from .repositories import AuthRepositoryV2
+from .repositories import AuthRepository
 from .security import Argon2Hasher, RefreshTokenManager
 from .services import AuthService
 
 __all__ = [
     "Argon2Hasher",
-    "AuthRepositoryV2",
+    "AuthRepository",
     "AuthService",
     "RefreshTokenManager",
     "models",

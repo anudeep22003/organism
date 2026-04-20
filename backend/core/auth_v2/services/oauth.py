@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from ..models import GoogleOAuthAccount, User
-from ..repositories import AuthRepositoryV2
+from ..repositories import AuthRepository
 from ..security import PasswordHasher
 
 
@@ -16,10 +16,10 @@ class CallbackUserResult:
 class OAuthService:
     def __init__(
         self,
-        repository_v2: AuthRepositoryV2,
+        repository: AuthRepository,
         password_hasher: PasswordHasher,
     ) -> None:
-        self.repository_v2 = repository_v2
+        self.repository = repository
         self.password_hasher = password_hasher
 
     async def resolve_google_callback_user(
@@ -41,8 +41,10 @@ class OAuthService:
         scope = self._optional_str(token.get("scope"))
         token_expires_at = self._parse_token_expires_at(token)
 
-        google_account = await self.repository_v2.google_oauth_account.get_google_oauth_account_by_sub(
-            google_sub
+        google_account = (
+            await self.repository.google_oauth_account.get_google_oauth_account_by_sub(
+                google_sub
+            )
         )
         if google_account is not None:
             google_account.update_google_login(
@@ -56,19 +58,19 @@ class OAuthService:
                 picture_url=picture_url,
                 token_expires_at=token_expires_at,
             )
-            await self.repository_v2.google_oauth_account.update_google_oauth_account(
+            await self.repository.google_oauth_account.update_google_oauth_account(
                 google_account
             )
             return CallbackUserResult(user_id=google_account.user_id)
 
-        user = await self.repository_v2.user.get_user_by_email(email)
+        user = await self.repository.user.get_user_by_email(email)
         if user is None:
             user = User.create(
                 email=email,
                 password_hash=self._oauth_only_password_hash(),
             )
-            await self.repository_v2.user.create_user(user)
-            await self.repository_v2.db.flush()
+            await self.repository.user.create_user(user)
+            await self.repository.db.flush()
 
         google_account = GoogleOAuthAccount.create(
             user_id=user.id,
@@ -83,13 +85,13 @@ class OAuthService:
             picture_url=picture_url,
             token_expires_at=token_expires_at,
         )
-        await self.repository_v2.google_oauth_account.create_google_oauth_account(
+        await self.repository.google_oauth_account.create_google_oauth_account(
             google_account
         )
         return CallbackUserResult(user_id=user.id)
 
     async def get_current_user(self, user_id: uuid.UUID) -> User | None:
-        return await self.repository_v2.user.get_user_by_id(user_id)
+        return await self.repository.user.get_user_by_id(user_id)
 
     def _oauth_only_password_hash(self) -> str:
         import uuid as uuid_module
