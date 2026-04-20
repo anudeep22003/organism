@@ -8,6 +8,7 @@ from core.services.database import get_async_db_session
 
 from ..config import ACCESS_TOKEN_COOKIE_NAME
 from ..exceptions import ExpiredAccessTokenError, InvalidAccessTokenError
+from ..hashers import Argon2Hasher
 from ..service import AuthService
 from ..tokens import AccessTokenManager, RefreshTokenManager
 
@@ -16,8 +17,12 @@ def get_access_token_manager() -> AccessTokenManager:
     return AccessTokenManager()
 
 
+def get_password_hasher() -> Argon2Hasher:
+    return Argon2Hasher()
+
+
 def get_refresh_token_manager() -> RefreshTokenManager:
-    return RefreshTokenManager()
+    return RefreshTokenManager(password_hasher=get_password_hasher())
 
 
 async def get_auth_service(
@@ -28,11 +33,13 @@ async def get_auth_service(
     refresh_token_manager: Annotated[
         RefreshTokenManager, Depends(get_refresh_token_manager)
     ],
+    password_hasher: Annotated[Argon2Hasher, Depends(get_password_hasher)],
 ) -> AuthService:
     return AuthService(
         db_session=db,
         access_token_manager=access_token_manager,
         refresh_token_manager=refresh_token_manager,
+        password_hasher=password_hasher,
     )
 
 

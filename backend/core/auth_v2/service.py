@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from .config import REFRESH_TOKEN_TTL_SECONDS
 from .exceptions import InvalidRefreshTokenError, UserNotFoundError
+from .hashers import PasswordHasher
 from .models import AuthSession, GoogleOAuthAccount, User
 from .repository import AuthRepositoryV2
 from .tokens import AccessTokenManager, RefreshTokenManager
@@ -31,11 +32,13 @@ class AuthService:
         db_session: AsyncSession,
         access_token_manager: AccessTokenManager,
         refresh_token_manager: RefreshTokenManager,
+        password_hasher: PasswordHasher,
     ):
         self.db = db_session
         self.repository_v2 = AuthRepositoryV2(db_session)
         self.access_token_manager = access_token_manager
         self.refresh_token_manager = refresh_token_manager
+        self.password_hasher = password_hasher
 
     async def handle_google_callback(
         self,
@@ -219,7 +222,7 @@ class AuthService:
         return AuthTokens(access_token=access_token, refresh_token=refresh_token)
 
     def _oauth_only_password_hash(self) -> str:
-        return f"google-oauth-only:{uuid.uuid4()}"
+        return self.password_hasher.hash(f"google-oauth-only:{uuid.uuid4()}")
 
     def _require_str(self, source: dict[str, Any], key: str) -> str:
         value = source.get(key)
