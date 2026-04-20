@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.auth.models.user import User
+from core.auth_v2.models import GoogleOAuthAccount
 from core.auth_v2.repository import AuthRepositoryV2
 
 
@@ -12,8 +13,7 @@ async def test_create_google_oauth_account_links_to_user(
 ) -> None:
     repo = AuthRepositoryV2(db_session)
     expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
-
-    google_account = await repo.google_oauth_account.create_google_oauth_account(
+    google_account = GoogleOAuthAccount.create(
         user_id=user.id,
         google_sub="google-sub-1",
         email=user.email,
@@ -25,6 +25,10 @@ async def test_create_google_oauth_account_links_to_user(
         name="Test User",
         picture_url="https://example.com/avatar.png",
         token_expires_at=expires_at,
+    )
+
+    google_account = await repo.google_oauth_account.create_google_oauth_account(
+        google_account
     )
     await db_session.commit()
     await db_session.refresh(google_account)
@@ -39,23 +43,24 @@ async def test_get_google_oauth_account_by_sub_loads_linked_user(
     user: User,
 ) -> None:
     repo = AuthRepositoryV2(db_session)
-
-    await repo.google_oauth_account.create_google_oauth_account(
+    google_account = GoogleOAuthAccount.create(
         user_id=user.id,
         google_sub="google-sub-2",
         email=user.email,
         email_verified=True,
         access_token="access-token",
     )
+
+    await repo.google_oauth_account.create_google_oauth_account(google_account)
     await db_session.commit()
 
-    google_account = await repo.google_oauth_account.get_google_oauth_account_by_sub(
+    fetched_account = await repo.google_oauth_account.get_google_oauth_account_by_sub(
         "google-sub-2"
     )
 
-    assert google_account is not None
-    assert google_account.user.id == user.id
-    assert google_account.user.email == user.email
+    assert fetched_account is not None
+    assert fetched_account.user.id == user.id
+    assert fetched_account.user.email == user.email
 
 
 async def test_list_google_oauth_accounts_for_user_returns_all_accounts(
@@ -63,21 +68,23 @@ async def test_list_google_oauth_accounts_for_user_returns_all_accounts(
     user: User,
 ) -> None:
     repo = AuthRepositoryV2(db_session)
-
-    await repo.google_oauth_account.create_google_oauth_account(
+    first_account = GoogleOAuthAccount.create(
         user_id=user.id,
         google_sub="google-sub-3",
         email=user.email,
         email_verified=True,
         access_token="first-token",
     )
-    await repo.google_oauth_account.create_google_oauth_account(
+    second_account = GoogleOAuthAccount.create(
         user_id=user.id,
         google_sub="google-sub-4",
         email=user.email,
         email_verified=False,
         access_token="second-token",
     )
+
+    await repo.google_oauth_account.create_google_oauth_account(first_account)
+    await repo.google_oauth_account.create_google_oauth_account(second_account)
     await db_session.commit()
 
     google_accounts = (
@@ -95,7 +102,7 @@ async def test_update_google_oauth_account_updates_existing_row_in_place(
     user: User,
 ) -> None:
     repo = AuthRepositoryV2(db_session)
-    google_account = await repo.google_oauth_account.create_google_oauth_account(
+    google_account = GoogleOAuthAccount.create(
         user_id=user.id,
         google_sub="google-sub-5",
         email=user.email,
@@ -103,11 +110,13 @@ async def test_update_google_oauth_account_updates_existing_row_in_place(
         access_token="old-access-token",
         refresh_token=None,
     )
+    google_account = await repo.google_oauth_account.create_google_oauth_account(
+        google_account
+    )
     await db_session.commit()
     await db_session.refresh(google_account)
 
-    updated_account = await repo.google_oauth_account.update_google_oauth_account(
-        google_account,
+    google_account.update_google_login(
         email="new-email@example.com",
         email_verified=True,
         access_token="new-access-token",
@@ -118,6 +127,9 @@ async def test_update_google_oauth_account_updates_existing_row_in_place(
         picture_url="https://example.com/new-avatar.png",
         token_expires_at=datetime.now(timezone.utc) + timedelta(hours=2),
     )
+    updated_account = await repo.google_oauth_account.update_google_oauth_account(
+        google_account
+    )
     await db_session.commit()
     await db_session.refresh(updated_account)
 
@@ -126,3 +138,43 @@ async def test_update_google_oauth_account_updates_existing_row_in_place(
     assert updated_account.email_verified is True
     assert updated_account.access_token == "new-access-token"
     assert updated_account.refresh_token == "new-refresh-token"
+
+
+async def test_update_google_oauth_account_preserves_existing_refresh_token_when_missing(
+    db_session: AsyncSession,
+    user: User,
+) -> None:
+    repo = AuthRepositoryV2(db_session)
+    google_account = GoogleOAuthAccount.create(
+        user_id=user.id,
+        google_sub="google-sub-6",
+        email=user.email,
+        email_verified=True,
+        access_token="old-access-token",
+        refresh_token="existing-refresh-token",
+    )
+    google_account = await repo.google_oauth_account.create_google_oauth_account(
+        google_account
+    )
+    await db_session.commit()
+    await db_session.refresh(google_account)
+
+    google_account.update_google_login(
+        email=user.email,
+        email_verified=True,
+        access_token="new-access-token",
+        refresh_token=None,
+        id_token="new-id-token",
+        scope="openid email profile",
+        name="Updated User",
+        picture_url="https://example.com/new-avatar.png",
+        token_expires_at=datetime.now(timezone.utc) + timedelta(hours=2),
+    )
+    updated_account = await repo.google_oauth_account.update_google_oauth_account(
+        google_account
+    )
+    await db_session.commit()
+    await db_session.refresh(updated_account)
+
+    assert updated_account.access_token == "new-access-token"
+    assert updated_account.refresh_token == "existing-refresh-token"
