@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from .models import GoogleOAuthAccount, User
+from .models import AuthSession, GoogleOAuthAccount, User
 
 
 class UserRepository:
@@ -72,3 +72,19 @@ class AuthRepositoryV2:
         self.db = db
         self.user = UserRepository(db)
         self.google_oauth_account = GoogleOAuthAccountRepository(db)
+        self.session = SessionRepository(db)
+
+
+class SessionRepository:
+    def __init__(self, db: AsyncSession):
+        self.db = db
+
+    async def create_session(self, session: AuthSession) -> AuthSession:
+        self.db.add(session)
+        return session
+
+    async def get_session_by_id(self, session_id: uuid.UUID) -> AuthSession | None:
+        return await self.db.get(AuthSession, session_id)
+
+    async def update_session(self, session: AuthSession) -> AuthSession:
+        return session

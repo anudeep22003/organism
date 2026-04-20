@@ -40,5 +40,37 @@ class AuthSession(ORMBase):
         onupdate=get_current_datetime_utc,
     )
 
+    @classmethod
+    def create(
+        cls,
+        *,
+        user_id: uuid.UUID,
+        refresh_token_hash: str,
+        expires_at: datetime,
+        user_agent: str | None = None,
+        ip: str | None = None,
+    ) -> "AuthSession":
+        return cls(
+            id=uuid.uuid4(),
+            user_id=user_id,
+            refresh_token_hash=refresh_token_hash,
+            user_agent=user_agent,
+            ip=ip,
+            expires_at=expires_at,
+        )
+
+    def rotate(self, replaced_by_session_id: uuid.UUID) -> "AuthSession":
+        self.revoked_at = get_current_datetime_utc()
+        self.replaced_by_session_id = replaced_by_session_id
+        return self
+
+    def revoke(self) -> "AuthSession":
+        self.revoked_at = get_current_datetime_utc()
+        return self
+
+    def touch(self) -> "AuthSession":
+        self.last_used_at = get_current_datetime_utc()
+        return self
+
     def __repr__(self) -> str:
         return f"Session(id={self.id}, user_id={self.user_id}, created_at={self.created_at}, expires_at={self.expires_at}"
