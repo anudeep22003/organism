@@ -1,5 +1,3 @@
-import hashlib
-import hmac
 import secrets
 import uuid
 from dataclasses import dataclass
@@ -20,6 +18,7 @@ from .exceptions import (
     InvalidAccessTokenError,
     InvalidRefreshTokenError,
 )
+from .hashers import PasswordHasher
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,6 +69,9 @@ class AccessTokenManager:
 
 
 class RefreshTokenManager:
+    def __init__(self, password_hasher: PasswordHasher) -> None:
+        self.password_hasher = password_hasher
+
     def create_refresh_token(self, session_id: uuid.UUID) -> tuple[str, str]:
         secret = secrets.token_urlsafe(32)
         token = f"{session_id}.{secret}"
@@ -89,8 +91,7 @@ class RefreshTokenManager:
         return RefreshTokenParts(session_id=session_id, secret=secret)
 
     def hash_refresh_token_secret(self, secret: str) -> str:
-        return hashlib.sha256(secret.encode("utf-8")).hexdigest()
+        return self.password_hasher.hash(secret)
 
     def verify_refresh_token_secret(self, secret: str, expected_hash: str) -> bool:
-        computed_hash = self.hash_refresh_token_secret(secret)
-        return hmac.compare_digest(computed_hash, expected_hash)
+        return self.password_hasher.verify(secret, expected_hash)

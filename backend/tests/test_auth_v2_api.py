@@ -102,6 +102,7 @@ async def test_google_auth_callback_creates_user_google_account_and_session(
         assert google_account is not None
         assert google_account.user_id == user.id
         assert google_account.refresh_token == "google-refresh-token"
+        assert user.password_hash.startswith("$argon2")
 
         sessions = await db_session.execute(
             select(AuthSession).where(AuthSession.user_id == user.id)
@@ -242,6 +243,34 @@ async def test_refresh_rotates_session_and_sets_new_cookies(
 
 async def test_refresh_without_cookie_returns_401(api_client: AsyncClient) -> None:
     response = await api_client.post("/api/auth/refresh")
+    assert response.status_code == 401
+
+
+async def test_refresh_rejects_legacy_sha256_style_session_hash(
+    api_client: AsyncClient,
+    db_session: AsyncSession,
+    user: User,
+) -> None:
+    from datetime import timedelta
+
+    from core.auth_v2.utils import get_current_datetime_utc
+
+    session = AuthSession.create(
+        user_id=user.id,
+        refresh_token_hash="plain-sha256-style-hash",
+        user_agent=None,
+        ip=None,
+        expires_at=get_current_datetime_utc() + timedelta(days=1),
+    )
+    db_session.add(session)
+    await db_session.commit()
+    refresh_token = f"{session.id}.legacysecret"
+
+    response = await api_client.post(
+        "/api/auth/refresh",
+        cookies={REFRESH_TOKEN_COOKIE_NAME: refresh_token},
+    )
+
     assert response.status_code == 401
 
 
