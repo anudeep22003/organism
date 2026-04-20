@@ -8,9 +8,8 @@ from core.services.database import get_async_db_session
 
 from ..config import ACCESS_TOKEN_COOKIE_NAME
 from ..exceptions import ExpiredAccessTokenError, InvalidAccessTokenError
-from ..hashers import Argon2Hasher
-from ..service import AuthService
-from ..tokens import AccessTokenManager, RefreshTokenManager
+from ..security import AccessTokenManager, Argon2Hasher, RefreshTokenManager
+from ..services import AuthService
 
 
 def get_access_token_manager() -> AccessTokenManager:

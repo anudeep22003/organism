@@ -49,9 +49,7 @@ async def _login_via_callback(
             refresh_token=refresh_token,
         )
     )
-    with patch(
-        "core.auth_v2.router.oauth.create_client", return_value=mock_google_client
-    ):
+    with patch("core.auth_v2.oauth.create_client", return_value=mock_google_client):
         return await api_client.get("/api/auth/callback", follow_redirects=False)
 
 
@@ -64,9 +62,7 @@ async def test_google_auth_login_redirects_to_google(api_client: AsyncClient) ->
         )
     )
 
-    with patch(
-        "core.auth_v2.router.oauth.create_client", return_value=mock_google_client
-    ):
+    with patch("core.auth_v2.oauth.create_client", return_value=mock_google_client):
         response = await api_client.get("/api/auth/login", follow_redirects=False)
 
     assert response.status_code in {302, 307}
@@ -144,9 +140,7 @@ async def test_google_auth_callback_failure_redirects_to_frontend_failure(
         side_effect=RuntimeError("oauth exchange failed")
     )
 
-    with patch(
-        "core.auth_v2.router.oauth.create_client", return_value=mock_google_client
-    ):
+    with patch("core.auth_v2.oauth.create_client", return_value=mock_google_client):
         response = await api_client.get("/api/auth/callback", follow_redirects=False)
 
     assert response.status_code in {302, 307}

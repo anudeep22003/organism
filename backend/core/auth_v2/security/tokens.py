@@ -7,13 +7,13 @@ import jwt
 from core.common.utils import get_current_timestamp_seconds
 from core.config import settings
 
-from .config import (
+from ..config import (
     ACCESS_TOKEN_TTL_SECONDS,
     JWT_ALGORITHM,
     JWT_AUDIENCE,
     JWT_ISSUER,
 )
-from .exceptions import (
+from ..exceptions import (
     ExpiredAccessTokenError,
     InvalidAccessTokenError,
     InvalidRefreshTokenError,
