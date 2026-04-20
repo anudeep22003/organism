@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
@@ -9,6 +9,8 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from core.common import ORMBase
+
+from ..utils import get_current_datetime_utc
 
 if TYPE_CHECKING:
     from .user import User
@@ -39,19 +41,19 @@ class GoogleOAuthAccount(ORMBase):
     )
     last_login_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=get_current_datetime_utc,
         nullable=False,
     )
     revoked_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True), default=get_current_datetime_utc
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=get_current_datetime_utc,
+        onupdate=get_current_datetime_utc,
     )
 
     user: Mapped[User] = relationship("User", back_populates="google_oauth_accounts")
@@ -116,6 +118,6 @@ class GoogleOAuthAccount(ORMBase):
         self.name = name
         self.picture_url = picture_url
         self.token_expires_at = token_expires_at
-        self.last_login_at = datetime.now(timezone.utc)
+        self.last_login_at = get_current_datetime_utc()
         self.revoked_at = None
         return self
