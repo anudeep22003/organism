@@ -6,6 +6,8 @@ from .dependencies import (
     get_refresh_token_manager,
     get_request_client_context,
 )
+from .oauth_client import oauth
+from .router import router
 
 __all__ = [
     "get_access_token_manager",
@@ -14,4 +16,6 @@ __all__ = [
     "get_password_hasher",
     "get_refresh_token_manager",
     "get_request_client_context",
+    "oauth",
+    "router",
 ]

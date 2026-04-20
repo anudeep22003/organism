@@ -4,27 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from .models import AuthSession, GoogleOAuthAccount, User
-
-
-class UserRepository:
-    def __init__(self, db: AsyncSession):
-        self.db = db
-
-    async def get_user_by_id(self, user_id: uuid.UUID) -> User | None:
-        return await self.db.get(User, user_id)
-
-    async def get_user_by_email(self, email: str) -> User | None:
-        query = select(User).where(User.email == email)
-        result = await self.db.execute(query)
-        return result.scalar_one_or_none()
-
-    async def create_user(
-        self,
-        user: User,
-    ) -> User:
-        self.db.add(user)
-        return user
+from ..models import GoogleOAuthAccount
 
 
 class GoogleOAuthAccountRepository:
@@ -65,26 +45,3 @@ class GoogleOAuthAccountRepository:
         google_oauth_account: GoogleOAuthAccount,
     ) -> GoogleOAuthAccount:
         return google_oauth_account
-
-
-class AuthRepositoryV2:
-    def __init__(self, db: AsyncSession):
-        self.db = db
-        self.user = UserRepository(db)
-        self.google_oauth_account = GoogleOAuthAccountRepository(db)
-        self.session = SessionRepository(db)
-
-
-class SessionRepository:
-    def __init__(self, db: AsyncSession):
-        self.db = db
-
-    async def create_session(self, session: AuthSession) -> AuthSession:
-        self.db.add(session)
-        return session
-
-    async def get_session_by_id(self, session_id: uuid.UUID) -> AuthSession | None:
-        return await self.db.get(AuthSession, session_id)
-
-    async def update_session(self, session: AuthSession) -> AuthSession:
-        return session
