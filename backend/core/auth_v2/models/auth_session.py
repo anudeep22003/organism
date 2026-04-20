@@ -1,11 +1,13 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from core.common import ORMBase
+
+from ..utils import get_current_datetime_utc
 
 
 class AuthSession(ORMBase):
@@ -21,7 +23,7 @@ class AuthSession(ORMBase):
     user_agent: Mapped[str | None] = mapped_column(String(512), nullable=True)
     ip: Mapped[str | None] = mapped_column(String(45), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True), default=get_current_datetime_utc
     )
     expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
@@ -34,8 +36,8 @@ class AuthSession(ORMBase):
     )
     last_used_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=get_current_datetime_utc,
+        onupdate=get_current_datetime_utc,
     )
 
     def __repr__(self) -> str:
