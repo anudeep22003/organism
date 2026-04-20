@@ -3,7 +3,7 @@ from typing import Final, Literal
 from core.config import settings
 
 JWT_ALGORITHM: Final[str] = "HS256"
-JWT_ISSUER: Final[str] = "backend-auth-v2"
+JWT_ISSUER: Final[str] = "backend-auth"
 JWT_AUDIENCE: Final[str] = "frontend-app"
 
 ACCESS_TOKEN_TTL_SECONDS: Final[int] = 30 * 60

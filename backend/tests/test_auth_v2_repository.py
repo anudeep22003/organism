@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.auth.models.user import User
-from core.auth_v2 import AuthRepositoryV2
+from core.auth_v2 import AuthRepository
 from core.auth_v2.models import GoogleOAuthAccount
 
 
@@ -11,7 +11,7 @@ async def test_create_google_oauth_account_links_to_user(
     db_session: AsyncSession,
     user: User,
 ) -> None:
-    repo = AuthRepositoryV2(db_session)
+    repo = AuthRepository(db_session)
     expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
     google_account = GoogleOAuthAccount.create(
         user_id=user.id,
@@ -42,7 +42,7 @@ async def test_get_google_oauth_account_by_sub_loads_linked_user(
     db_session: AsyncSession,
     user: User,
 ) -> None:
-    repo = AuthRepositoryV2(db_session)
+    repo = AuthRepository(db_session)
     google_account = GoogleOAuthAccount.create(
         user_id=user.id,
         google_sub="google-sub-2",
@@ -67,7 +67,7 @@ async def test_list_google_oauth_accounts_for_user_returns_all_accounts(
     db_session: AsyncSession,
     user: User,
 ) -> None:
-    repo = AuthRepositoryV2(db_session)
+    repo = AuthRepository(db_session)
     first_account = GoogleOAuthAccount.create(
         user_id=user.id,
         google_sub="google-sub-3",
@@ -101,7 +101,7 @@ async def test_update_google_oauth_account_updates_existing_row_in_place(
     db_session: AsyncSession,
     user: User,
 ) -> None:
-    repo = AuthRepositoryV2(db_session)
+    repo = AuthRepository(db_session)
     google_account = GoogleOAuthAccount.create(
         user_id=user.id,
         google_sub="google-sub-5",
@@ -144,7 +144,7 @@ async def test_update_google_oauth_account_preserves_existing_refresh_token_when
     db_session: AsyncSession,
     user: User,
 ) -> None:
-    repo = AuthRepositoryV2(db_session)
+    repo = AuthRepository(db_session)
     google_account = GoogleOAuthAccount.create(
         user_id=user.id,
         google_sub="google-sub-6",

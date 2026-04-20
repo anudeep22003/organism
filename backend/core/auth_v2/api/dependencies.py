@@ -42,7 +42,7 @@ async def get_auth_service(
     )
 
 
-async def get_current_user_id_v2(
+async def get_current_user_id(
     access_token_manager: Annotated[
         AccessTokenManager, Depends(get_access_token_manager)
     ],

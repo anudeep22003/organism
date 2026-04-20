@@ -1,7 +1,7 @@
 from .dependencies import (
     get_access_token_manager,
     get_auth_service,
-    get_current_user_id_v2,
+    get_current_user_id,
     get_password_hasher,
     get_refresh_token_manager,
     get_request_client_context,
@@ -12,7 +12,7 @@ from .router import router
 __all__ = [
     "get_access_token_manager",
     "get_auth_service",
-    "get_current_user_id_v2",
+    "get_current_user_id",
     "get_password_hasher",
     "get_refresh_token_manager",
     "get_request_client_context",

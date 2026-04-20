@@ -5,7 +5,7 @@ from .session import SessionRepository
 from .user import UserRepository
 
 
-class AuthRepositoryV2:
+class AuthRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
         self.user = UserRepository(db)
@@ -14,7 +14,7 @@ class AuthRepositoryV2:
 
 
 __all__ = [
-    "AuthRepositoryV2",
+    "AuthRepository",
     "GoogleOAuthAccountRepository",
     "SessionRepository",
     "UserRepository",
