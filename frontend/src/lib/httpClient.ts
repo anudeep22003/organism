@@ -8,7 +8,6 @@ import axios, {
 } from "axios";
 import { apiLogger, authLogger } from "./logger";
 
-const ACCESS_TOKEN_EXPIRY_TIME = 1000 * 60 * 30;
 const HTTP_STATUS_UNAUTHORIZED = 401;
 const CSRF_COOKIE_NAME = "csrf_token";
 const CSRF_HEADER_NAME = "X-CSRF-Token";
@@ -19,12 +18,6 @@ const UNSAFE_HTTP_METHODS = new Set([
   "DELETE",
 ]);
 
-type RefreshResponse = {
-  accessToken: string;
-};
-
-type AuthTransportMode = "legacy" | "cookie";
-
 type RetryableRequestConfig = InternalAxiosRequestConfig & {
   _retry?: boolean;
 };
@@ -32,13 +25,7 @@ type RetryableRequestConfig = InternalAxiosRequestConfig & {
 class HttpClient {
   private static instance: HttpClient;
   private axiosInstance: AxiosInstance;
-  private authMode: AuthTransportMode = "legacy";
-  private accessToken: string | null = null;
-  private refreshTimer: NodeJS.Timeout | null = null;
   private refreshPromise: Promise<void> | null = null;
-  private accessTokenSubscribers = new Set<
-    (token: string | null) => void
-  >();
 
   private constructor() {
     this.axiosInstance = axios.create({
@@ -55,70 +42,6 @@ class HttpClient {
       HttpClient.instance = new HttpClient();
     }
     return HttpClient.instance;
-  }
-
-  public setAuthMode(mode: AuthTransportMode) {
-    this.authMode = mode;
-
-    if (mode === "cookie" && this.refreshTimer) {
-      clearTimeout(this.refreshTimer);
-      this.refreshTimer = null;
-    }
-  }
-
-  public getAuthMode() {
-    return this.authMode;
-  }
-
-  public subscribeToAccessToken(
-    callback: (token: string | null) => void
-  ) {
-    this.accessTokenSubscribers.add(callback);
-    callback(this.accessToken);
-
-    return () => {
-      this.accessTokenSubscribers.delete(callback);
-    };
-  }
-
-  private notifyAccessTokenSubscribers() {
-    for (const callback of this.accessTokenSubscribers) {
-      callback(this.accessToken);
-    }
-  }
-
-  public getAccessToken() {
-    return this.accessToken;
-  }
-
-  public setAccessToken(token: string) {
-    if (!token) {
-      throw new Error("Null access token being tried to set");
-    }
-
-    if (this.refreshTimer) {
-      clearTimeout(this.refreshTimer);
-    }
-
-    this.accessToken = token;
-
-    this.refreshTimer = setTimeout(() => {
-      void this.refreshAccessToken();
-    }, ACCESS_TOKEN_EXPIRY_TIME);
-
-    this.notifyAccessTokenSubscribers();
-  }
-
-  public async clearSession(): Promise<void> {
-    if (this.refreshTimer) {
-      clearTimeout(this.refreshTimer);
-    }
-
-    this.refreshTimer = null;
-    this.accessToken = null;
-
-    this.notifyAccessTokenSubscribers();
-    authLogger.debug("Cleared session");
   }
 
   public async post<T = unknown>(
@@ -167,27 +90,17 @@ class HttpClient {
     }
   }
 
-  public async refreshAccessToken(): Promise<void> {
+  public async refreshSession(): Promise<void> {
     if (this.refreshPromise) {
       authLogger.debug("Awaiting ongoing auth refresh");
       return this.refreshPromise;
     }
 
     this.refreshPromise = (async () => {
-      if (this.authMode === "cookie") {
-        await this.axiosInstance.post<void>(
-          AUTH_SERVICE_ENDPOINTS.REFRESH,
-          {}
-        );
-        return;
-      }
-
-      const response = await this.axiosInstance.post<RefreshResponse>(
+      await this.axiosInstance.post<void>(
         AUTH_SERVICE_ENDPOINTS.REFRESH,
         {}
       );
-      const newAccessToken = response.data.accessToken;
-      this.setAccessToken(newAccessToken);
     })();
 
     try {
@@ -228,7 +141,7 @@ class HttpClient {
     });
 
     if (response.status === HTTP_STATUS_UNAUTHORIZED) {
-      await this.refreshAccessToken();
+      await this.refreshSession();
       yield* this.streamPost(url, data);
       return;
     }
@@ -264,18 +177,10 @@ class HttpClient {
   }
 
   private getRefreshEndpoint() {
-    if (this.authMode === "cookie") {
-      return AUTH_SERVICE_ENDPOINTS.REFRESH;
-    }
-
     return AUTH_SERVICE_ENDPOINTS.REFRESH;
   }
 
   private getLogoutEndpoint() {
-    if (this.authMode === "cookie") {
-      return AUTH_SERVICE_ENDPOINTS.LOGOUT;
-    }
-
     return AUTH_SERVICE_ENDPOINTS.LOGOUT;
   }
 
@@ -336,10 +241,6 @@ class HttpClient {
       headers[CSRF_HEADER_NAME] = csrfToken;
     }
 
-    if (this.authMode === "legacy" && this.accessToken) {
-      headers.Authorization = `Bearer ${this.accessToken}`;
-    }
-
     return headers;
   }
 
@@ -350,12 +251,6 @@ class HttpClient {
         if (csrfToken && this.isUnsafeMethod(config.method)) {
           this.setHeader(config, CSRF_HEADER_NAME, csrfToken);
         }
-
-        const authorizationHeader =
-          this.authMode === "legacy" && this.accessToken
-            ? `Bearer ${this.accessToken}`
-            : undefined;
-        this.setHeader(config, "Authorization", authorizationHeader);
 
         return config;
       },
@@ -381,11 +276,10 @@ class HttpClient {
         if (originalRequest && this.shouldAttemptRefresh(error)) {
           try {
             originalRequest._retry = true;
-            await this.refreshAccessToken();
+            await this.refreshSession();
             return this.axiosInstance.request(originalRequest);
           } catch (refreshError) {
             authLogger.debug("Refresh failed", refreshError);
-            await this.clearSession();
           }
         }
 
