@@ -1,11 +1,13 @@
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from typing import Any
+
+from pydantic import ValidationError
 
 from ..exceptions import OAuthProfileFieldError, OAuthUserInfoError
 from ..models import GoogleOAuthAccount, User
 from ..repositories import AuthRepository
+from ..schemas import GoogleOAuthCallbackPayload
 from ..security import PasswordHasher, TokenDecryptionError, TokenEncryptor
 
 
@@ -32,19 +34,19 @@ class OAuthService:
         if not isinstance(userinfo, dict):
             raise OAuthUserInfoError("Google OAuth response did not include userinfo")
 
-        google_sub = self._require_str(userinfo, "sub")
-        email = self._require_str(userinfo, "email")
-        email_verified = bool(userinfo.get("email_verified", False))
-        name = self._optional_str(userinfo.get("name"))
-        picture_url = self._optional_str(userinfo.get("picture"))
+        payload = self._validate_google_callback_payload(token)
 
-        access_token = self.token_encryptor.encrypt(
-            self._require_str(token, "access_token")
-        )
-        refresh_token = self._encrypt_optional_token(token.get("refresh_token"))
-        id_token = self._encrypt_optional_token(token.get("id_token"))
-        scope = self._optional_str(token.get("scope"))
-        token_expires_at = self._parse_token_expires_at(token)
+        google_sub = payload.userinfo.sub
+        email = payload.userinfo.email
+        email_verified = payload.userinfo.email_verified
+        name = payload.userinfo.name
+        picture_url = payload.userinfo.picture
+
+        access_token = self.token_encryptor.encrypt(payload.access_token)
+        refresh_token = self._encrypt_optional_token(payload.refresh_token)
+        id_token = self._encrypt_optional_token(payload.id_token)
+        scope = payload.scope
+        token_expires_at = payload.expires_at
 
         google_account = (
             await self.repository.google_oauth_account.get_google_oauth_account_by_sub(
@@ -107,22 +109,10 @@ class OAuthService:
 
         return self.password_hasher.hash(f"google-oauth-only:{uuid_module.uuid4()}")
 
-    def _require_str(self, source: dict[str, Any], key: str) -> str:
-        value = source.get(key)
-        if not isinstance(value, str) or value == "":
-            raise OAuthProfileFieldError(f"Missing required Google OAuth field: {key}")
-        return value
-
-    def _optional_str(self, value: Any) -> str | None:
-        if isinstance(value, str) and value != "":
-            return value
-        return None
-
     def _encrypt_optional_token(self, value: Any) -> str | None:
-        plaintext = self._optional_str(value)
-        if plaintext is None:
+        if not isinstance(value, str) or value == "":
             return None
-        return self.token_encryptor.encrypt(plaintext)
+        return self.token_encryptor.encrypt(value)
 
     def _encrypt_if_plaintext(self, value: str) -> str:
         """Upgrade pre-encryption plaintext token values without double-encrypting."""
@@ -132,8 +122,15 @@ class OAuthService:
         except TokenDecryptionError:
             return self.token_encryptor.encrypt(value)
 
-    def _parse_token_expires_at(self, token: dict[str, Any]) -> datetime | None:
-        expires_at = token.get("expires_at")
-        if isinstance(expires_at, (int, float)):
-            return datetime.fromtimestamp(expires_at, tz=timezone.utc)
-        return None
+    def _validate_google_callback_payload(
+        self, token: dict[str, Any]
+    ) -> GoogleOAuthCallbackPayload:
+        try:
+            return GoogleOAuthCallbackPayload.model_validate(token)
+        except ValidationError as exc:
+            first_error = exc.errors()[0]
+            location = first_error.get("loc", ())
+            key = location[-1] if location else "unknown"
+            raise OAuthProfileFieldError(
+                f"Missing required Google OAuth field: {key}"
+            ) from exc
