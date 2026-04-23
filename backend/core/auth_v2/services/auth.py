@@ -73,6 +73,7 @@ class AuthService:
         await self.db.commit()
         return tokens
 
-    async def logout(self, refresh_token: str | None) -> None:
-        await self.session_service.logout(refresh_token)
+    async def logout(self, refresh_token: str | None) -> uuid.UUID | None:
+        user_id = await self.session_service.logout(refresh_token)
         await self.db.commit()
+        return user_id
