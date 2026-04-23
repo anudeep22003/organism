@@ -146,6 +146,10 @@ class CloudRunServiceAccount(pulumi.ComponentResource):
         {name}-account                  gcp.serviceaccount.Account
         {name}-ar-reader                gcp.artifactregistry.RepositoryIamMember
         {name}-anthropic-accessor       gcp.secretmanager.SecretIamMember
+        {name}-google-oauth-client-secret-accessor gcp.secretmanager.SecretIamMember
+        {name}-jwt-secret-key-accessor  gcp.secretmanager.SecretIamMember
+        {name}-auth-session-secret-accessor gcp.secretmanager.SecretIamMember
+        {name}-fernet-encryption-key-accessor gcp.secretmanager.SecretIamMember
         {name}-openai-accessor          gcp.secretmanager.SecretIamMember
         {name}-fal-accessor             gcp.secretmanager.SecretIamMember
         {name}-database-accessor        gcp.secretmanager.SecretIamMember
@@ -219,6 +223,38 @@ class CloudRunServiceAccount(pulumi.ComponentResource):
         gcp.secretmanager.SecretIamMember(
             f"{name}-anthropic-accessor",
             secret_id=secrets.anthropic_api_key.secret_id,
+            role="roles/secretmanager.secretAccessor",
+            member=member,
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+
+        gcp.secretmanager.SecretIamMember(
+            f"{name}-google-oauth-client-secret-accessor",
+            secret_id=secrets.google_oauth_client_secret.secret_id,
+            role="roles/secretmanager.secretAccessor",
+            member=member,
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+
+        gcp.secretmanager.SecretIamMember(
+            f"{name}-jwt-secret-key-accessor",
+            secret_id=secrets.jwt_secret_key.secret_id,
+            role="roles/secretmanager.secretAccessor",
+            member=member,
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+
+        gcp.secretmanager.SecretIamMember(
+            f"{name}-auth-session-secret-accessor",
+            secret_id=secrets.auth_session_secret.secret_id,
+            role="roles/secretmanager.secretAccessor",
+            member=member,
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+
+        gcp.secretmanager.SecretIamMember(
+            f"{name}-fernet-encryption-key-accessor",
+            secret_id=secrets.fernet_encryption_key.secret_id,
             role="roles/secretmanager.secretAccessor",
             member=member,
             opts=pulumi.ResourceOptions(parent=self),
