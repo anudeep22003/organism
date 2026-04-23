@@ -1,5 +1,9 @@
-import { BACKEND_URL } from "@/constants";
-import { AUTH_V2_SERVICE_ENDPOINTS } from "../api/auth.constants";
+import { useLocation } from "react-router";
+import { useAuth } from "../model/auth.context";
+import {
+  getRedirectFromSearchParams,
+  persistPostAuthRedirect,
+} from "../routing/auth-redirect";
 
 const GoogleLogo = () => {
   return (
@@ -29,10 +33,14 @@ const GoogleLogo = () => {
 };
 
 const AuthPage = () => {
+  const { login } = useAuth();
+  const location = useLocation();
+
   const handleGoogleSignIn = () => {
-    window.location.assign(
-      `${BACKEND_URL}${AUTH_V2_SERVICE_ENDPOINTS.LOGIN}`
+    persistPostAuthRedirect(
+      getRedirectFromSearchParams(location.search)
     );
+    login();
   };
 
   return (

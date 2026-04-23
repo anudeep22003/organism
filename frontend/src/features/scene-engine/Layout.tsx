@@ -1,15 +1,15 @@
 import { useTheme } from "@/context/ThemeContext";
+import { useAuth } from "@/features/auth_v2";
 import { myProjectOptions } from "@/features/story/projects/projects.queries";
 import { useQuery } from "@tanstack/react-query";
 import { Outlet, useNavigate, useParams } from "react-router";
-import { useAuth } from "../auth/model/auth.context";
 import { SceneEngineProvider, useSceneEngine } from "./context";
 import { SCENE_STEPS } from "./steps";
 import Stepper from "./components/Stepper";
 import StepperControls from "./components/StepperControls";
 
 function SceneEngineShell() {
-  const { signOut } = useAuth();
+  const { logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { currentStep, goTo } = useSceneEngine();
   const navigate = useNavigate();
@@ -37,7 +37,7 @@ function SceneEngineShell() {
           </button>
           <div className="h-2.5 w-px bg-border" />
           <button
-            onClick={() => { void signOut(); }}
+            onClick={() => { void logout(); }}
             className="text-[10px] text-muted-foreground hover:text-foreground"
           >
             Sign out

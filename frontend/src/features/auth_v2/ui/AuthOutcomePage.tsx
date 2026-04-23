@@ -1,21 +1,18 @@
-import { useLocation } from "react-router";
-
-const getQueryParams = (search: string) => {
-  return Object.fromEntries(new URLSearchParams(search).entries());
-};
+import type { ReactNode } from "react";
 
 interface AuthOutcomePageProps {
+  children?: ReactNode;
   description: string;
+  footer?: ReactNode;
   title: string;
 }
 
 const AuthOutcomePage = ({
+  children,
   description,
+  footer,
   title,
 }: AuthOutcomePageProps) => {
-  const location = useLocation();
-  const payload = getQueryParams(location.search);
-
   return (
     <div className="relative flex min-h-screen flex-col overflow-hidden bg-background">
       <div className="pointer-events-none absolute inset-0">
@@ -38,9 +35,8 @@ const AuthOutcomePage = ({
               <p className="text-xs text-muted-foreground">{description}</p>
             </div>
 
-            <pre className="overflow-x-auto border border-border bg-background/80 p-4 text-xs text-foreground">
-              {JSON.stringify(payload, null, 2)}
-            </pre>
+            {children}
+            {footer}
           </div>
         </div>
       </div>
