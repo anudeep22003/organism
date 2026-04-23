@@ -52,14 +52,13 @@ fastapi_app.add_middleware(
 
 fastapi_app.add_middleware(CSRFMiddleware)
 
-# CORS_ORIGINS is a comma-separated list of allowed origins.
-# Defaults to localhost:5173 for local dev — no .env.local change needed.
-# In Cloud Run, injected as a plain env var from infra/components/cloudrun.py.
-_cors_origins = settings.cors_origins.split(",")
+# FRONTEND_URL is the single canonical browser origin for auth redirects and CORS.
+# It is required in both local dev and Cloud Run so backend behavior is identical
+# across environments.
 
 fastapi_app.add_middleware(
     CORSMiddleware,
-    allow_origins=_cors_origins,
+    allow_origins=[settings.frontend_url],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

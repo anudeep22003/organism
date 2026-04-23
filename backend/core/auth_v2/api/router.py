@@ -34,8 +34,7 @@ router = APIRouter(prefix="/auth", tags=["auth", "google-auth"])
 
 
 def _frontend_auth_redirect(path: str) -> str:
-    frontend_base_url = settings.frontend_url or settings.cors_origins
-    return f"{frontend_base_url.rstrip('/')}{path}"
+    return f"{settings.frontend_url.rstrip('/')}{path}"
 
 
 @router.get("/login")
