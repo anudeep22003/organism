@@ -200,6 +200,51 @@ async def test_google_auth_callback_failure_redirects_to_frontend_failure(
     assert response.headers["location"] == "http://localhost:5173/auth/failure"
 
 
+async def test_google_auth_callback_missing_userinfo_redirects_to_frontend_failure(
+    api_client: AsyncClient,
+) -> None:
+    mock_google_client = MagicMock()
+    mock_google_client.authorize_access_token = AsyncMock(
+        return_value={
+            "access_token": "google-access-token",
+            "id_token": "google-id-token",
+            "scope": "openid email profile",
+            "expires_at": 1_893_456_000,
+        }
+    )
+
+    with patch("core.auth_v2.oauth.create_client", return_value=mock_google_client):
+        response = await api_client.get("/api/auth/callback", follow_redirects=False)
+
+    assert response.status_code in {302, 307}
+    assert response.headers["location"] == "http://localhost:5173/auth/failure"
+
+
+async def test_google_auth_callback_missing_required_profile_field_redirects_to_failure(
+    api_client: AsyncClient,
+) -> None:
+    mock_google_client = MagicMock()
+    mock_google_client.authorize_access_token = AsyncMock(
+        return_value={
+            "access_token": "google-access-token",
+            "id_token": "google-id-token",
+            "scope": "openid email profile",
+            "expires_at": 1_893_456_000,
+            "userinfo": {
+                "sub": "google-sub-missing-email",
+                "email_verified": True,
+                "name": "Test User",
+            },
+        }
+    )
+
+    with patch("core.auth_v2.oauth.create_client", return_value=mock_google_client):
+        response = await api_client.get("/api/auth/callback", follow_redirects=False)
+
+    assert response.status_code in {302, 307}
+    assert response.headers["location"] == "http://localhost:5173/auth/failure"
+
+
 async def test_me_returns_current_user_from_access_cookie(
     api_client: AsyncClient,
     db_session: AsyncSession,

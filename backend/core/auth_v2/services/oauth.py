@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
+from ..exceptions import OAuthProfileFieldError, OAuthUserInfoError
 from ..models import GoogleOAuthAccount, User
 from ..repositories import AuthRepository
 from ..security import PasswordHasher, TokenDecryptionError, TokenEncryptor
@@ -29,7 +30,7 @@ class OAuthService:
     ) -> CallbackUserResult:
         userinfo = token.get("userinfo")
         if not isinstance(userinfo, dict):
-            raise ValueError("Google OAuth response did not include userinfo")
+            raise OAuthUserInfoError("Google OAuth response did not include userinfo")
 
         google_sub = self._require_str(userinfo, "sub")
         email = self._require_str(userinfo, "email")
@@ -109,7 +110,7 @@ class OAuthService:
     def _require_str(self, source: dict[str, Any], key: str) -> str:
         value = source.get(key)
         if not isinstance(value, str) or value == "":
-            raise ValueError(f"Missing required Google OAuth field: {key}")
+            raise OAuthProfileFieldError(f"Missing required Google OAuth field: {key}")
         return value
 
     def _optional_str(self, value: Any) -> str | None:
