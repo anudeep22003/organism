@@ -7,3 +7,4 @@ config:
   storyengine-infra:api_domain: api.dekatha.com
   storyengine-infra:media_bucket_suffix: x7k2
   storyengine-infra:github_repo: anudeep22003/organism
+  storyengine-infra:google_oauth_client_id: 198254519613-2lqv10fqhpm5731lhf2192n6tpdalo1h.apps.googleusercontent.com
