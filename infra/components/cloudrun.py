@@ -51,7 +51,8 @@ import pulumi_gcp as gcp
 
 from components.config import (
     APP,
-    DOMAIN,
+    FRONTEND_URL,
+    GOOGLE_OAUTH_CLIENT_ID,
     IMAGE_TAG,
     MEDIA_BUCKET_NAME,
     PROJECT,
@@ -106,7 +107,13 @@ class CloudRunService(pulumi.ComponentResource):
                 # Comma-separated list of allowed CORS origins.
                 # Read in main.py via os.getenv("CORS_ORIGINS").
                 # Not a secret — knowing this domain grants no access to anything.
-                "CORS_ORIGINS": f"https://{DOMAIN}",
+                "CORS_ORIGINS": FRONTEND_URL,
+                # Canonical frontend origin for auth redirects.
+                # Kept alongside CORS_ORIGINS during the compatibility window
+                # so backend can cut over without a big-bang deploy.
+                "FRONTEND_URL": FRONTEND_URL,
+                # Public OAuth client identifier used to start the Google auth flow.
+                "GOOGLE_OAUTH_CLIENT_ID": GOOGLE_OAUTH_CLIENT_ID,
                 # Disables FastAPI's /docs, /redoc, and /openapi.json in Cloud Run.
                 # Locally defaults to "development" (docs available) via config.py.
                 "ENV": "production",
@@ -156,6 +163,42 @@ class CloudRunService(pulumi.ComponentResource):
                 value_source=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceArgs(
                     secret_key_ref=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceSecretKeyRefArgs(
                         secret=secrets.anthropic_api_key.secret_id,
+                        version="latest",
+                    ),
+                ),
+            ),
+            gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                name="GOOGLE_OAUTH_CLIENT_SECRET",
+                value_source=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceArgs(
+                    secret_key_ref=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceSecretKeyRefArgs(
+                        secret=secrets.google_oauth_client_secret.secret_id,
+                        version="latest",
+                    ),
+                ),
+            ),
+            gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                name="JWT_SECRET_KEY",
+                value_source=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceArgs(
+                    secret_key_ref=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceSecretKeyRefArgs(
+                        secret=secrets.jwt_secret_key.secret_id,
+                        version="latest",
+                    ),
+                ),
+            ),
+            gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                name="AUTH_SESSION_SECRET",
+                value_source=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceArgs(
+                    secret_key_ref=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceSecretKeyRefArgs(
+                        secret=secrets.auth_session_secret.secret_id,
+                        version="latest",
+                    ),
+                ),
+            ),
+            gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                name="FERNET_ENCRYPTION_KEY",
+                value_source=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceArgs(
+                    secret_key_ref=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceSecretKeyRefArgs(
+                        secret=secrets.fernet_encryption_key.secret_id,
                         version="latest",
                     ),
                 ),
