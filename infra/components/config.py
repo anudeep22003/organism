@@ -33,6 +33,7 @@ PREFIX = f"{APP}-{STACK}"  # "storyengine-main"
 # ── App-level config ───────────────────────────────────────────────────────────
 
 IMAGE_TAG = _app.require("image_tag")  # git SHA set by make deploy-backend
+GOOGLE_OAUTH_CLIENT_ID = _app.require("google_oauth_client_id")
 
 # ── Derived values ─────────────────────────────────────────────────────────────
 
@@ -41,6 +42,7 @@ IMAGE_TAG = _app.require("image_tag")  # git SHA set by make deploy-backend
 # This decouples the domain from the stack name — "main" stack serves
 # "app.dekatha.com", a future "dev" stack can serve "dev.dekatha.com".
 DOMAIN = _app.require("domain")
+FRONTEND_URL = f"https://{DOMAIN}"
 
 # API subdomain — served via the same load balancer as the frontend.
 # Routes to the Cloud Run backend service via a Serverless NEG.
