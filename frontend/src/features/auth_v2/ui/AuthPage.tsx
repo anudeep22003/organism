@@ -31,7 +31,7 @@ const GoogleLogo = () => {
 const AuthPage = () => {
   const handleGoogleSignIn = () => {
     window.location.assign(
-      `${BACKEND_URL}${AUTH_V2_SERVICE_ENDPOINTS.GOOGLE_LOGIN}`
+      `${BACKEND_URL}${AUTH_V2_SERVICE_ENDPOINTS.LOGIN}`
     );
   };
 
