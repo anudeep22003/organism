@@ -29,6 +29,7 @@ class AppSettings(BaseSettings):
     auth_session_secret: str
     google_oauth_client_id: str
     cors_origins: str
+    fernet_encryption_key: str
     frontend_url: str = ""
     # Optional — only needed locally for GCS access outside Cloud Run.
     # Cloud Run services authenticate via the attached service account (no key file).
