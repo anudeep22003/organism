@@ -259,11 +259,18 @@ stale URLs silently whenever the Cloud Run service URL changes.
 `constants.ts` is unchanged — it reads `import.meta.env.VITE_BACKEND_URL` with
 a fallback, which is always set correctly at build time via the above mechanism.
 
-### CORS_ORIGINS read from env var, not hardcoded
-`main.py` reads `CORS_ORIGINS` via `os.getenv("CORS_ORIGINS", "http://localhost:5173")`.
-Cloud Run has `CORS_ORIGINS=https://dev.dekatha.com` as a plain env var in the
-service definition. Local dev uses the default (no `.env.local` change needed).
-Adding new allowed origins = update `_PLAIN_ENV_VARS` in `cloudrun.py` + `make up`.
+### FRONTEND_URL is the canonical frontend origin in infra
+For the auth rollout, infra standardizes on a single plain env var:
+`FRONTEND_URL=https://dev.dekatha.com`. This value is used for auth redirects
+and is the intended single source of truth for browser origin policy in the
+backend as well.
+
+During the compatibility window, Cloud Run may still carry `CORS_ORIGINS` until
+the backend finishes switching to `FRONTEND_URL`. The long-term direction is one
+frontend-origin setting in infra, not separate redirect and CORS inputs.
+
+Local dev keeps using its localhost defaults from the backend app — no
+`.env.local` change is required for this production-side origin wiring.
 
 ---
 
