@@ -1559,6 +1559,7 @@ dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "ruff" },
+    { name = "types-authlib" },
     { name = "types-passlib" },
     { name = "types-pyyaml" },
 ]
@@ -1608,6 +1609,7 @@ dev = [
     { name = "pytest", specifier = ">=8.0" },
     { name = "pytest-asyncio", specifier = ">=0.24" },
     { name = "ruff", specifier = ">=0.12.8" },
+    { name = "types-authlib", specifier = ">=1.6.11.20260418" },
     { name = "types-passlib", specifier = ">=1.7.7.20250602" },
     { name = "types-pyyaml", specifier = ">=6.0.12.20250822" },
 ]
@@ -1655,6 +1657,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/c5/8c/7d682431efca5fd290017663ea4588bf6f2c6aad085c7f108c5dbc316e70/typer-0.16.0.tar.gz", hash = "sha256:af377ffaee1dbe37ae9440cb4e8f11686ea5ce4e9bae01b84ae7c63b87f1dd3b", size = 102625, upload-time = "2025-05-26T14:30:31.824Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/76/42/3efaf858001d2c2913de7f354563e3a3a2f0decae3efe98427125a8f441e/typer-0.16.0-py3-none-any.whl", hash = "sha256:1f79bed11d4d02d4310e3c1b7ba594183bcedb0ac73b27a9e5f28f6fb5b98855", size = 46317, upload-time = "2025-05-26T14:30:30.523Z" },
+]
+
+[[package]]
+name = "types-authlib"
+version = "1.6.11.20260418"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cryptography" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/57/1f/1916a7cfc5482e2e29da1752c55b7d93ba58fc39972368d0f1fcd26a943b/types_authlib-1.6.11.20260418.tar.gz", hash = "sha256:591f11924f63ae85665ebd7f0524e8a2a4d141adeaf5204828e62bf08f4a956f", size = 46861, upload-time = "2026-04-18T04:21:49.139Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b0/97/0ab68862ba1a939bdaefbbf53f2e9ececb0fd9941570dc24b861ec0670fb/types_authlib-1.6.11.20260418-py3-none-any.whl", hash = "sha256:44534bf7d85b9a27579c26e044b7ef96a13b8d179f8492f0531a4649ab250814", size = 103942, upload-time = "2026-04-18T04:21:47.838Z" },
 ]
 
 [[package]]
