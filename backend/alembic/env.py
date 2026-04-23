@@ -24,11 +24,15 @@ load_dotenv(override=False, dotenv_path=".env.local")
 DATABASE_URL = os.environ["DATABASE_URL"]
 
 # Model imports for autogenerate support (alembic revision --autogenerate).
-from core.auth_v2 import models as auth_v2_models  # noqa: F401, E402
+#
+# Import model packages only. Do not import top-level runtime package re-exports
+# here: Alembic must register ORM metadata without triggering app settings or any
+# other runtime-only initialization.
+import core.auth_v2.models as auth_v2_models  # noqa: F401, E402
+import core.story_engine.models as story_engine_models  # noqa: F401, E402
 from core.common import ORMBase  # noqa: E402
 
-# from core.comic_builder import models as comic_builder_models  # noqa: F401
-from core.story_engine import models as story_engine_models  # noqa: F401, E402
+# import core.comic_builder.models as comic_builder_models  # noqa: F401
 
 # Alembic config object — access to values within the .ini file.
 config = context.config

@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from core.auth.router import router as auth_router
-from core.auth_v2 import router as google_auth_router
+from core.auth_v2.api import router as google_auth_router
 from core.story_engine.api.routers import router as story_engine_router
 
 from .transcribe import router as transcribe_router

@@ -74,7 +74,10 @@ async def _login_via_callback(
             refresh_token=refresh_token,
         )
     )
-    with patch("core.auth_v2.oauth.create_client", return_value=mock_google_client):
+    with patch(
+        "core.auth_v2.api.router.oauth.create_client",
+        return_value=mock_google_client,
+    ):
         return await api_client.get(
             "/api/auth/callback",
             headers=headers,
@@ -91,7 +94,10 @@ async def test_google_auth_login_redirects_to_google(api_client: AsyncClient) ->
         )
     )
 
-    with patch("core.auth_v2.oauth.create_client", return_value=mock_google_client):
+    with patch(
+        "core.auth_v2.api.router.oauth.create_client",
+        return_value=mock_google_client,
+    ):
         response = await api_client.get("/api/auth/login", follow_redirects=False)
 
     assert response.status_code in {302, 307}
@@ -110,7 +116,10 @@ async def test_google_auth_login_rate_limit_returns_429(
     )
     headers = {"x-forwarded-for": "198.51.100.10"}
 
-    with patch("core.auth_v2.oauth.create_client", return_value=mock_google_client):
+    with patch(
+        "core.auth_v2.api.router.oauth.create_client",
+        return_value=mock_google_client,
+    ):
         for _ in range(LOGIN_RATE_LIMIT_POLICY.max_requests):
             response = await api_client.get(
                 "/api/auth/login",
@@ -240,7 +249,10 @@ async def test_google_auth_callback_failure_redirects_to_frontend_failure(
         side_effect=RuntimeError("oauth exchange failed")
     )
 
-    with patch("core.auth_v2.oauth.create_client", return_value=mock_google_client):
+    with patch(
+        "core.auth_v2.api.router.oauth.create_client",
+        return_value=mock_google_client,
+    ):
         response = await api_client.get("/api/auth/callback", follow_redirects=False)
 
     assert response.status_code in {302, 307}
@@ -284,7 +296,10 @@ async def test_google_auth_callback_missing_userinfo_redirects_to_frontend_failu
         }
     )
 
-    with patch("core.auth_v2.oauth.create_client", return_value=mock_google_client):
+    with patch(
+        "core.auth_v2.api.router.oauth.create_client",
+        return_value=mock_google_client,
+    ):
         response = await api_client.get("/api/auth/callback", follow_redirects=False)
 
     assert response.status_code in {302, 307}
@@ -309,7 +324,10 @@ async def test_google_auth_callback_missing_required_profile_field_redirects_to_
         }
     )
 
-    with patch("core.auth_v2.oauth.create_client", return_value=mock_google_client):
+    with patch(
+        "core.auth_v2.api.router.oauth.create_client",
+        return_value=mock_google_client,
+    ):
         response = await api_client.get("/api/auth/callback", follow_redirects=False)
 
     assert response.status_code in {302, 307}
