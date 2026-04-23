@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { BACKEND_URL } from "@/constants";
-import { httpClient } from "@/lib/httpClient";
 import { useSceneEngine } from "@scene-engine/context";
 import { STORY_API_BASE } from "@scene-engine/shared/scene-engine.constants";
 
@@ -58,10 +57,8 @@ function ExportRow({ option, projectId, storyId }: ExportRowProps) {
     setError(null);
     try {
       const url = `${BACKEND_URL}${STORY_API_BASE}/project/${projectId}/story/${storyId}/export/${option.id}`;
-      const token = httpClient.getAccessToken();
       const response = await fetch(url, {
         credentials: "include",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
 
       if (!response.ok) {
