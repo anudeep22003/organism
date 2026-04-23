@@ -104,13 +104,8 @@ class CloudRunService(pulumi.ComponentResource):
                 "GCP_PROJECT_ID": PROJECT,
                 "GCP_REGION": REGION,
                 "GCP_STORAGE_BUCKET": MEDIA_BUCKET_NAME,
-                # Comma-separated list of allowed CORS origins.
-                # Read in main.py via os.getenv("CORS_ORIGINS").
-                # Not a secret — knowing this domain grants no access to anything.
-                "CORS_ORIGINS": FRONTEND_URL,
-                # Canonical frontend origin for auth redirects.
-                # Kept alongside CORS_ORIGINS during the compatibility window
-                # so backend can cut over without a big-bang deploy.
+                # Canonical frontend origin for auth redirects and browser CORS.
+                # Not a secret — it is a public origin, not a credential.
                 "FRONTEND_URL": FRONTEND_URL,
                 # Public OAuth client identifier used to start the Google auth flow.
                 "GOOGLE_OAUTH_CLIENT_ID": GOOGLE_OAUTH_CLIENT_ID,

@@ -265,12 +265,9 @@ For the auth rollout, infra standardizes on a single plain env var:
 and is the intended single source of truth for browser origin policy in the
 backend as well.
 
-During the compatibility window, Cloud Run may still carry `CORS_ORIGINS` until
-the backend finishes switching to `FRONTEND_URL`. The long-term direction is one
-frontend-origin setting in infra, not separate redirect and CORS inputs.
-
-Local dev keeps using its localhost defaults from the backend app — no
-`.env.local` change is required for this production-side origin wiring.
+Local dev must provide the same setting in `backend/.env.local`, keeping one
+frontend-origin contract across environments instead of separate redirect and
+CORS inputs.
 
 ---
 
