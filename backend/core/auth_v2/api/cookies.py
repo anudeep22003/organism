@@ -6,6 +6,11 @@ from ..config import (
     ACCESS_TOKEN_COOKIE_PATH,
     ACCESS_TOKEN_COOKIE_SAMESITE,
     ACCESS_TOKEN_COOKIE_SECURE,
+    CSRF_TOKEN_COOKIE_HTTPONLY,
+    CSRF_TOKEN_COOKIE_NAME,
+    CSRF_TOKEN_COOKIE_PATH,
+    CSRF_TOKEN_COOKIE_SAMESITE,
+    CSRF_TOKEN_COOKIE_SECURE,
     REFRESH_TOKEN_COOKIE_HTTPONLY,
     REFRESH_TOKEN_COOKIE_NAME,
     REFRESH_TOKEN_COOKIE_PATH,
@@ -20,6 +25,7 @@ def set_auth_cookies(
     *,
     access_token: str,
     refresh_token: str,
+    csrf_token: str,
 ) -> None:
     response.set_cookie(
         key=ACCESS_TOKEN_COOKIE_NAME,
@@ -39,6 +45,15 @@ def set_auth_cookies(
         max_age=REFRESH_TOKEN_TTL_SECONDS,
         path=REFRESH_TOKEN_COOKIE_PATH,
     )
+    response.set_cookie(
+        key=CSRF_TOKEN_COOKIE_NAME,
+        value=csrf_token,
+        httponly=CSRF_TOKEN_COOKIE_HTTPONLY,
+        secure=CSRF_TOKEN_COOKIE_SECURE,
+        samesite=CSRF_TOKEN_COOKIE_SAMESITE,
+        max_age=REFRESH_TOKEN_TTL_SECONDS,
+        path=CSRF_TOKEN_COOKIE_PATH,
+    )
 
 
 def clear_auth_cookies(response: Response) -> None:
@@ -55,4 +70,11 @@ def clear_auth_cookies(response: Response) -> None:
         httponly=REFRESH_TOKEN_COOKIE_HTTPONLY,
         secure=REFRESH_TOKEN_COOKIE_SECURE,
         samesite=REFRESH_TOKEN_COOKIE_SAMESITE,
+    )
+    response.delete_cookie(
+        key=CSRF_TOKEN_COOKIE_NAME,
+        path=CSRF_TOKEN_COOKIE_PATH,
+        httponly=CSRF_TOKEN_COOKIE_HTTPONLY,
+        secure=CSRF_TOKEN_COOKIE_SECURE,
+        samesite=CSRF_TOKEN_COOKIE_SAMESITE,
     )

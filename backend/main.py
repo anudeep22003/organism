@@ -8,6 +8,7 @@ from loguru import logger
 from starlette.middleware.sessions import SessionMiddleware
 
 from core.api.routers import router as v1_router
+from core.auth_v2 import CSRFMiddleware
 from core.config import settings
 from core.logging import setup_logging
 from core.sockets import register_sio_handlers, sio
@@ -48,6 +49,8 @@ fastapi_app.add_middleware(
     https_only=settings.env == "production",
     domain=None,  # [TODO] how is this used
 )
+
+fastapi_app.add_middleware(CSRFMiddleware)
 
 # CORS_ORIGINS is a comma-separated list of allowed origins.
 # Defaults to localhost:5173 for local dev — no .env.local change needed.

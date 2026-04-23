@@ -6,9 +6,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import RedirectResponse
 
 from core.auth.models.user import User
-from core.auth_v2.config import ACCESS_TOKEN_COOKIE_NAME, REFRESH_TOKEN_COOKIE_NAME
+from core.auth_v2.config import (
+    ACCESS_TOKEN_COOKIE_NAME,
+    CSRF_TOKEN_COOKIE_NAME,
+    CSRF_TOKEN_HEADER_NAME,
+    REFRESH_TOKEN_COOKIE_NAME,
+)
 from core.auth_v2.models import AuthSession, GoogleOAuthAccount
 from core.auth_v2.security import get_encryptor
+
+
+def _csrf_headers(api_client: AsyncClient) -> dict[str, str]:
+    csrf_token = api_client.cookies.get(CSRF_TOKEN_COOKIE_NAME)
+    assert csrf_token is not None
+    return {CSRF_TOKEN_HEADER_NAME: csrf_token}
 
 
 def _google_token_payload(
@@ -88,6 +99,7 @@ async def test_google_auth_callback_creates_user_google_account_and_session(
         assert response.headers["location"] == "http://localhost:5173/auth/success"
         assert response.cookies.get(ACCESS_TOKEN_COOKIE_NAME)
         assert response.cookies.get(REFRESH_TOKEN_COOKIE_NAME)
+        assert response.cookies.get(CSRF_TOKEN_COOKIE_NAME)
 
         user = await db_session.scalar(select(User).where(User.email == created_email))
         assert user is not None
@@ -240,6 +252,7 @@ async def test_refresh_rotates_session_and_sets_new_cookies(
         refresh_response = await api_client.post(
             "/api/auth/refresh",
             cookies={REFRESH_TOKEN_COOKIE_NAME: old_refresh_token},
+            headers=_csrf_headers(api_client),
         )
 
         assert refresh_response.status_code == 204
@@ -269,6 +282,7 @@ async def test_refresh_rotates_session_and_sets_new_cookies(
         old_token_response = await api_client.post(
             "/api/auth/refresh",
             cookies={REFRESH_TOKEN_COOKIE_NAME: old_refresh_token},
+            headers=_csrf_headers(api_client),
         )
         assert old_token_response.status_code == 401
     finally:
@@ -277,7 +291,10 @@ async def test_refresh_rotates_session_and_sets_new_cookies(
 
 
 async def test_refresh_without_cookie_returns_401(api_client: AsyncClient) -> None:
-    response = await api_client.post("/api/auth/refresh")
+    response = await api_client.post(
+        "/api/auth/refresh",
+        headers={CSRF_TOKEN_HEADER_NAME: "unused"},
+    )
     assert response.status_code == 401
 
 
@@ -304,9 +321,33 @@ async def test_refresh_rejects_legacy_sha256_style_session_hash(
     response = await api_client.post(
         "/api/auth/refresh",
         cookies={REFRESH_TOKEN_COOKIE_NAME: refresh_token},
+        headers={CSRF_TOKEN_HEADER_NAME: "legacysecret"},
     )
 
     assert response.status_code == 401
+
+
+async def test_refresh_requires_csrf_header(api_client: AsyncClient) -> None:
+    api_client.cookies.set(REFRESH_TOKEN_COOKIE_NAME, "session.secret")
+    api_client.cookies.set(CSRF_TOKEN_COOKIE_NAME, "csrf-token")
+
+    response = await api_client.post("/api/auth/refresh")
+
+    assert response.status_code == 403
+
+
+async def test_refresh_rejects_mismatched_csrf_header(
+    api_client: AsyncClient,
+) -> None:
+    api_client.cookies.set(REFRESH_TOKEN_COOKIE_NAME, "session.secret")
+    api_client.cookies.set(CSRF_TOKEN_COOKIE_NAME, "csrf-token")
+
+    response = await api_client.post(
+        "/api/auth/refresh",
+        headers={CSRF_TOKEN_HEADER_NAME: "wrong-token"},
+    )
+
+    assert response.status_code == 403
 
 
 async def test_logout_revokes_session_and_clears_cookies(
@@ -327,11 +368,13 @@ async def test_logout_revokes_session_and_clears_cookies(
         logout_response = await api_client.post(
             "/api/auth/logout",
             cookies={REFRESH_TOKEN_COOKIE_NAME: refresh_token},
+            headers=_csrf_headers(api_client),
         )
 
         assert logout_response.status_code == 204
         assert not logout_response.cookies.get(ACCESS_TOKEN_COOKIE_NAME)
         assert not logout_response.cookies.get(REFRESH_TOKEN_COOKIE_NAME)
+        assert not logout_response.cookies.get(CSRF_TOKEN_COOKIE_NAME)
 
         user = await db_session.scalar(select(User).where(User.email == created_email))
         assert user is not None

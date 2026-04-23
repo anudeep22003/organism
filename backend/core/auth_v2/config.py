@@ -20,3 +20,10 @@ REFRESH_TOKEN_COOKIE_PATH: Final[str] = "/api/auth"
 REFRESH_TOKEN_COOKIE_HTTPONLY: Final[bool] = True
 REFRESH_TOKEN_COOKIE_SECURE: Final[bool] = settings.env == "production"
 REFRESH_TOKEN_COOKIE_SAMESITE: Final[Literal["lax", "strict", "none"]] = "lax"
+
+CSRF_TOKEN_COOKIE_NAME: Final[str] = "csrf_token"
+CSRF_TOKEN_HEADER_NAME: Final[str] = "X-CSRF-Token"
+CSRF_TOKEN_COOKIE_PATH: Final[str] = "/"
+CSRF_TOKEN_COOKIE_HTTPONLY: Final[bool] = False
+CSRF_TOKEN_COOKIE_SECURE: Final[bool] = settings.env == "production"
+CSRF_TOKEN_COOKIE_SAMESITE: Final[Literal["lax", "strict", "none"]] = "lax"
