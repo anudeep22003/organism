@@ -1,7 +1,11 @@
 from .csrf import CSRFMiddleware, generate_csrf_token
 from .dependencies import (
+    enforce_callback_rate_limit,
+    enforce_login_rate_limit,
+    enforce_refresh_rate_limit,
     get_access_token_manager,
     get_auth_service,
+    get_client_ip,
     get_current_user_id,
     get_encryptor,
     get_password_hasher,
@@ -13,9 +17,13 @@ from .router import router
 
 __all__ = [
     "CSRFMiddleware",
+    "enforce_callback_rate_limit",
+    "enforce_login_rate_limit",
+    "enforce_refresh_rate_limit",
     "generate_csrf_token",
     "get_access_token_manager",
     "get_auth_service",
+    "get_client_ip",
     "get_current_user_id",
     "get_password_hasher",
     "get_refresh_token_manager",

@@ -1,5 +1,6 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from httpx import AsyncClient, Response
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,7 +14,18 @@ from core.auth_v2.config import (
     REFRESH_TOKEN_COOKIE_NAME,
 )
 from core.auth_v2.models import AuthSession, GoogleOAuthAccount
-from core.auth_v2.security import get_encryptor
+from core.auth_v2.security import (
+    CALLBACK_RATE_LIMIT_POLICY,
+    LOGIN_RATE_LIMIT_POLICY,
+    REFRESH_RATE_LIMIT_POLICY,
+    get_encryptor,
+    reset_auth_rate_limiter,
+)
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter() -> None:
+    reset_auth_rate_limiter()
 
 
 def _csrf_headers(api_client: AsyncClient) -> dict[str, str]:
@@ -52,6 +64,7 @@ async def _login_via_callback(
     email: str,
     sub: str,
     refresh_token: str | None = "google-refresh-token",
+    headers: dict[str, str] | None = None,
 ) -> Response:
     mock_google_client = MagicMock()
     mock_google_client.authorize_access_token = AsyncMock(
@@ -62,7 +75,11 @@ async def _login_via_callback(
         )
     )
     with patch("core.auth_v2.oauth.create_client", return_value=mock_google_client):
-        return await api_client.get("/api/auth/callback", follow_redirects=False)
+        return await api_client.get(
+            "/api/auth/callback",
+            headers=headers,
+            follow_redirects=False,
+        )
 
 
 async def test_google_auth_login_redirects_to_google(api_client: AsyncClient) -> None:
@@ -79,6 +96,36 @@ async def test_google_auth_login_redirects_to_google(api_client: AsyncClient) ->
 
     assert response.status_code in {302, 307}
     assert response.headers["location"].startswith("https://accounts.google.com/")
+
+
+async def test_google_auth_login_rate_limit_returns_429(
+    api_client: AsyncClient,
+) -> None:
+    mock_google_client = MagicMock()
+    mock_google_client.authorize_redirect = AsyncMock(
+        return_value=RedirectResponse(
+            url="https://accounts.google.com/o/oauth2/auth",
+            status_code=307,
+        )
+    )
+    headers = {"x-forwarded-for": "198.51.100.10"}
+
+    with patch("core.auth_v2.oauth.create_client", return_value=mock_google_client):
+        for _ in range(LOGIN_RATE_LIMIT_POLICY.max_requests):
+            response = await api_client.get(
+                "/api/auth/login",
+                headers=headers,
+                follow_redirects=False,
+            )
+            assert response.status_code in {302, 307}
+
+        response = await api_client.get(
+            "/api/auth/login",
+            headers=headers,
+            follow_redirects=False,
+        )
+
+    assert response.status_code == 429
 
 
 async def test_google_auth_callback_creates_user_google_account_and_session(
@@ -198,6 +245,30 @@ async def test_google_auth_callback_failure_redirects_to_frontend_failure(
 
     assert response.status_code in {302, 307}
     assert response.headers["location"] == "http://localhost:5173/auth/failure"
+
+
+async def test_google_auth_callback_rate_limit_returns_429(
+    api_client: AsyncClient,
+) -> None:
+    headers = {"x-forwarded-for": "198.51.100.20"}
+
+    for _ in range(CALLBACK_RATE_LIMIT_POLICY.max_requests):
+        response = await _login_via_callback(
+            api_client,
+            email="callback-limit@example.com",
+            sub="google-sub-limit",
+            headers=headers,
+        )
+        assert response.status_code in {302, 307}
+
+    response = await _login_via_callback(
+        api_client,
+        email="callback-limit@example.com",
+        sub="google-sub-limit",
+        headers=headers,
+    )
+
+    assert response.status_code == 429
 
 
 async def test_google_auth_callback_missing_userinfo_redirects_to_frontend_failure(
@@ -393,6 +464,23 @@ async def test_refresh_rejects_mismatched_csrf_header(
     )
 
     assert response.status_code == 403
+
+
+async def test_refresh_rate_limit_returns_429(api_client: AsyncClient) -> None:
+    headers = {
+        "x-forwarded-for": "198.51.100.30",
+        CSRF_TOKEN_HEADER_NAME: "csrf-token",
+    }
+    api_client.cookies.set(REFRESH_TOKEN_COOKIE_NAME, "session.secret")
+    api_client.cookies.set(CSRF_TOKEN_COOKIE_NAME, "csrf-token")
+
+    for _ in range(REFRESH_RATE_LIMIT_POLICY.max_requests):
+        response = await api_client.post("/api/auth/refresh", headers=headers)
+        assert response.status_code == 401
+
+    response = await api_client.post("/api/auth/refresh", headers=headers)
+
+    assert response.status_code == 429
 
 
 async def test_logout_revokes_session_and_clears_cookies(

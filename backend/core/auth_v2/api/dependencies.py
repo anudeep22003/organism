@@ -1,4 +1,5 @@
 import uuid
+from collections.abc import Awaitable, Callable
 from typing import Annotated
 
 from fastapi import Cookie, Depends, HTTPException, Request, status
@@ -7,12 +8,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.services.database import get_async_db_session
 
 from ..config import ACCESS_TOKEN_COOKIE_NAME
-from ..exceptions import ExpiredAccessTokenError, InvalidAccessTokenError
+from ..exceptions import (
+    ExpiredAccessTokenError,
+    InvalidAccessTokenError,
+    RateLimitExceededError,
+)
 from ..security import (
+    CALLBACK_RATE_LIMIT_POLICY,
+    LOGIN_RATE_LIMIT_POLICY,
+    REFRESH_RATE_LIMIT_POLICY,
     AccessTokenManager,
     Argon2Hasher,
+    InMemoryRateLimiter,
+    RateLimitPolicy,
     RefreshTokenManager,
     TokenEncryptor,
+    get_auth_rate_limiter,
     get_encryptor,
 )
 from ..services import AuthService
@@ -80,7 +91,50 @@ async def get_request_client_context(
     request: Request,
 ) -> tuple[str | None, str | None]:
     user_agent = request.headers.get("user-agent")
-    forwarded_for = request.headers.get("x-forwarded-for")
-    real_ip = request.headers.get("x-real-ip")
-    ip = forwarded_for or real_ip
+    ip = get_client_ip(request)
     return user_agent, ip
+
+
+def get_client_ip(request: Request) -> str | None:
+    forwarded_for = request.headers.get("x-forwarded-for")
+    if forwarded_for:
+        return forwarded_for.split(",", 1)[0].strip()
+
+    real_ip = request.headers.get("x-real-ip")
+    if real_ip:
+        return real_ip
+
+    if request.client is not None:
+        return request.client.host
+
+    return None
+
+
+def _enforce_rate_limit(
+    policy: RateLimitPolicy,
+) -> Callable[..., Awaitable[None]]:
+    async def dependency(
+        request: Request,
+        limiter: Annotated[InMemoryRateLimiter, Depends(get_auth_rate_limiter)],
+    ) -> None:
+        client_ip = get_client_ip(request) or "unknown"
+        try:
+            limiter.check(policy, client_ip)
+        except RateLimitExceededError as exc:
+            headers = (
+                {"Retry-After": str(exc.retry_after)}
+                if exc.retry_after is not None
+                else None
+            )
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many requests",
+                headers=headers,
+            )
+
+    return dependency
+
+
+enforce_login_rate_limit = _enforce_rate_limit(LOGIN_RATE_LIMIT_POLICY)
+enforce_callback_rate_limit = _enforce_rate_limit(CALLBACK_RATE_LIMIT_POLICY)
+enforce_refresh_rate_limit = _enforce_rate_limit(REFRESH_RATE_LIMIT_POLICY)
