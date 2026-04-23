@@ -1,4 +1,4 @@
-import { getAxiosErrorDetails } from "@/lib/httpClient";
+import { getAxiosErrorDetails, httpClient } from "@/lib/httpClient";
 import { authLogger } from "@/lib/logger";
 import {
   useQueryClient,
@@ -68,6 +68,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     user: null,
   });
   const initializedRef = useRef(false);
+
+  useEffect(() => {
+    httpClient.setAuthMode("cookie");
+
+    return () => {
+      httpClient.setAuthMode("legacy");
+    };
+  }, []);
 
   const refreshSession = useCallback(async () => {
     setState((previousState) => ({

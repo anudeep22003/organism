@@ -1,9 +1,9 @@
 import { useTheme } from "@/context/ThemeContext";
+import { useAuth } from "@/features/auth_v2";
 import { Outlet, useNavigate } from "react-router";
-import { useAuth } from "../../auth/model/auth.context";
 
 export default function StoriesLayout() {
-  const { signOut } = useAuth();
+  const { logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const isDark = theme === "dark";
@@ -30,7 +30,7 @@ export default function StoriesLayout() {
           </button>
           <div className="h-2.5 w-px bg-border" />
           <button
-            onClick={() => { void signOut(); }}
+            onClick={() => { void logout(); }}
             className="text-[10px] text-muted-foreground hover:text-foreground"
           >
             Sign out
