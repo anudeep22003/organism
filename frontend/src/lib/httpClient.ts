@@ -1,18 +1,39 @@
 import { BACKEND_URL } from "@/constants";
 import { AUTH_SERVICE_ENDPOINTS } from "@/features/auth/api/auth.constants";
-import axios, { AxiosError, type AxiosInstance } from "axios";
+import { AUTH_V2_SERVICE_ENDPOINTS } from "@/features/auth_v2/api/auth.constants";
+import axios, {
+  AxiosError,
+  AxiosHeaders,
+  type AxiosInstance,
+  type InternalAxiosRequestConfig,
+} from "axios";
 import { apiLogger, authLogger } from "./logger";
 
 const ACCESS_TOKEN_EXPIRY_TIME = 1000 * 60 * 30;
 const HTTP_STATUS_UNAUTHORIZED = 401;
+const CSRF_COOKIE_NAME = "csrf_token";
+const CSRF_HEADER_NAME = "X-CSRF-Token";
+const UNSAFE_HTTP_METHODS = new Set([
+  "POST",
+  "PUT",
+  "PATCH",
+  "DELETE",
+]);
 
 type RefreshResponse = {
   accessToken: string;
 };
 
+type AuthTransportMode = "legacy" | "cookie";
+
+type RetryableRequestConfig = InternalAxiosRequestConfig & {
+  _retry?: boolean;
+};
+
 class HttpClient {
   private static instance: HttpClient;
   private axiosInstance: AxiosInstance;
+  private authMode: AuthTransportMode = "legacy";
   private accessToken: string | null = null;
   private refreshTimer: NodeJS.Timeout | null = null;
   private refreshPromise: Promise<void> | null = null;
@@ -35,6 +56,19 @@ class HttpClient {
       HttpClient.instance = new HttpClient();
     }
     return HttpClient.instance;
+  }
+
+  public setAuthMode(mode: AuthTransportMode) {
+    this.authMode = mode;
+
+    if (mode === "cookie" && this.refreshTimer) {
+      clearTimeout(this.refreshTimer);
+      this.refreshTimer = null;
+    }
+  }
+
+  public getAuthMode() {
+    return this.authMode;
   }
 
   public subscribeToAccessToken(
@@ -136,16 +170,24 @@ class HttpClient {
 
   public async refreshAccessToken(): Promise<void> {
     if (this.refreshPromise) {
-      authLogger.debug("Awaiting ongoing access token refresh");
+      authLogger.debug("Awaiting ongoing auth refresh");
       return this.refreshPromise;
     }
 
     this.refreshPromise = (async () => {
-      const { accessToken: newAccessToken } =
-        await this.post<RefreshResponse>(
-          AUTH_SERVICE_ENDPOINTS.REFRESH,
+      if (this.authMode === "cookie") {
+        await this.axiosInstance.post<void>(
+          AUTH_V2_SERVICE_ENDPOINTS.REFRESH,
           {}
         );
+        return;
+      }
+
+      const response = await this.axiosInstance.post<RefreshResponse>(
+        AUTH_SERVICE_ENDPOINTS.REFRESH,
+        {}
+      );
+      const newAccessToken = response.data.accessToken;
       this.setAccessToken(newAccessToken);
     })();
 
@@ -157,16 +199,22 @@ class HttpClient {
   }
 
   private shouldAttemptRefresh(error: AxiosError): boolean {
+    const request = error.config as RetryableRequestConfig | undefined;
     const isUnauthorized =
       error.response?.status === HTTP_STATUS_UNAUTHORIZED;
-    const isRefreshRequest = error.config?.url?.includes(
-      AUTH_SERVICE_ENDPOINTS.REFRESH
+    const isRefreshRequest = request?.url?.includes(
+      this.getRefreshEndpoint()
     );
-    const isLogoutRequest = error.config?.url?.includes(
-      AUTH_SERVICE_ENDPOINTS.LOGOUT
+    const isLogoutRequest = request?.url?.includes(
+      this.getLogoutEndpoint()
     );
 
-    return isUnauthorized && !isRefreshRequest && !isLogoutRequest;
+    return (
+      isUnauthorized &&
+      request?._retry !== true &&
+      !isRefreshRequest &&
+      !isLogoutRequest
+    );
   }
 
   public async *streamPost<T = unknown>(
@@ -175,12 +223,7 @@ class HttpClient {
   ): AsyncGenerator<T> {
     const response = await fetch(`${BACKEND_URL}${url}`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(this.accessToken && {
-          Authorization: `Bearer ${this.accessToken}`,
-        }),
-      },
+      headers: this.buildFetchHeaders(),
       body: JSON.stringify(data),
       credentials: "include",
     });
@@ -221,12 +264,99 @@ class HttpClient {
     }
   }
 
+  private getRefreshEndpoint() {
+    if (this.authMode === "cookie") {
+      return AUTH_V2_SERVICE_ENDPOINTS.REFRESH;
+    }
+
+    return AUTH_SERVICE_ENDPOINTS.REFRESH;
+  }
+
+  private getLogoutEndpoint() {
+    if (this.authMode === "cookie") {
+      return AUTH_V2_SERVICE_ENDPOINTS.LOGOUT;
+    }
+
+    return AUTH_SERVICE_ENDPOINTS.LOGOUT;
+  }
+
+  private readCookie(name: string) {
+    if (typeof document === "undefined") {
+      return null;
+    }
+
+    const encodedName = encodeURIComponent(name);
+    const cookies = document.cookie.split("; ");
+
+    for (const cookie of cookies) {
+      const [rawName, ...rawValueParts] = cookie.split("=");
+      if (rawName !== encodedName) {
+        continue;
+      }
+
+      return decodeURIComponent(rawValueParts.join("="));
+    }
+
+    return null;
+  }
+
+  private getCsrfToken() {
+    return this.readCookie(CSRF_COOKIE_NAME);
+  }
+
+  private isUnsafeMethod(method: string | undefined) {
+    if (!method) {
+      return false;
+    }
+
+    return UNSAFE_HTTP_METHODS.has(method.toUpperCase());
+  }
+
+  private setHeader(
+    config: InternalAxiosRequestConfig,
+    key: string,
+    value: string | undefined
+  ) {
+    const nextHeaders = AxiosHeaders.from(config.headers);
+    if (value === undefined) {
+      nextHeaders.delete(key);
+    } else {
+      nextHeaders.set(key, value);
+    }
+
+    config.headers = nextHeaders;
+  }
+
+  private buildFetchHeaders() {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+
+    const csrfToken = this.getCsrfToken();
+    if (csrfToken) {
+      headers[CSRF_HEADER_NAME] = csrfToken;
+    }
+
+    if (this.authMode === "legacy" && this.accessToken) {
+      headers.Authorization = `Bearer ${this.accessToken}`;
+    }
+
+    return headers;
+  }
+
   private setupInterceptors(): void {
     this.axiosInstance.interceptors.request.use(
       (config) => {
-        config.headers.Authorization = this.accessToken
-          ? `Bearer ${this.accessToken}`
-          : undefined;
+        const csrfToken = this.getCsrfToken();
+        if (csrfToken && this.isUnsafeMethod(config.method)) {
+          this.setHeader(config, CSRF_HEADER_NAME, csrfToken);
+        }
+
+        const authorizationHeader =
+          this.authMode === "legacy" && this.accessToken
+            ? `Bearer ${this.accessToken}`
+            : undefined;
+        this.setHeader(config, "Authorization", authorizationHeader);
 
         return config;
       },
@@ -245,10 +375,13 @@ class HttpClient {
         return response;
       },
       async (error) => {
-        const originalRequest = error.config;
+        const originalRequest = error.config as
+          | RetryableRequestConfig
+          | undefined;
 
-        if (this.shouldAttemptRefresh(error)) {
+        if (originalRequest && this.shouldAttemptRefresh(error)) {
           try {
+            originalRequest._retry = true;
             await this.refreshAccessToken();
             return this.axiosInstance.request(originalRequest);
           } catch (refreshError) {
