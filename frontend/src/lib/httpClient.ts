@@ -1,6 +1,5 @@
 import { BACKEND_URL } from "@/constants";
 import { AUTH_SERVICE_ENDPOINTS } from "@/features/auth/api/auth.constants";
-import { AUTH_V2_SERVICE_ENDPOINTS } from "@/features/auth_v2/api/auth.constants";
 import axios, {
   AxiosError,
   AxiosHeaders,
@@ -177,7 +176,7 @@ class HttpClient {
     this.refreshPromise = (async () => {
       if (this.authMode === "cookie") {
         await this.axiosInstance.post<void>(
-          AUTH_V2_SERVICE_ENDPOINTS.REFRESH,
+          AUTH_SERVICE_ENDPOINTS.REFRESH,
           {}
         );
         return;
@@ -266,7 +265,7 @@ class HttpClient {
 
   private getRefreshEndpoint() {
     if (this.authMode === "cookie") {
-      return AUTH_V2_SERVICE_ENDPOINTS.REFRESH;
+      return AUTH_SERVICE_ENDPOINTS.REFRESH;
     }
 
     return AUTH_SERVICE_ENDPOINTS.REFRESH;
@@ -274,7 +273,7 @@ class HttpClient {
 
   private getLogoutEndpoint() {
     if (this.authMode === "cookie") {
-      return AUTH_V2_SERVICE_ENDPOINTS.LOGOUT;
+      return AUTH_SERVICE_ENDPOINTS.LOGOUT;
     }
 
     return AUTH_SERVICE_ENDPOINTS.LOGOUT;

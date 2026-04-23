@@ -1,4 +1,4 @@
-import { useAuth } from "@/features/auth_v2";
+import { useAuth } from "@/features/auth";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Socket } from "socket.io-client";
 

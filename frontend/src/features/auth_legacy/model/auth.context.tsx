@@ -1,4 +1,4 @@
-import { getAxiosErrorDetails, httpClient } from "@/lib/httpClient";
+import { getAxiosErrorDetails } from "@/lib/httpClient";
 import { authLogger } from "@/lib/logger";
 import {
   useQueryClient,
@@ -14,25 +14,32 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { authApi } from "../api/auth.api";
-import { HTTP_STATUS } from "../api/auth.constants";
+import { useSignInMutation, useSignOutMutation, useSignUpMutation } from "../api/auth.mutations";
 import { authKeys } from "../api/auth.query-keys";
 import { meQueryOptions } from "../api/auth.queries";
+import { HTTP_STATUS } from "../api/auth.constants";
+import { tokenStore } from "../session/token.store";
 import type {
   AuthContextValue,
   AuthState,
-  AuthUser,
+  SignInInput,
+  SignUpInput,
+  User,
 } from "./auth.types";
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+const getCurrentAccessToken = () => tokenStore.get();
+
 const setAuthenticatedState = (
   setState: React.Dispatch<React.SetStateAction<AuthState>>,
-  user: AuthUser
+  user: User,
+  accessToken: string | null
 ) => {
   setState({
     status: "authenticated",
     user,
+    accessToken,
   });
 };
 
@@ -42,6 +49,7 @@ const setUnauthenticatedState = (
   setState({
     status: "unauthenticated",
     user: null,
+    accessToken: null,
   });
 };
 
@@ -51,11 +59,11 @@ const resolveSession = async (
 ) => {
   try {
     const user = await queryClient.fetchQuery(meQueryOptions());
-    setAuthenticatedState(setState, user);
-  } catch (error) {
-    const { status } = getAxiosErrorDetails(error);
+    setAuthenticatedState(setState, user, getCurrentAccessToken());
+  } catch (err) {
+    const { status } = getAxiosErrorDetails(err);
     if (status !== HTTP_STATUS.UNAUTHORIZED) {
-      authLogger.error("Auth v2 bootstrap failed", error);
+      authLogger.error("Auth bootstrap failed:", err);
     }
     setUnauthenticatedState(setState);
   }
@@ -63,72 +71,96 @@ const resolveSession = async (
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const queryClient = useQueryClient();
+  const signInMutation = useSignInMutation();
+  const signUpMutation = useSignUpMutation();
+  const signOutMutation = useSignOutMutation();
+
   const [state, setState] = useState<AuthState>({
     status: "checking",
+    accessToken: getCurrentAccessToken(),
     user: null,
   });
+
   const initializedRef = useRef(false);
 
   useEffect(() => {
-    httpClient.setAuthMode("cookie");
-
-    return () => {
-      httpClient.setAuthMode("legacy");
-    };
+    return tokenStore.subscribe((accessToken) => {
+      setState((previousState) => ({
+        ...previousState,
+        accessToken,
+      }));
+    });
   }, []);
 
   const refreshSession = useCallback(async () => {
-    // mark the auth state as checking
     setState((previousState) => ({
       ...previousState,
       status: "checking",
     }));
 
-    // tries to hit the me endpoint, and loads the user or if unauthorized, marks that in the central auth state
-    // the httpClient takes care of refreshing if required
     await resolveSession(queryClient, setState);
   }, [queryClient]);
 
   useEffect(() => {
-    // if the auth provider has already been initialized, don't do anything
     if (initializedRef.current) {
       return;
     }
 
-    // set the initialized flag to true and refresh the session
     initializedRef.current = true;
     void refreshSession();
   }, [refreshSession]);
 
-  const login = useCallback(() => {
-    authApi.login();
-  }, []);
+  useEffect(() => {
+    if (
+      state.status === "authenticated" &&
+      state.accessToken === null
+    ) {
+      setUnauthenticatedState(setState);
+      queryClient.removeQueries({ queryKey: authKeys.me() });
+    }
+  }, [queryClient, state.accessToken, state.status]);
 
-  const logout = useCallback(async () => {
+  const signIn = useCallback(
+    async (input: SignInInput) => {
+      const response = await signInMutation.mutateAsync(input);
+      tokenStore.set(response.accessToken);
+      queryClient.setQueryData(authKeys.me(), response.user);
+      setAuthenticatedState(setState, response.user, response.accessToken);
+    },
+    [queryClient, signInMutation]
+  );
+
+  const signUp = useCallback(
+    async (input: SignUpInput) => {
+      const response = await signUpMutation.mutateAsync(input);
+      tokenStore.set(response.accessToken);
+      queryClient.setQueryData(authKeys.me(), response.user);
+      setAuthenticatedState(setState, response.user, response.accessToken);
+    },
+    [queryClient, signUpMutation]
+  );
+
+  const signOut = useCallback(async () => {
     try {
-      // tries to hit the logout endpoint, and clears the local session state
-      await authApi.logout();
-    } catch (error) {
-      authLogger.error(
-        "Auth logout failed. Clearing local session anyway",
-        error
-      );
+      await signOutMutation.mutateAsync();
+    } catch (err) {
+      authLogger.error("Logout failed. Clearing local session anyway", err);
     } finally {
+      await tokenStore.clear();
       queryClient.removeQueries({ queryKey: authKeys.all });
       setUnauthenticatedState(setState);
     }
-  }, [queryClient]);
+  }, [queryClient, signOutMutation]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
       ...state,
-      isAuthenticated: state.status === "authenticated",
-      isLoading: state.status === "checking",
-      login,
-      logout,
+      signIn,
+      signUp,
+      signOut,
       refreshSession,
     }),
-    [login, logout, refreshSession, state]
+    [refreshSession, signIn, signOut, signUp, state]
   );
 
   return (
