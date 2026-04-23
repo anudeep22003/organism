@@ -5,7 +5,7 @@ import {
   AuthSuccessPage,
   RequireAuth,
   RequireGuest,
-} from "./features/auth_v2";
+} from "./features/auth";
 import { sceneEngineRoutes } from "./features/scene-engine/routes";
 import { storiesRoutes } from "./features/scene-engine/stories/stories.routes";
 import { legacyStoryRoutes } from "./features/story";
