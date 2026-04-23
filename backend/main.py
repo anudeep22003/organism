@@ -8,7 +8,7 @@ from loguru import logger
 from starlette.middleware.sessions import SessionMiddleware
 
 from core.api.routers import router as v1_router
-from core.auth_v2 import CSRFMiddleware
+from core.auth_v2.api import CSRFMiddleware
 from core.config import settings
 from core.logging import setup_logging
 from core.sockets import register_sio_handlers, sio
