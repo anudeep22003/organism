@@ -30,12 +30,15 @@ config:
 
   storyengine-infra:domain: <app.yourdomain.com> # frontend domain — GCS bucket + SSL cert + LB host rule
   storyengine-infra:api_domain: <api.yourdomain.com> # API domain — Cloud Run via same LB
+  storyengine-infra:google_oauth_client_id: <google-oauth-client-id>
+                                                 # Plain config, not a secret. Used by the backend
+                                                 # to start the Google OAuth browser flow.
 
   storyengine-infra:github_repo: <owner/repo>    # SECURITY: only this GitHub repo can authenticate
                                                  # via Workload Identity Federation. Set correctly
                                                  # before first deploy. e.g. acme/myapp
 
-  storyengine-infra:media_bucket_suffix: <run: openssl rand -hex 2>
+  storyengine-infra:media_bucket_suffix: "<run: openssl rand -hex 2>"
                                                  # Short random string for GCS bucket name uniqueness.
                                                  # Generate: openssl rand -hex 2  (gives 4 hex chars)
                                                  # IMMUTABLE after first deploy — changing it

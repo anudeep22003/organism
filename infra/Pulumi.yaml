@@ -23,3 +23,6 @@ config:
   # SECURITY: only tokens from this repo can impersonate github-actions-sa.
   # Set in Pulumi.<stack>.yaml. Format: "owner/repo"  e.g. "acme/myapp"
   storyengine-infra:github_repo: ""
+  # Google OAuth client ID for the backend auth flow.
+  # Plain config, not a secret. Set in Pulumi.<stack>.yaml.
+  storyengine-infra:google_oauth_client_id: ""
