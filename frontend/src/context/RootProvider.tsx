@@ -5,7 +5,7 @@ import MediaContextProvider from "./MediaContext";
 import ChatProvider from "./ChatContext";
 import UIProvider from "./UIContext";
 import MessageMaintenanceProvider from "./MessageMaintenanceContext";
-import { AuthProvider } from "@/features/auth";
+import { AuthProvider } from "@/features/auth_v2";
 import { Provider } from "react-redux";
 import { store } from "@/store";
 import { QueryClientProvider } from "@tanstack/react-query";
