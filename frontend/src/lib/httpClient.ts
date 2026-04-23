@@ -22,6 +22,27 @@ type RetryableRequestConfig = InternalAxiosRequestConfig & {
   _retry?: boolean;
 };
 
+/*
+HttpClient is the auth transport boundary.
+
+High-level flow:
+
+1. every request is sent with `withCredentials: true`, so auth cookies travel
+   automatically with same-site requests
+2. unsafe requests mirror the `csrf_token` cookie into `X-CSRF-Token`
+3. if a request comes back `401`, the client tries one shared
+   `POST /api/auth/refresh`
+4. after a successful refresh, the original request is retried once
+
+What this class intentionally does not do:
+
+- it does not own React auth state
+- it does not decide routing
+- it does not expose a frontend-readable access token
+
+That separation keeps auth policy in `src/features/auth` and transport
+mechanics here.
+*/
 class HttpClient {
   private static instance: HttpClient;
   private axiosInstance: AxiosInstance;
@@ -91,6 +112,11 @@ class HttpClient {
   }
 
   public async refreshSession(): Promise<void> {
+    /*
+    Refresh is deduplicated behind one shared promise. If several requests hit
+    `401` together, they all await the same refresh instead of stampeding the
+    backend with parallel refresh calls.
+    */
     if (this.refreshPromise) {
       authLogger.debug("Awaiting ongoing auth refresh");
       return this.refreshPromise;
@@ -133,6 +159,11 @@ class HttpClient {
     url: string,
     data?: unknown
   ): AsyncGenerator<T> {
+    /*
+    Streaming uses `fetch` instead of Axios, but it follows the same auth
+    contract: send cookies, send CSRF for unsafe requests, refresh once on
+    `401`, then retry the stream.
+    */
     const response = await fetch(`${BACKEND_URL}${url}`, {
       method: "POST",
       headers: this.buildFetchHeaders(),
@@ -245,6 +276,13 @@ class HttpClient {
   }
 
   private setupInterceptors(): void {
+    /*
+    Request interceptor:
+    - attach CSRF on unsafe methods
+
+    Response interceptor:
+    - on `401`, try one refresh and replay the original request once
+    */
     this.axiosInstance.interceptors.request.use(
       (config) => {
         const csrfToken = this.getCsrfToken();

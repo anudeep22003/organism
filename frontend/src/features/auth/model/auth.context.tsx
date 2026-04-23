@@ -24,6 +24,18 @@ import type {
   AuthUser,
 } from "./auth.types";
 
+/*
+State machine overview:
+
+- `checking` means the provider is resolving session truth from the backend.
+- `authenticated` means `/api/auth/me` returned a user.
+- `unauthenticated` means bootstrap or refresh settled with no valid session.
+
+The provider owns app-facing auth state, but it does not own transport rules.
+`httpClient` handles cookie refresh and CSRF, while this provider translates
+the backend session contract into a simple React state machine the rest of the
+app can consume through `useAuth()`.
+*/
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 const setAuthenticatedState = (
@@ -49,6 +61,11 @@ const resolveSession = async (
   queryClient: QueryClient,
   setState: React.Dispatch<React.SetStateAction<AuthState>>
 ) => {
+  /*
+  This is the only place where auth state is derived from backend truth.
+  We fetch `/api/auth/me`; if that succeeds we are authenticated, and if it
+  fails with 401 after any transport-level refresh attempt we are not.
+  */
   try {
     const user = await queryClient.fetchQuery(meQueryOptions());
     setAuthenticatedState(setState, user);
@@ -70,24 +87,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const initializedRef = useRef(false);
 
   const refreshSession = useCallback(async () => {
-    // mark the auth state as checking
+    /*
+    Public refresh flow:
+
+    1. move back to `checking`
+    2. ask the backend who the current user is
+    3. settle to `authenticated` or `unauthenticated`
+
+    Callers do not need to think about refresh cookies here; `httpClient`
+    already retries `/me` through `/api/auth/refresh` when that is possible.
+    */
     setState((previousState) => ({
       ...previousState,
       status: "checking",
     }));
 
-    // tries to hit the me endpoint, and loads the user or if unauthorized, marks that in the central auth state
-    // the httpClient takes care of refreshing if required
     await resolveSession(queryClient, setState);
   }, [queryClient]);
 
   useEffect(() => {
-    // if the auth provider has already been initialized, don't do anything
+    /*
+    Bootstrap runs once when the provider mounts. Guards read this provider,
+    so keeping bootstrap centralized here prevents route-level auth effects
+    from spreading across the app.
+    */
     if (initializedRef.current) {
       return;
     }
 
-    // set the initialized flag to true and refresh the session
     initializedRef.current = true;
     void refreshSession();
   }, [refreshSession]);
@@ -98,7 +125,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = useCallback(async () => {
     try {
-      // tries to hit the logout endpoint, and clears the local session state
+      /*
+      Logout is best-effort at the network boundary and deterministic locally:
+      we try to revoke the server session, but we always clear local auth state
+      so the app never stays "signed in" because logout transport failed.
+      */
       await authApi.logout();
     } catch (error) {
       authLogger.error(
