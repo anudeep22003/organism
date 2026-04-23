@@ -112,6 +112,16 @@ pulumi.export("registry_url", registry.url)
 # App secret exports — StoryEngine-specific. Replace with your own when
 # starting a new project (remove these and export your own secret_ids).
 pulumi.export("secret_anthropic_api_key", secrets.anthropic_api_key.secret_id)
+pulumi.export(
+    "secret_google_oauth_client_secret",
+    secrets.google_oauth_client_secret.secret_id,
+)
+pulumi.export("secret_jwt_secret_key", secrets.jwt_secret_key.secret_id)
+pulumi.export("secret_auth_session_secret", secrets.auth_session_secret.secret_id)
+pulumi.export(
+    "secret_fernet_encryption_key",
+    secrets.fernet_encryption_key.secret_id,
+)
 pulumi.export("secret_openai_api_key", secrets.openai_api_key.secret_id)
 pulumi.export("secret_fal_api_key", secrets.fal_api_key.secret_id)
 pulumi.export("secret_database_url", secrets.database_url.secret_id)

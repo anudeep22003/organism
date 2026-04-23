@@ -13,6 +13,10 @@ Usage:
     secrets.db_password        # gcp.secretmanager.Secret
     # App secrets (StoryEngine-specific — replace with your own):
     secrets.anthropic_api_key  # gcp.secretmanager.Secret
+    secrets.google_oauth_client_secret  # gcp.secretmanager.Secret
+    secrets.jwt_secret_key     # gcp.secretmanager.Secret
+    secrets.auth_session_secret  # gcp.secretmanager.Secret
+    secrets.fernet_encryption_key  # gcp.secretmanager.Secret
     secrets.openai_api_key     # gcp.secretmanager.Secret
     secrets.fal_api_key        # gcp.secretmanager.Secret
 
@@ -25,6 +29,10 @@ Attributes exposed:
 
     # StoryEngine-specific — replace with your own in a new project:
     anthropic_api_key (gcp.secretmanager.Secret): Anthropic API key slot
+    google_oauth_client_secret (gcp.secretmanager.Secret): Google OAuth client secret slot
+    jwt_secret_key    (gcp.secretmanager.Secret): JWT signing key slot
+    auth_session_secret (gcp.secretmanager.Secret): Session middleware secret slot
+    fernet_encryption_key (gcp.secretmanager.Secret): Fernet key slot for encrypted OAuth tokens
     openai_api_key    (gcp.secretmanager.Secret): OpenAI API key slot
     fal_api_key       (gcp.secretmanager.Secret): Fal.ai API key slot
 
@@ -94,6 +102,10 @@ class AppSecrets(pulumi.ComponentResource):
 
     Child resources (all parented to this component):
         {name}-anthropic-api-key   gcp.secretmanager.Secret
+        {name}-google-oauth-client-secret   gcp.secretmanager.Secret
+        {name}-jwt-secret-key      gcp.secretmanager.Secret
+        {name}-auth-session-secret gcp.secretmanager.Secret
+        {name}-fernet-encryption-key gcp.secretmanager.Secret
         {name}-openai-api-key      gcp.secretmanager.Secret
         {name}-fal-api-key         gcp.secretmanager.Secret
         {name}-database-url        gcp.secretmanager.Secret
@@ -101,6 +113,10 @@ class AppSecrets(pulumi.ComponentResource):
     """
 
     anthropic_api_key: gcp.secretmanager.Secret
+    google_oauth_client_secret: gcp.secretmanager.Secret
+    jwt_secret_key: gcp.secretmanager.Secret
+    auth_session_secret: gcp.secretmanager.Secret
+    fernet_encryption_key: gcp.secretmanager.Secret
     openai_api_key: gcp.secretmanager.Secret
     fal_api_key: gcp.secretmanager.Secret
     database_url: gcp.secretmanager.Secret
@@ -152,6 +168,26 @@ class AppSecrets(pulumi.ComponentResource):
             f"{PREFIX}-anthropic-api-key",
             parent=self,
         )
+        self.google_oauth_client_secret = _make_secret(
+            f"{name}-google-oauth-client-secret",
+            f"{PREFIX}-google-oauth-client-secret",
+            parent=self,
+        )
+        self.jwt_secret_key = _make_secret(
+            f"{name}-jwt-secret-key",
+            f"{PREFIX}-jwt-secret-key",
+            parent=self,
+        )
+        self.auth_session_secret = _make_secret(
+            f"{name}-auth-session-secret",
+            f"{PREFIX}-auth-session-secret",
+            parent=self,
+        )
+        self.fernet_encryption_key = _make_secret(
+            f"{name}-fernet-encryption-key",
+            f"{PREFIX}-fernet-encryption-key",
+            parent=self,
+        )
         self.openai_api_key = _make_secret(
             f"{name}-openai-api-key",
             f"{PREFIX}-openai-api-key",
@@ -169,6 +205,10 @@ class AppSecrets(pulumi.ComponentResource):
                 "db_password": self.db_password,
                 # app secrets
                 "anthropic_api_key": self.anthropic_api_key,
+                "google_oauth_client_secret": self.google_oauth_client_secret,
+                "jwt_secret_key": self.jwt_secret_key,
+                "auth_session_secret": self.auth_session_secret,
+                "fernet_encryption_key": self.fernet_encryption_key,
                 "openai_api_key": self.openai_api_key,
                 "fal_api_key": self.fal_api_key,
             }
