@@ -13,6 +13,7 @@ from ..exceptions import (
     InvalidAccessTokenError,
     RateLimitExceededError,
 )
+from ..observability import log_auth_event
 from ..security import (
     CALLBACK_RATE_LIMIT_POLICY,
     LOGIN_RATE_LIMIT_POLICY,
@@ -121,6 +122,15 @@ def _enforce_rate_limit(
         try:
             limiter.check(policy, client_ip)
         except RateLimitExceededError as exc:
+            log_auth_event(
+                "auth.rate_limited",
+                level="warning",
+                route=request.url.path,
+                ip=client_ip,
+                user_agent=request.headers.get("user-agent"),
+                reason=policy.name,
+                retry_after=exc.retry_after,
+            )
             headers = (
                 {"Retry-After": str(exc.retry_after)}
                 if exc.retry_after is not None

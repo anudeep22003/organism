@@ -12,6 +12,7 @@ from ..utils import get_current_datetime_utc
 
 @dataclass(frozen=True, slots=True)
 class AuthTokens:
+    user_id: uuid.UUID
     access_token: str
     refresh_token: str
 
@@ -49,7 +50,11 @@ class SessionService:
         session.touch()
         await self.repository.session.create_session(session)
         access_token = self.access_token_manager.create_access_token(user_id)
-        return AuthTokens(access_token=access_token, refresh_token=refresh_token)
+        return AuthTokens(
+            user_id=user_id,
+            access_token=access_token,
+            refresh_token=refresh_token,
+        )
 
     async def refresh_session(self, refresh_token: str) -> AuthTokens:
         token_parts = self.refresh_token_manager.parse_refresh_token(refresh_token)
@@ -89,29 +94,31 @@ class SessionService:
         session.rotate(new_session.id)
         await self.repository.session.update_session(session)
         return AuthTokens(
+            user_id=user_id,
             access_token=self.access_token_manager.create_access_token(user_id),
             refresh_token=new_refresh_token,
         )
 
-    async def logout(self, refresh_token: str | None) -> None:
+    async def logout(self, refresh_token: str | None) -> uuid.UUID | None:
         if refresh_token is None:
-            return
+            return None
         try:
             token_parts = self.refresh_token_manager.parse_refresh_token(refresh_token)
         except InvalidRefreshTokenError:
-            return
+            return None
 
         session = await self.repository.session.get_session_by_id(
             token_parts.session_id
         )
         if session is None:
-            return
+            return None
 
         if not self.refresh_token_manager.verify_refresh_token_secret(
             token_parts.secret, session.refresh_token_hash
         ):
-            return
+            return None
 
         if session.revoked_at is None:
             session.revoke()
             await self.repository.session.update_session(session)
+        return session.user_id

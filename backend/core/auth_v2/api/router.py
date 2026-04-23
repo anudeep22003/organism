@@ -15,6 +15,7 @@ from ..exceptions import (
     OAuthTokenExchangeError,
     UserNotFoundError,
 )
+from ..observability import log_auth_event
 from ..schemas import UserResponse
 from ..services import AuthService
 from .cookies import clear_auth_cookies, set_auth_cookies
@@ -41,10 +42,19 @@ def _frontend_auth_redirect(path: str) -> str:
 async def login(
     request: Request,
     _: Annotated[None, Depends(enforce_login_rate_limit)],
+    client_context: Annotated[
+        tuple[str | None, str | None], Depends(get_request_client_context)
+    ],
 ) -> RedirectResponse:
     google = oauth.create_client("google")
     redirect_uri = str(request.url_for("callback"))
-    logger.info(f"Redirecting to Google OAuth: {redirect_uri}")
+    user_agent, ip = client_context
+    log_auth_event(
+        "auth.login.started",
+        route=request.url.path,
+        ip=ip,
+        user_agent=user_agent,
+    )
     return await google.authorize_redirect(  # type: ignore[no-any-return]
         request,
         redirect_uri,
@@ -62,6 +72,8 @@ async def callback(
         tuple[str | None, str | None], Depends(get_request_client_context)
     ],
 ) -> RedirectResponse:
+    user_agent, ip = client_context
+    google_sub: str | None = None
     try:
         google = oauth.create_client("google")
         try:
@@ -70,11 +82,23 @@ async def callback(
             raise OAuthTokenExchangeError(
                 "Failed to exchange Google OAuth token"
             ) from exc
-        user_agent, ip = client_context
+        userinfo = token.get("userinfo")
+        if isinstance(userinfo, dict):
+            sub = userinfo.get("sub")
+            if isinstance(sub, str) and sub != "":
+                google_sub = sub
         result = await service.handle_google_callback(
             token=token,
             user_agent=user_agent,
             ip=ip,
+        )
+        log_auth_event(
+            "auth.login.succeeded",
+            route=request.url.path,
+            user_id=result.user_id,
+            google_sub=google_sub,
+            ip=ip,
+            user_agent=user_agent,
         )
         response = RedirectResponse(url=_frontend_auth_redirect("/auth/success"))
         set_auth_cookies(
@@ -85,10 +109,26 @@ async def callback(
         )
         return response
     except OAuthError as exc:
-        logger.warning(f"Google OAuth callback failed: {exc}")
+        log_auth_event(
+            "auth.oauth.callback.failed",
+            level="warning",
+            route=request.url.path,
+            google_sub=google_sub,
+            ip=ip,
+            user_agent=user_agent,
+            reason=type(exc).__name__,
+        )
         return RedirectResponse(url=_frontend_auth_redirect("/auth/failure"))
     except AuthV2Error as exc:
-        logger.warning(f"Auth callback failed: {exc}")
+        log_auth_event(
+            "auth.login.failed",
+            level="warning",
+            route=request.url.path,
+            google_sub=google_sub,
+            ip=ip,
+            user_agent=user_agent,
+            reason=type(exc).__name__,
+        )
         return RedirectResponse(url=_frontend_auth_redirect("/auth/failure"))
     except Exception:
         logger.exception("Unexpected auth callback failure")
@@ -115,6 +155,9 @@ async def refresh(
     response: Response,
     _: Annotated[None, Depends(enforce_refresh_rate_limit)],
     service: Annotated[AuthService, Depends(get_auth_service)],
+    client_context: Annotated[
+        tuple[str | None, str | None], Depends(get_request_client_context)
+    ],
     refresh_token: Annotated[
         str | None, Cookie(alias=REFRESH_TOKEN_COOKIE_NAME)
     ] = None,
@@ -122,7 +165,16 @@ async def refresh(
 ) -> Response:
     """Rotate the session tokens while preserving the current CSRF token."""
 
+    user_agent, ip = client_context
     if refresh_token is None:
+        log_auth_event(
+            "auth.refresh.failed",
+            level="warning",
+            route="/api/auth/refresh",
+            ip=ip,
+            user_agent=user_agent,
+            reason="MissingRefreshToken",
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="No refresh token provided",
@@ -130,10 +182,25 @@ async def refresh(
     try:
         tokens = await service.refresh_session(refresh_token)
     except InvalidRefreshTokenError as exc:
+        log_auth_event(
+            "auth.refresh.failed",
+            level="warning",
+            route="/api/auth/refresh",
+            ip=ip,
+            user_agent=user_agent,
+            reason=type(exc).__name__,
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(exc),
         )
+    log_auth_event(
+        "auth.refresh.succeeded",
+        route="/api/auth/refresh",
+        user_id=tokens.user_id,
+        ip=ip,
+        user_agent=user_agent,
+    )
     set_auth_cookies(
         response,
         access_token=tokens.access_token,
@@ -148,11 +215,22 @@ async def refresh(
 async def logout(
     response: Response,
     service: Annotated[AuthService, Depends(get_auth_service)],
+    client_context: Annotated[
+        tuple[str | None, str | None], Depends(get_request_client_context)
+    ],
     refresh_token: Annotated[
         str | None, Cookie(alias=REFRESH_TOKEN_COOKIE_NAME)
     ] = None,
 ) -> Response:
-    await service.logout(refresh_token)
+    user_agent, ip = client_context
+    user_id = await service.logout(refresh_token)
+    log_auth_event(
+        "auth.logout.succeeded",
+        route="/api/auth/logout",
+        user_id=user_id,
+        ip=ip,
+        user_agent=user_agent,
+    )
     clear_auth_cookies(response)
     response.status_code = status.HTTP_204_NO_CONTENT
     return response
