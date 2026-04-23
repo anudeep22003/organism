@@ -1,3 +1,4 @@
+from .csrf import CSRFMiddleware, generate_csrf_token
 from .dependencies import (
     get_access_token_manager,
     get_auth_service,
@@ -11,6 +12,8 @@ from .oauth_client import oauth
 from .router import router
 
 __all__ = [
+    "CSRFMiddleware",
+    "generate_csrf_token",
     "get_access_token_manager",
     "get_auth_service",
     "get_current_user_id",

@@ -7,11 +7,12 @@ from loguru import logger
 
 from core.config import settings
 
-from ..config import REFRESH_TOKEN_COOKIE_NAME
+from ..config import CSRF_TOKEN_COOKIE_NAME, REFRESH_TOKEN_COOKIE_NAME
 from ..exceptions import InvalidRefreshTokenError, UserNotFoundError
 from ..schemas import UserResponse
 from ..services import AuthService
 from .cookies import clear_auth_cookies, set_auth_cookies
+from .csrf import generate_csrf_token
 from .dependencies import (
     get_auth_service,
     get_current_user_id,
@@ -62,6 +63,7 @@ async def callback(
             response,
             access_token=result.tokens.access_token,
             refresh_token=result.tokens.refresh_token,
+            csrf_token=generate_csrf_token(),
         )
         return response
     except Exception as exc:
@@ -91,7 +93,10 @@ async def refresh(
     refresh_token: Annotated[
         str | None, Cookie(alias=REFRESH_TOKEN_COOKIE_NAME)
     ] = None,
+    csrf_token: Annotated[str | None, Cookie(alias=CSRF_TOKEN_COOKIE_NAME)] = None,
 ) -> Response:
+    """Rotate the session tokens while preserving the current CSRF token."""
+
     if refresh_token is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -108,6 +113,7 @@ async def refresh(
         response,
         access_token=tokens.access_token,
         refresh_token=tokens.refresh_token,
+        csrf_token=csrf_token or generate_csrf_token(),
     )
     response.status_code = status.HTTP_204_NO_CONTENT
     return response
