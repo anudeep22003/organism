@@ -25,4 +25,4 @@ Primary exports:
 - The frontend does not read an access token from JavaScript.
 - Unsafe requests rely on the `csrf_token` cookie and `X-CSRF-Token` header.
 - Socket.IO is intentionally disabled until the backend exposes a cookie-compatible handshake.
-- The legacy auth module still exists in the repo for stack history, but it is no longer wired into the app runtime.
+- `src/lib/httpClient.ts` now assumes cookie auth only; there is no bearer fallback path left in the frontend.

@@ -1,4 +1,4 @@
-import { getAxiosErrorDetails, httpClient } from "@/lib/httpClient";
+import { getAxiosErrorDetails } from "@/lib/httpClient";
 import { authLogger } from "@/lib/logger";
 import {
   useQueryClient,
@@ -55,7 +55,7 @@ const resolveSession = async (
   } catch (error) {
     const { status } = getAxiosErrorDetails(error);
     if (status !== HTTP_STATUS.UNAUTHORIZED) {
-      authLogger.error("Auth v2 bootstrap failed", error);
+      authLogger.error("Auth bootstrap failed", error);
     }
     setUnauthenticatedState(setState);
   }
@@ -68,14 +68,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     user: null,
   });
   const initializedRef = useRef(false);
-
-  useEffect(() => {
-    httpClient.setAuthMode("cookie");
-
-    return () => {
-      httpClient.setAuthMode("legacy");
-    };
-  }, []);
 
   const refreshSession = useCallback(async () => {
     // mark the auth state as checking
