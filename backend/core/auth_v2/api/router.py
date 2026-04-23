@@ -8,7 +8,13 @@ from loguru import logger
 from core.config import settings
 
 from ..config import CSRF_TOKEN_COOKIE_NAME, REFRESH_TOKEN_COOKIE_NAME
-from ..exceptions import InvalidRefreshTokenError, UserNotFoundError
+from ..exceptions import (
+    AuthV2Error,
+    InvalidRefreshTokenError,
+    OAuthError,
+    OAuthTokenExchangeError,
+    UserNotFoundError,
+)
 from ..schemas import UserResponse
 from ..services import AuthService
 from .cookies import clear_auth_cookies, set_auth_cookies
@@ -51,7 +57,12 @@ async def callback(
 ) -> RedirectResponse:
     try:
         google = oauth.create_client("google")
-        token = await google.authorize_access_token(request)
+        try:
+            token = await google.authorize_access_token(request)
+        except Exception as exc:
+            raise OAuthTokenExchangeError(
+                "Failed to exchange Google OAuth token"
+            ) from exc
         user_agent, ip = client_context
         result = await service.handle_google_callback(
             token=token,
@@ -66,8 +77,14 @@ async def callback(
             csrf_token=generate_csrf_token(),
         )
         return response
-    except Exception as exc:
-        logger.error(f"Error authorizing access token: {exc}")
+    except OAuthError as exc:
+        logger.warning(f"Google OAuth callback failed: {exc}")
+        return RedirectResponse(url=_frontend_auth_redirect("/auth/failure"))
+    except AuthV2Error as exc:
+        logger.warning(f"Auth callback failed: {exc}")
+        return RedirectResponse(url=_frontend_auth_redirect("/auth/failure"))
+    except Exception:
+        logger.exception("Unexpected auth callback failure")
         return RedirectResponse(url=_frontend_auth_redirect("/auth/failure"))
 
 
