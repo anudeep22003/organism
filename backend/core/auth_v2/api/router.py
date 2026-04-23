@@ -20,6 +20,9 @@ from ..services import AuthService
 from .cookies import clear_auth_cookies, set_auth_cookies
 from .csrf import generate_csrf_token
 from .dependencies import (
+    enforce_callback_rate_limit,
+    enforce_login_rate_limit,
+    enforce_refresh_rate_limit,
     get_auth_service,
     get_current_user_id,
     get_request_client_context,
@@ -35,7 +38,10 @@ def _frontend_auth_redirect(path: str) -> str:
 
 
 @router.get("/login")
-async def login(request: Request) -> RedirectResponse:
+async def login(
+    request: Request,
+    _: Annotated[None, Depends(enforce_login_rate_limit)],
+) -> RedirectResponse:
     google = oauth.create_client("google")
     redirect_uri = str(request.url_for("callback"))
     logger.info(f"Redirecting to Google OAuth: {redirect_uri}")
@@ -50,6 +56,7 @@ async def login(request: Request) -> RedirectResponse:
 @router.get("/callback")
 async def callback(
     request: Request,
+    _: Annotated[None, Depends(enforce_callback_rate_limit)],
     service: Annotated[AuthService, Depends(get_auth_service)],
     client_context: Annotated[
         tuple[str | None, str | None], Depends(get_request_client_context)
@@ -106,6 +113,7 @@ async def me(
 @router.post("/refresh", status_code=status.HTTP_204_NO_CONTENT)
 async def refresh(
     response: Response,
+    _: Annotated[None, Depends(enforce_refresh_rate_limit)],
     service: Annotated[AuthService, Depends(get_auth_service)],
     refresh_token: Annotated[
         str | None, Cookie(alias=REFRESH_TOKEN_COOKIE_NAME)
