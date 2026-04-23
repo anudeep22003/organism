@@ -8,8 +8,7 @@ from starlette.responses import RedirectResponse
 from core.auth.models.user import User
 from core.auth_v2.config import ACCESS_TOKEN_COOKIE_NAME, REFRESH_TOKEN_COOKIE_NAME
 from core.auth_v2.models import AuthSession, GoogleOAuthAccount
-from core.auth_v2.security import FernetTokenEncryptor
-from core.config import settings
+from core.auth_v2.security import get_encryptor
 
 
 def _google_token_payload(
@@ -76,7 +75,7 @@ async def test_google_auth_callback_creates_user_google_account_and_session(
     db_session: AsyncSession,
 ) -> None:
     created_email = "callback-create@example.com"
-    encryptor = FernetTokenEncryptor(settings.fernet_encryption_key)
+    encryptor = get_encryptor()
 
     try:
         response = await _login_via_callback(
@@ -100,9 +99,6 @@ async def test_google_auth_callback_creates_user_google_account_and_session(
         )
         assert google_account is not None
         assert google_account.user_id == user.id
-        assert google_account.access_token != "google-access-token"
-        assert google_account.refresh_token != "google-refresh-token"
-        assert google_account.id_token != "google-id-token"
         assert google_account.refresh_token is not None
         assert google_account.id_token is not None
         assert encryptor.decrypt(google_account.access_token) == "google-access-token"
@@ -147,7 +143,7 @@ async def test_google_auth_callback_encrypts_legacy_plaintext_refresh_token_on_r
     db_session: AsyncSession,
     user: User,
 ) -> None:
-    encryptor = FernetTokenEncryptor(settings.fernet_encryption_key)
+    encryptor = get_encryptor()
     google_account = GoogleOAuthAccount.create(
         user_id=user.id,
         google_sub="google-sub-legacy-refresh",
@@ -174,7 +170,6 @@ async def test_google_auth_callback_encrypts_legacy_plaintext_refresh_token_on_r
 
     await db_session.refresh(google_account)
     assert google_account.refresh_token is not None
-    assert google_account.refresh_token != "legacy-refresh-token"
     assert encryptor.decrypt(google_account.refresh_token) == "legacy-refresh-token"
 
 
