@@ -43,7 +43,7 @@ Design decisions:
 import pulumi
 import pulumi_gcp as gcp
 
-from components.config import APP, GITHUB_REPO, PROJECT, resource_name
+from components.config import APP, GITHUB_REPO, PROJECT
 
 # The GitHub repository that is allowed to authenticate via this pool.
 # Read from Pulumi config (github_repo key) — set per stack in Pulumi.<stack>.yaml.
