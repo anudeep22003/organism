@@ -4,11 +4,17 @@ from typing import Annotated
 from fastapi import Cookie, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.config import settings
 from core.services.database import get_async_db_session
 
 from ..config import ACCESS_TOKEN_COOKIE_NAME
 from ..exceptions import ExpiredAccessTokenError, InvalidAccessTokenError
-from ..security import AccessTokenManager, Argon2Hasher, RefreshTokenManager
+from ..security import (
+    AccessTokenManager,
+    Argon2Hasher,
+    FernetTokenEncryptor,
+    RefreshTokenManager,
+)
 from ..services import AuthService
 
 
@@ -24,6 +30,10 @@ def get_refresh_token_manager() -> RefreshTokenManager:
     return RefreshTokenManager(password_hasher=get_password_hasher())
 
 
+def get_token_encryptor() -> FernetTokenEncryptor:
+    return FernetTokenEncryptor(settings.fernet_encryption_key)
+
+
 async def get_auth_service(
     db: Annotated[AsyncSession, Depends(get_async_db_session)],
     access_token_manager: Annotated[
@@ -33,12 +43,14 @@ async def get_auth_service(
         RefreshTokenManager, Depends(get_refresh_token_manager)
     ],
     password_hasher: Annotated[Argon2Hasher, Depends(get_password_hasher)],
+    token_encryptor: Annotated[FernetTokenEncryptor, Depends(get_token_encryptor)],
 ) -> AuthService:
     return AuthService(
         db_session=db,
         access_token_manager=access_token_manager,
         refresh_token_manager=refresh_token_manager,
         password_hasher=password_hasher,
+        token_encryptor=token_encryptor,
     )
 
 

@@ -37,6 +37,7 @@ dependencies = [
     "coolname>=4.1.0",
     "pydantic-settings>=2.0.0,<3.0.0",
     "authlib>=1.7.0",
+    "cryptography>=45.0.0",
     "itsdangerous>=2.2.0",
 ]
 

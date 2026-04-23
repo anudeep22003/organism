@@ -6,7 +6,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..exceptions import UserNotFoundError
 from ..models import User
 from ..repositories import AuthRepository
-from ..security import AccessTokenManager, PasswordHasher, RefreshTokenManager
+from ..security import (
+    AccessTokenManager,
+    PasswordHasher,
+    RefreshTokenManager,
+    TokenEncryptor,
+)
 from .oauth import OAuthService
 from .session import AuthTokens, SessionService
 
@@ -24,10 +29,15 @@ class AuthService:
         access_token_manager: AccessTokenManager,
         refresh_token_manager: RefreshTokenManager,
         password_hasher: PasswordHasher,
+        token_encryptor: TokenEncryptor,
     ) -> None:
         self.db = db_session
         self.repository = AuthRepository(db_session)
-        self.oauth_service = OAuthService(self.repository, password_hasher)
+        self.oauth_service = OAuthService(
+            self.repository,
+            password_hasher,
+            token_encryptor,
+        )
         self.session_service = SessionService(
             self.repository,
             access_token_manager,

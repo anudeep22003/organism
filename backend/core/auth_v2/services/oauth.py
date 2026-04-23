@@ -5,7 +5,7 @@ from typing import Any
 
 from ..models import GoogleOAuthAccount, User
 from ..repositories import AuthRepository
-from ..security import PasswordHasher
+from ..security import PasswordHasher, TokenDecryptionError, TokenEncryptor
 
 
 @dataclass(frozen=True, slots=True)
@@ -18,9 +18,11 @@ class OAuthService:
         self,
         repository: AuthRepository,
         password_hasher: PasswordHasher,
+        token_encryptor: TokenEncryptor,
     ) -> None:
         self.repository = repository
         self.password_hasher = password_hasher
+        self.token_encryptor = token_encryptor
 
     async def resolve_google_callback_user(
         self, token: dict[str, Any]
@@ -35,9 +37,11 @@ class OAuthService:
         name = self._optional_str(userinfo.get("name"))
         picture_url = self._optional_str(userinfo.get("picture"))
 
-        access_token = self._require_str(token, "access_token")
-        refresh_token = self._optional_str(token.get("refresh_token"))
-        id_token = self._optional_str(token.get("id_token"))
+        access_token = self.token_encryptor.encrypt(
+            self._require_str(token, "access_token")
+        )
+        refresh_token = self._encrypt_optional_token(token.get("refresh_token"))
+        id_token = self._encrypt_optional_token(token.get("id_token"))
         scope = self._optional_str(token.get("scope"))
         token_expires_at = self._parse_token_expires_at(token)
 
@@ -47,6 +51,10 @@ class OAuthService:
             )
         )
         if google_account is not None:
+            if google_account.refresh_token is not None and refresh_token is None:
+                google_account.refresh_token = self._encrypt_if_plaintext(
+                    google_account.refresh_token
+                )
             google_account.update_google_login(
                 email=email,
                 email_verified=email_verified,
@@ -108,6 +116,20 @@ class OAuthService:
         if isinstance(value, str) and value != "":
             return value
         return None
+
+    def _encrypt_optional_token(self, value: Any) -> str | None:
+        plaintext = self._optional_str(value)
+        if plaintext is None:
+            return None
+        return self.token_encryptor.encrypt(plaintext)
+
+    def _encrypt_if_plaintext(self, value: str) -> str:
+        """Upgrade pre-encryption plaintext token values without double-encrypting."""
+        try:
+            self.token_encryptor.decrypt(value)
+            return value
+        except TokenDecryptionError:
+            return self.token_encryptor.encrypt(value)
 
     def _parse_token_expires_at(self, token: dict[str, Any]) -> datetime | None:
         expires_at = token.get("expires_at")
