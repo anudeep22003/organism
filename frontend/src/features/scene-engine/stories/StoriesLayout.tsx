@@ -1,5 +1,5 @@
 import { useTheme } from "@/context/ThemeContext";
-import { useAuth } from "@/features/auth_v2";
+import { useAuth } from "@/features/auth";
 import { Outlet, useNavigate } from "react-router";
 
 export default function StoriesLayout() {

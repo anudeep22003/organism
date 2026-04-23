@@ -1,36 +1,24 @@
+import { BACKEND_URL } from "@/constants";
 import { httpClient } from "@/lib/httpClient";
 import { AUTH_SERVICE_ENDPOINTS } from "./auth.constants";
-import type {
-  LoginResponse,
-  LogoutResponse,
-  SignInInput,
-  SignUpInput,
-  User,
-} from "../model/auth.types";
+import type { AuthUser } from "../model/auth.types";
 
 export const authApi = {
+  login: () => {
+    window.location.assign(
+      `${BACKEND_URL}${AUTH_SERVICE_ENDPOINTS.LOGIN}`
+    );
+  },
+
   fetchCurrentUser: async () => {
-    return await httpClient.get<User>(AUTH_SERVICE_ENDPOINTS.ME);
+    return await httpClient.get<AuthUser>(AUTH_SERVICE_ENDPOINTS.ME);
   },
 
-  signIn: async (credentials: SignInInput) => {
-    return await httpClient.post<LoginResponse>(
-      AUTH_SERVICE_ENDPOINTS.SIGNIN,
-      credentials
-    );
-  },
-
-  signUp: async (credentials: SignUpInput) => {
-    return await httpClient.post<LoginResponse>(
-      AUTH_SERVICE_ENDPOINTS.SIGNUP,
-      credentials
-    );
+  refresh: async () => {
+    await httpClient.post<void>(AUTH_SERVICE_ENDPOINTS.REFRESH, {});
   },
 
   logout: async () => {
-    return await httpClient.post<LogoutResponse>(
-      AUTH_SERVICE_ENDPOINTS.LOGOUT,
-      {}
-    );
+    await httpClient.post<void>(AUTH_SERVICE_ENDPOINTS.LOGOUT, {});
   },
 };

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { AUTH_V2_ROUTES } from "../api/auth.constants";
+import { AUTH_ROUTES } from "../api/auth.constants";
 import { useAuth } from "../model/auth.context";
 import {
   consumePostAuthRedirect,
@@ -33,14 +33,14 @@ const AuthSuccessPage = () => {
       const redirectTarget =
         consumePostAuthRedirect() ??
         getRedirectFromSearchParams(location.search) ??
-        AUTH_V2_ROUTES.HOME_FALLBACK;
+        AUTH_ROUTES.HOME_FALLBACK;
 
       void navigate(redirectTarget, { replace: true });
       return;
     }
 
     if (status === "unauthenticated") {
-      void navigate(AUTH_V2_ROUTES.FAILURE, { replace: true });
+      void navigate(AUTH_ROUTES.FAILURE, { replace: true });
     }
   }, [isAuthenticated, isLoading, location.search, navigate, status]);
 

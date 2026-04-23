@@ -1,5 +1,5 @@
 import { useTheme } from "@/context/ThemeContext";
-import { useAuth } from "@/features/auth_v2";
+import { useAuth } from "@/features/auth";
 import { myProjectOptions } from "@/features/story/projects/projects.queries";
 import { useQuery } from "@tanstack/react-query";
 import { Outlet, useNavigate, useParams } from "react-router";

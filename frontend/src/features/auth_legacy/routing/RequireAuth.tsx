@@ -1,22 +1,22 @@
 import { Navigate, Outlet, useLocation } from "react-router";
+import { AUTH_TABS } from "../api/auth.constants";
 import { useAuth } from "../model/auth.context";
-import AuthLoadingScreen from "../ui/components/AuthLoadingScreen";
 import { buildAuthRoute } from "./auth-redirect";
+import AuthLoadingScreen from "../ui/components/AuthLoadingScreen";
 
 const RequireAuth = () => {
-  const { isLoading, status } = useAuth();
+  const { status } = useAuth();
   const location = useLocation();
 
-  if (isLoading) {
+  if (status === "checking") {
     return <AuthLoadingScreen />;
   }
 
   if (status === "unauthenticated") {
     const currentPath = `${location.pathname}${location.search}${location.hash}`;
-
     return (
       <Navigate
-        to={buildAuthRoute({ redirectTo: currentPath })}
+        to={buildAuthRoute({ tab: AUTH_TABS.SIGNIN, redirectTo: currentPath })}
         replace
       />
     );
