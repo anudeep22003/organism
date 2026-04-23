@@ -195,7 +195,7 @@ change-domain:
 	@echo "  What this does:"
 	@echo "    - Recreates the GCS bucket (must match domain — old bucket deleted)"
 	@echo "    - Replaces the SSL cert to cover the new domains"
-	@echo "    - Updates CORS_ORIGINS on Cloud Run to the new frontend domain"
+	@echo "    - Updates the frontend-origin env var on Cloud Run to the new frontend domain"
 	@echo "    - Updates URL map host rules"
 	@echo "  Expect brief HTTPS disruption while the new cert provisions."
 	@echo "  Frontend will be down until step 5 (bucket recreated but empty)."
