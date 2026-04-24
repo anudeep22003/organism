@@ -18,6 +18,7 @@ No mocking. Real FastAPI app, real Postgres.
 """
 
 import uuid
+from unittest.mock import AsyncMock, patch
 
 from httpx import AsyncClient
 from sqlalchemy import text
@@ -619,18 +620,27 @@ async def test_create_story_with_partial_identity_fills_missing_field(
     """When only name is provided, the LLM fills in the missing description
     without overwriting the user-supplied name."""
     provided_name = "Echoes of the Steppe"
-    response = await api_client.post(
-        _stories_url(project.id),
-        headers=_auth_headers(user.id),
-        json={
-            "name": provided_name,
-            "meta": {
-                "about": "Anton Chekhov's - In the Cart",
-                "tone": "Emotional",
-                "comicStyle": "Western",
+    with patch(
+        "core.story_engine.service.project_service.generate_story_identity",
+        new=AsyncMock(
+            return_value=(
+                "Ignored Generated Name",
+                "A quiet Western set in rural Russia.",
+            )
+        ),
+    ):
+        response = await api_client.post(
+            _stories_url(project.id),
+            headers=_auth_headers(user.id),
+            json={
+                "name": provided_name,
+                "meta": {
+                    "about": "Anton Chekhov's - In the Cart",
+                    "tone": "Emotional",
+                    "comicStyle": "Western",
+                },
             },
-        },
-    )
+        )
 
     assert response.status_code == 200
     body = response.json()
