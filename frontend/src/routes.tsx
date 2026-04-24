@@ -9,7 +9,6 @@ import {
 import { sceneEngineRoutes } from "./features/scene-engine/routes";
 import { storiesRoutes } from "./features/scene-engine/stories/stories.routes";
 import { legacyStoryRoutes } from "./features/story";
-import { comicBuilderRoutes } from "./pages/comic-builder/routes";
 
 export const routes = [
   {
@@ -21,7 +20,6 @@ export const routes = [
       },
       ...storiesRoutes,
       ...sceneEngineRoutes,
-      ...comicBuilderRoutes,
       ...legacyStoryRoutes,
     ],
   },
