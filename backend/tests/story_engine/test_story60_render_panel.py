@@ -22,8 +22,7 @@ from PIL import Image as PILImage
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.auth.managers.jwt import JWTTokenManager
-from core.auth.models.user import User
+from core.auth_v2.models.user import User
 from core.story_engine.models import Character, Panel, Project, Story
 from core.story_engine.models.edit_event import (
     EditEvent,
@@ -36,11 +35,11 @@ from core.story_engine.models.image import ImageContentType, ImageDiscriminatorK
 from core.story_engine.models.panel_character import PanelCharacter
 from core.story_engine.repository import RepositoryV2
 from core.story_engine.service.image_service import StorageReceipt
+from tests.auth_helpers import auth_cookie_header
 
 
 def _auth_headers(user_id: uuid.UUID) -> dict[str, str]:
-    token = JWTTokenManager().create_access_token(str(user_id))
-    return {"Authorization": f"Bearer {token}"}
+    return auth_cookie_header(user_id)
 
 
 def _minimal_jpeg_bytes() -> bytes:

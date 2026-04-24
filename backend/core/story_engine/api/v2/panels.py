@@ -18,7 +18,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from loguru import logger
 
-from core.auth.dependencies import get_current_user_id
+from core.auth_v2.api import get_current_user_id
 
 from ...exceptions import (
     NoCharactersError,

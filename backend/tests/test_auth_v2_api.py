@@ -6,14 +6,13 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import RedirectResponse
 
-from core.auth.models.user import User
 from core.auth_v2.config import (
     ACCESS_TOKEN_COOKIE_NAME,
     CSRF_TOKEN_COOKIE_NAME,
     CSRF_TOKEN_HEADER_NAME,
     REFRESH_TOKEN_COOKIE_NAME,
 )
-from core.auth_v2.models import AuthSession, GoogleOAuthAccount
+from core.auth_v2.models import AuthSession, GoogleOAuthAccount, User
 from core.auth_v2.security import (
     CALLBACK_RATE_LIMIT_POLICY,
     LOGIN_RATE_LIMIT_POLICY,
@@ -550,9 +549,3 @@ async def test_logout_revokes_session_and_clears_cookies(
     finally:
         await db_session.execute(delete(User).where(User.email == created_email))
         await db_session.commit()
-
-
-async def test_existing_auth_router_stays_mounted(api_client: AsyncClient) -> None:
-    response = await api_client.get("/api/legacy-auth/me")
-
-    assert response.status_code == 401

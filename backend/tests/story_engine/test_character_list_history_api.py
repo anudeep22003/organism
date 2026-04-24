@@ -22,8 +22,7 @@ import uuid
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.auth.managers.jwt import JWTTokenManager
-from core.auth.models.user import User
+from core.auth_v2.models.user import User
 from core.story_engine.models import Character, Project, Story
 from core.story_engine.models.edit_event import (
     EditEvent,
@@ -33,8 +32,7 @@ from core.story_engine.models.edit_event import (
 )
 from core.story_engine.models.image import Image as ImageModel
 from core.story_engine.models.image import ImageContentType, ImageDiscriminatorKey
-
-_jwt = JWTTokenManager()
+from tests.auth_helpers import auth_cookie_header
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -42,8 +40,7 @@ _jwt = JWTTokenManager()
 
 
 def _auth_headers(user_id: uuid.UUID) -> dict[str, str]:
-    token = _jwt.create_access_token(user_id)
-    return {"Authorization": f"Bearer {token}"}
+    return auth_cookie_header(user_id)
 
 
 def _characters_url(project_id: uuid.UUID, story_id: uuid.UUID) -> str:

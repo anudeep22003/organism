@@ -7,7 +7,7 @@ from fastapi.responses import StreamingResponse
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.auth.dependencies import get_current_user_id
+from core.auth_v2.api import get_current_user_id
 from core.services.database import get_async_db_session
 
 from ...exceptions import ExportError, NotFoundError

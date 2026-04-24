@@ -4,7 +4,7 @@ from typing import Annotated, AsyncIterator
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 
-from core.auth.dependencies import get_current_user_id
+from core.auth_v2.api import get_current_user_id
 
 from ...events import EventEnvelope
 from ...exceptions import InvalidUserIDError, NotFoundError, NotOwnedError

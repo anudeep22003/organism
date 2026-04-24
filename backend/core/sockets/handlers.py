@@ -1,21 +1,10 @@
 from loguru import logger
 
-from agents.manager import Manager
-from agents.types import DirectorRequest
-from core.auth import SessionManager
-from core.auth.exceptions import InvalidTokenError
-from core.auth.managers.jwt import JWTTokenManager
-from core.common import AliasedBaseModel
-from core.services.database import get_async_db_session
 from core.universe.timeline import SubscriptionKey, primary_timeline
 
 from . import active_connections, sio
 
 logger = logger.bind(name=__name__)
-
-
-class Auth(AliasedBaseModel):
-    session_id: str | None = None
 
 
 sid_to_session_id: dict[str, str] = {}
@@ -25,49 +14,9 @@ sid_to_subscription: dict[str, SubscriptionKey] = {}
 
 @sio.event
 async def connect(sid: str, environ: dict, auth: dict) -> bool:
-    logger.debug("auth received", auth=auth)
-    if auth.get("accessToken") is None:
-        logger.debug("No access token provided, closing connection")
-        return False
-
-    jwt_manager = JWTTokenManager()
-    try:
-        user_id = jwt_manager.extract_user_id_from_access_token(auth["accessToken"])
-    except InvalidTokenError:
-        logger.debug("Invalid access token, closing connection")
-        return False
-    target_room = None
-    session = None
-
-    async for async_db_session in get_async_db_session():
-        session_manager = SessionManager(db_session=async_db_session)
-        session = await session_manager.find_session_by_user_id(user_id)
-        if not session:
-            logger.debug("No session found for user", user_id=user_id)
-            return False
-        target_room = str(session.id)
-        sid_to_session_id[sid] = target_room
-        session_id_to_sid[target_room] = sid
-
-    assert (
-        target_room is not None
-    )  # set inside async for; only reach here if session found
-    await sio.enter_room(sid, target_room)
-    manager = Manager(
-        target_room=target_room,
-        sio=sio,
-        notify_user=True,
-        dummy_mode=False,
-    )
-    subscription_key = primary_timeline.subscribe(
-        event_data_type=DirectorRequest,
-        handler=manager.handle_event,
-        target_room=target_room,
-    )
-    sid_to_subscription[sid] = subscription_key
-    logger.debug(f"joined room: {target_room}")
-    logger.debug(f"session: {session}")
-    return True
+    _ = environ, auth
+    logger.info("Socket connection rejected: sockets are currently disabled")
+    return False
 
 
 @sio.event

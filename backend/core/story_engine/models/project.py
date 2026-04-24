@@ -11,10 +11,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from core.common import ORMBase
 from core.common.utils import get_current_datetime_utc
 
-from ..state.consolidated import (
-    initialize_empty_consolidated_state_dict,
-)
-
 if TYPE_CHECKING:
     from .story import Story
 
@@ -38,10 +34,7 @@ class Project(ORMBase):
         onupdate=get_current_datetime_utc,
     )
     meta: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
-    # TODO: default state initialization for backward compatibilty, can be removed after full migration
-    state: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, default=initialize_empty_consolidated_state_dict
-    )
+    state: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
     stories: Mapped[list[Story]] = relationship(
         "Story",

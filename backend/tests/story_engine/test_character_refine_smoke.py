@@ -11,13 +11,13 @@ from httpx import AsyncClient
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.auth.managers.jwt import JWTTokenManager
 from core.story_engine.models import Character, EditEvent
 from core.story_engine.models.edit_event import (
     EditEventOperationType,
     EditEventStatus,
     EditEventTargetType,
 )
+from tests.auth_helpers import auth_cookie_header
 
 # Manual Test targets
 PROJECT_ID = "9c10291d-4b0a-4c2f-8deb-417d36a12d7b"
@@ -25,9 +25,7 @@ STORY_ID = "0a358afa-670c-4729-b1d3-838a76320993"
 CHARACTER_ID = "61c317cf-06c9-4d95-bd06-6d9518a4eeba"
 USER_ID = "2c2af68f-9315-4bab-8aa3-3b1a581dca8e"  # owner of the project above
 
-_AUTH_HEADERS = {
-    "Authorization": f"Bearer {JWTTokenManager().create_access_token(USER_ID)}"
-}
+_AUTH_HEADERS = auth_cookie_header(USER_ID)
 
 
 @pytest.mark.manual

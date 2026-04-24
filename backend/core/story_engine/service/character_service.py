@@ -32,7 +32,7 @@ from ..models.edit_event import (
 from ..models.image import ImageContentType, ImageDiscriminatorKey
 from ..repository import NotFoundError as RepositoryNotFoundError
 from ..repository import RepositoryV2
-from ..state.character import CharacterBase as CharacterAttributes
+from ..schemas.character import CharacterAttributesSchema as CharacterAttributes
 from ..storage_keys import character_render_key
 from .image_service import (
     ImageService,
