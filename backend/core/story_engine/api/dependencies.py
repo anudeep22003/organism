@@ -5,7 +5,7 @@ from fastapi import Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.auth_v2.api import get_current_user_id
+from core.auth.api import get_current_user_id
 from core.services.database import get_async_db_session
 
 from ..models import Project

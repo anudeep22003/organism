@@ -6,14 +6,14 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import RedirectResponse
 
-from core.auth_v2.config import (
+from core.auth.config import (
     ACCESS_TOKEN_COOKIE_NAME,
     CSRF_TOKEN_COOKIE_NAME,
     CSRF_TOKEN_HEADER_NAME,
     REFRESH_TOKEN_COOKIE_NAME,
 )
-from core.auth_v2.models import AuthSession, GoogleOAuthAccount, User
-from core.auth_v2.security import (
+from core.auth.models import AuthSession, GoogleOAuthAccount, User
+from core.auth.security import (
     CALLBACK_RATE_LIMIT_POLICY,
     LOGIN_RATE_LIMIT_POLICY,
     REFRESH_RATE_LIMIT_POLICY,
@@ -74,7 +74,7 @@ async def _login_via_callback(
         )
     )
     with patch(
-        "core.auth_v2.api.router.oauth.create_client",
+        "core.auth.api.router.oauth.create_client",
         return_value=mock_google_client,
     ):
         return await api_client.get(
@@ -94,7 +94,7 @@ async def test_google_auth_login_redirects_to_google(api_client: AsyncClient) ->
     )
 
     with patch(
-        "core.auth_v2.api.router.oauth.create_client",
+        "core.auth.api.router.oauth.create_client",
         return_value=mock_google_client,
     ):
         response = await api_client.get("/api/auth/login", follow_redirects=False)
@@ -119,7 +119,7 @@ async def test_google_auth_login_rate_limit_returns_429(
     headers = {"x-forwarded-for": "198.51.100.10"}
 
     with patch(
-        "core.auth_v2.api.router.oauth.create_client",
+        "core.auth.api.router.oauth.create_client",
         return_value=mock_google_client,
     ):
         for _ in range(LOGIN_RATE_LIMIT_POLICY.max_requests):
@@ -252,7 +252,7 @@ async def test_google_auth_callback_failure_redirects_to_frontend_failure(
     )
 
     with patch(
-        "core.auth_v2.api.router.oauth.create_client",
+        "core.auth.api.router.oauth.create_client",
         return_value=mock_google_client,
     ):
         response = await api_client.get("/api/auth/callback", follow_redirects=False)
@@ -299,7 +299,7 @@ async def test_google_auth_callback_missing_userinfo_redirects_to_frontend_failu
     )
 
     with patch(
-        "core.auth_v2.api.router.oauth.create_client",
+        "core.auth.api.router.oauth.create_client",
         return_value=mock_google_client,
     ):
         response = await api_client.get("/api/auth/callback", follow_redirects=False)
@@ -327,7 +327,7 @@ async def test_google_auth_callback_missing_required_profile_field_redirects_to_
     )
 
     with patch(
-        "core.auth_v2.api.router.oauth.create_client",
+        "core.auth.api.router.oauth.create_client",
         return_value=mock_google_client,
     ):
         response = await api_client.get("/api/auth/callback", follow_redirects=False)
@@ -441,7 +441,7 @@ async def test_refresh_rejects_legacy_sha256_style_session_hash(
 ) -> None:
     from datetime import timedelta
 
-    from core.auth_v2.utils import get_current_datetime_utc
+    from core.auth.utils import get_current_datetime_utc
 
     session = AuthSession.create(
         user_id=user.id,

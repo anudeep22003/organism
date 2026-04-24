@@ -4,7 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from loguru import logger
 
-from core.auth_v2.api import get_current_user_id
+from core.auth.api import get_current_user_id
 
 from ...exceptions import NotFoundError
 from ...schemas.image import ImageSignedUrlResponseSchema

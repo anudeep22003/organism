@@ -37,7 +37,7 @@ from unittest.mock import patch
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.auth_v2.models.user import User
+from core.auth.models.user import User
 from core.story_engine.models import Panel, Project, Story
 from core.story_engine.models.image import Image as ImageModel
 from core.story_engine.models.image import ImageContentType, ImageDiscriminatorKey

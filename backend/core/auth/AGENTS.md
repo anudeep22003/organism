@@ -1,6 +1,6 @@
-# Agent Context — `core/auth_v2`
+# Agent Context — `core/auth`
 
-This module is the new auth system. It is intended to replace the legacy `core/auth` package once the cutover is complete.
+This module is the backend auth system.
 
 Treat it as the long-term auth home, not as a temporary experiment.
 
@@ -55,9 +55,8 @@ The goal is not to freeze the design forever. The goal is to preserve the reason
 Inside this package, do not introduce new `v2` suffixes.
 
 Reason:
-- the package path is still `auth_v2` only because the legacy auth module still exists
-- once the cutover is complete, this package will likely be renamed to `auth`
-- internal names should already read like the final system
+- this package is now the canonical `auth` package
+- internal names should read like the final system, not a migration phase
 
 Good:
 - `AuthService`
@@ -67,21 +66,21 @@ Good:
 Avoid:
 - `AuthServiceV2`
 - `get_current_user_id_v2`
-- `auth_v2_*`
+- `auth_*_v2`
 
 ## Import Rules
 
-Within `core/auth_v2`, prefer relative imports for module-local code.
+Within `core/auth`, prefer relative imports for module-local code.
 
 Example:
-- import auth_v2-local helpers via `from ..security import ...` or `from .cookies import ...`
+- import auth-local helpers via `from ..security import ...` or `from .cookies import ...`
 
 Shared infrastructure can stay explicit:
 - `core.common`
 - `core.services.database`
 - `core.config`
 
-Do not create flat compatibility shim files just to re-export moved modules. If a symbol needs to cross the package boundary, export it from `core/auth_v2/__init__.py`.
+Do not create flat compatibility shim files just to re-export moved modules. If a symbol needs to cross the package boundary, export it from `core/auth/__init__.py`.
 
 ## Public Backend Contract
 
@@ -273,10 +272,10 @@ This module intentionally follows the same separation style used in `core/story_
 
 ## Error Handling Rules
 
-`core/auth_v2/exceptions.py` is the flat exception surface for this module.
+`core/auth/exceptions.py` is the flat exception surface for this module.
 
 Rules:
-- services, repositories, and security code raise typed auth_v2 exceptions
+- services, repositories, and security code raise typed auth exceptions
 - HTTP translation happens in router/dependencies
 - do not leak `HTTPException` into services or repositories
 - avoid raw `ValueError` for auth domain failures
@@ -288,7 +287,7 @@ The callback intentionally collapses known auth/provider failures into the same 
 Auth observability is intentionally lightweight.
 
 Use:
-- `core/auth_v2/observability.py`
+- `core/auth/observability.py`
 - `log_auth_event(...)`
 
 Current event families include:
@@ -326,7 +325,7 @@ The current rate limiter is intentionally simple:
 - in-memory
 - per-instance
 - per-IP
-- auth_v2-only
+- auth-only
 
 Current limited routes:
 - `GET /api/auth/login`
@@ -377,9 +376,9 @@ Important deployment assumptions:
 ## Testing Guidance
 
 Relevant test files today:
-- `tests/test_auth_v2_api.py`
-- `tests/test_auth_v2_tokens.py`
-- `tests/test_auth_v2_repository.py`
+- `tests/test_auth_api.py`
+- `tests/test_auth_tokens.py`
+- `tests/test_auth_repository.py`
 
 Keep tests focused and layered:
 - API tests for HTTP contract and cookie behavior
@@ -426,7 +425,7 @@ Before making these kinds of shifts, ask whether they would improve the overall 
 
 The most likely future changes are:
 - adding more identity providers
-- cutting the rest of the app over to auth_v2 dependencies
+- cutting the rest of the app over to auth dependencies
 - removing legacy auth and renaming this package to `auth`
 - redesigning socket auth so it no longer depends on a frontend-readable access token
 

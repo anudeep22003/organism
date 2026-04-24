@@ -22,7 +22,7 @@ from PIL import Image as PILImage
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.auth_v2.models.user import User
+from core.auth.models.user import User
 from core.story_engine.models import Character, Panel, Project, Story
 from core.story_engine.models.edit_event import (
     EditEvent,

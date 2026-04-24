@@ -28,7 +28,7 @@ DATABASE_URL = os.environ["DATABASE_URL"]
 # Import model packages only. Do not import top-level runtime package re-exports
 # here: Alembic must register ORM metadata without triggering app settings or any
 # other runtime-only initialization.
-import core.auth_v2.models as auth_v2_models  # noqa: F401, E402
+import core.auth.models as auth_models  # noqa: F401, E402
 import core.story_engine.models as story_engine_models  # noqa: F401, E402
 from core.common import ORMBase  # noqa: E402
 

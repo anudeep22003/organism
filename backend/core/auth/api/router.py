@@ -9,7 +9,7 @@ from core.config import settings
 
 from ..config import CSRF_TOKEN_COOKIE_NAME, REFRESH_TOKEN_COOKIE_NAME
 from ..exceptions import (
-    AuthV2Error,
+    AuthError,
     InvalidRefreshTokenError,
     OAuthError,
     OAuthTokenExchangeError,
@@ -121,7 +121,7 @@ async def callback(
             reason=type(exc).__name__,
         )
         return RedirectResponse(url=_frontend_auth_redirect("/auth/failure"))
-    except AuthV2Error as exc:
+    except AuthError as exc:
         log_auth_event(
             "auth.login.failed",
             level="warning",

@@ -23,7 +23,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.auth_v2.models.user import User
+from core.auth.models.user import User
 from core.story_engine.models import Character, Panel, Project, Story
 from core.story_engine.models import Image as ImageModel
 from core.story_engine.models.edit_event import (

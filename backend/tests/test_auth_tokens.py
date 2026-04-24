@@ -1,6 +1,6 @@
 import uuid
 
-from core.auth_v2.security import Argon2Hasher, RefreshTokenManager
+from core.auth.security import Argon2Hasher, RefreshTokenManager
 
 
 def test_argon2_hasher_hashes_and_verifies_secret() -> None:
