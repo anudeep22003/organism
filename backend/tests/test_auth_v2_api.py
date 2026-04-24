@@ -102,6 +102,9 @@ async def test_google_auth_login_redirects_to_google(api_client: AsyncClient) ->
 
     assert response.status_code in {302, 307}
     assert response.headers["location"].startswith("https://accounts.google.com/")
+    mock_google_client.authorize_redirect.assert_awaited_once()
+    redirect_uri = mock_google_client.authorize_redirect.await_args.args[1]
+    assert redirect_uri == "https://api.dekatha.com/api/auth/callback"
 
 
 async def test_google_auth_login_rate_limit_returns_429(

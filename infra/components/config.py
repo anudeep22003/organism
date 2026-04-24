@@ -48,6 +48,7 @@ FRONTEND_URL = f"https://{DOMAIN}"
 # Routes to the Cloud Run backend service via a Serverless NEG.
 # Decoupling into a separate LB is possible but costs ~$36/month extra.
 API_DOMAIN = _app.require("api_domain")
+API_URL = f"https://{API_DOMAIN}"
 
 # Media bucket name suffix — set once on first deploy, then never change.
 # GCS bucket names are globally unique and immutable; changing this suffix
