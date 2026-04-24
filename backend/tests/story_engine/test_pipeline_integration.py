@@ -37,7 +37,6 @@ load_dotenv(
     override=True,
 )
 
-from core.auth.managers.jwt import JWTTokenManager  # noqa: E402
 from core.config import settings  # noqa: E402
 from core.story_engine.models import Character, Panel  # noqa: E402
 from core.story_engine.models.edit_event import (  # noqa: E402
@@ -50,6 +49,7 @@ from core.story_engine.models.image import Image as ImageModel  # noqa: E402
 from core.story_engine.models.image import ImageDiscriminatorKey  # noqa: E402
 from core.story_engine.models.panel_character import PanelCharacter  # noqa: E402
 from main import fastapi_app  # noqa: E402
+from tests.auth_helpers import auth_cookie_header  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Stable IDs — the real rows we are running the pipeline against
@@ -87,9 +87,7 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
 
 
 def _auth_headers() -> dict[str, str]:
-    """Generate a real JWT for the story owner."""
-    token = JWTTokenManager().create_access_token(str(USER_ID))
-    return {"Authorization": f"Bearer {token}"}
+    return auth_cookie_header(USER_ID)
 
 
 # ---------------------------------------------------------------------------

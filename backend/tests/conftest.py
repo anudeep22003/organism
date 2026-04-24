@@ -34,7 +34,9 @@ load_dotenv(
 
 # These imports must come after load_dotenv — pydantic-settings reads .env.local
 # but load_dotenv with override=True above ensures test values take precedence.
-from core.auth.models.user import User  # noqa: E402
+from core.auth_v2.config import ACCESS_TOKEN_COOKIE_NAME  # noqa: E402
+from core.auth_v2.models.user import User  # noqa: E402
+from core.auth_v2.security import AccessTokenManager  # noqa: E402
 from core.config import settings  # noqa: E402
 from core.story_engine.models import Character, Project, Story  # noqa: E402
 from main import fastapi_app  # noqa: E402
@@ -77,6 +79,11 @@ async def api_client() -> AsyncGenerator[AsyncClient, None]:
         base_url="http://test",
     ) as client:
         yield client
+
+
+def make_auth_cookie_header(user_id: uuid.UUID) -> dict[str, str]:
+    token = AccessTokenManager().create_access_token(user_id)
+    return {"cookie": f"{ACCESS_TOKEN_COOKIE_NAME}={token}"}
 
 
 # ---------------------------------------------------------------------------

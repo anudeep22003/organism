@@ -23,11 +23,9 @@ from httpx import AsyncClient
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.auth.managers.jwt import JWTTokenManager
-from core.auth.models.user import User
+from core.auth_v2.models.user import User
 from core.story_engine.models import Project, Story
-
-_jwt = JWTTokenManager()
+from tests.auth_helpers import auth_cookie_header
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -35,8 +33,7 @@ _jwt = JWTTokenManager()
 
 
 def _auth_headers(user_id: uuid.UUID) -> dict[str, str]:
-    token = _jwt.create_access_token(user_id)
-    return {"Authorization": f"Bearer {token}"}
+    return auth_cookie_header(user_id)
 
 
 def _projects_url() -> str:
@@ -117,7 +114,7 @@ async def test_list_projects_empty_for_new_user(
 ) -> None:
     """A brand new user with no projects gets an empty list."""
     unique_email = f"empty-list-{uuid.uuid4()}@example.com"
-    from core.auth.models.user import User as UserModel
+    from core.auth_v2.models.user import User as UserModel
 
     new_user = UserModel(email=unique_email, password_hash="not-a-hash")
     db_session.add(new_user)
@@ -151,7 +148,7 @@ async def test_list_projects_does_not_return_other_users_projects(
 ) -> None:
     """A second user cannot see the first user's projects."""
     other_email = f"other-{uuid.uuid4()}@example.com"
-    from core.auth.models.user import User as UserModel
+    from core.auth_v2.models.user import User as UserModel
 
     other_user = UserModel(email=other_email, password_hash="not-a-hash")
     db_session.add(other_user)
@@ -371,7 +368,7 @@ async def test_get_project_404_for_other_users_project(
     project: Project,
 ) -> None:
     """A different user cannot fetch another user's project by ID."""
-    from core.auth.models.user import User as UserModel
+    from core.auth_v2.models.user import User as UserModel
 
     other_user = UserModel(
         email=f"isolation-{uuid.uuid4()}@example.com", password_hash="x"
@@ -774,7 +771,7 @@ async def test_my_project_creates_on_first_call(
     db_session: AsyncSession,
 ) -> None:
     """A brand new user gets a project created automatically on first call."""
-    from core.auth.models.user import User as UserModel
+    from core.auth_v2.models.user import User as UserModel
 
     new_user = UserModel(
         email=f"my-project-new-{uuid.uuid4()}@example.com", password_hash="x"
@@ -804,7 +801,7 @@ async def test_my_project_is_idempotent(
     db_session: AsyncSession,
 ) -> None:
     """Calling /projects/me twice returns the same project ID both times."""
-    from core.auth.models.user import User as UserModel
+    from core.auth_v2.models.user import User as UserModel
 
     new_user = UserModel(
         email=f"my-project-idempotent-{uuid.uuid4()}@example.com", password_hash="x"
@@ -874,7 +871,7 @@ async def test_my_project_user_isolation(
     db_session: AsyncSession,
 ) -> None:
     """Two different users each get their own distinct project."""
-    from core.auth.models.user import User as UserModel
+    from core.auth_v2.models.user import User as UserModel
 
     user_a = UserModel(
         email=f"isolation-a-{uuid.uuid4()}@example.com", password_hash="x"

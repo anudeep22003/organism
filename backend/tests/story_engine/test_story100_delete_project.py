@@ -16,16 +16,13 @@ from httpx import AsyncClient
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.auth.managers.jwt import JWTTokenManager
-from core.auth.models.user import User
+from core.auth_v2.models.user import User
 from core.story_engine.models import Character, Project, Story
-
-_jwt = JWTTokenManager()
+from tests.auth_helpers import auth_cookie_header
 
 
 def _auth_headers(user_id: uuid.UUID) -> dict[str, str]:
-    token = _jwt.create_access_token(user_id)
-    return {"Authorization": f"Bearer {token}"}
+    return auth_cookie_header(user_id)
 
 
 def _project_url(project_id: uuid.UUID) -> str:
@@ -142,7 +139,7 @@ async def test_delete_project_404_for_other_users_project(
     project: Project,
 ) -> None:
     """DELETE returns 404 when the project belongs to a different user."""
-    from core.auth.models.user import User as UserModel
+    from core.auth_v2.models.user import User as UserModel
 
     other_user = UserModel(
         email=f"other-delete-{uuid.uuid4()}@example.com", password_hash="x"

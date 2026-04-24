@@ -8,7 +8,6 @@ from pydantic import Field
 
 from core.common import AliasedBaseModel
 
-from ..state.consolidated import ConsolidatedComicState
 from .story import StoryResponseSchema
 
 
@@ -26,7 +25,7 @@ class ProjectRenameSchema(ProjectSchemaBase):
 
 class ProjectUpdateSchema(ProjectSchemaBase):
     name: str | None = None
-    state: ConsolidatedComicState
+    state: dict[str, Any] | None = None
 
 
 class ProjectResponseSchema(ProjectSchemaBase):
@@ -34,7 +33,7 @@ class ProjectResponseSchema(ProjectSchemaBase):
     name: str | None = None
     created_at: datetime
     updated_at: datetime
-    state: dict[str, Any]
+    state: dict[str, Any] | None = None
 
 
 class ProjectListResponseSchema(ProjectSchemaBase):

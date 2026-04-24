@@ -27,8 +27,7 @@ from PIL import Image
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.auth.managers.jwt import JWTTokenManager
-from core.auth.models.user import User
+from core.auth_v2.models.user import User
 from core.config import settings
 from core.story_engine.models import (
     Character,
@@ -42,6 +41,7 @@ from core.story_engine.models.edit_event import EditEventTargetType
 from core.story_engine.models.image import ImageDiscriminatorKey
 from core.story_engine.repository import RepositoryV2
 from core.story_engine.service.image_service import ImageService
+from tests.auth_helpers import auth_cookie_header
 
 # ---------------------------------------------------------------------------
 # Config
@@ -168,8 +168,7 @@ async def test_get_signed_url_via_endpoint(
 ) -> None:
     """Uploading an image then requesting a signed URL returns a valid,
     accessible URL that expires in the future."""
-    access_token = JWTTokenManager().create_access_token(str(user.id))
-    headers = {"Authorization": f"Bearer {access_token}"}
+    headers = auth_cookie_header(user.id)
 
     # Upload first to have an image to sign
     upload_url = (
@@ -235,8 +234,7 @@ async def test_get_character_reference_images_via_endpoint(
     )
 
     # Hit the list endpoint
-    access_token = JWTTokenManager().create_access_token(str(user.id))
-    headers = {"Authorization": f"Bearer {access_token}"}
+    headers = auth_cookie_header(user.id)
     url = (
         f"/api/comic-builder/v2/project/{project.id}"
         f"/story/{story.id}"

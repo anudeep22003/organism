@@ -2,8 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.auth.models.user import User
-from core.auth_v2.models import GoogleOAuthAccount
+from core.auth_v2.models import GoogleOAuthAccount, User
 from core.auth_v2.repositories import AuthRepository
 
 
