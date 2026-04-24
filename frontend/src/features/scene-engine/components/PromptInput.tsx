@@ -1,5 +1,5 @@
-import { useAutoExpandTextarea } from "@/components/InputBox/useAutoExpandTextarea";
-import { useVoiceRecorder } from "@/components/InputBox/useVoiceRecorder";
+import { useAutoExpandTextarea } from "./prompt-input/useAutoExpandTextarea";
+import { useVoiceRecorder } from "./prompt-input/useVoiceRecorder";
 import {
   ArrowUp01Icon,
   Attachment01Icon,
