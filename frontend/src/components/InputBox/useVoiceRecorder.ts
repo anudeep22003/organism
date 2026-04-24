@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
-import { MediaManager } from "@/audio/services/mediaManager";
-import { WhisperTranscriber } from "@/audio/services/transcriber";
+import { MediaManager } from "@/lib/audio/services/mediaManager";
+import { WhisperTranscriber } from "@/lib/audio/services/transcriber";
 
 type RecordingState = "idle" | "recording" | "transcribing";
 
