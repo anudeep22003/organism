@@ -6,16 +6,16 @@ from fastapi.responses import StreamingResponse
 
 from core.auth.api import get_current_user_id
 
-from ...events import EventEnvelope
-from ...exceptions import InvalidUserIDError, NotFoundError, NotOwnedError
-from ...schemas.edit_event import EditEventResponseSchema
-from ...schemas.story import (
+from ..events import EventEnvelope
+from ..exceptions import InvalidUserIDError, NotFoundError, NotOwnedError
+from ..schemas.edit_event import EditEventResponseSchema
+from ..schemas.story import (
     GenerateStoryRequest,
     StoryResponseSchema,
     StoryUpdateSchema,
 )
-from ...service import StoryService
-from ..dependencies import get_story_service
+from ..service import StoryService
+from .dependencies import get_story_service
 
 router = APIRouter(tags=["story"])
 

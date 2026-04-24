@@ -20,24 +20,24 @@ from loguru import logger
 
 from core.auth.api import get_current_user_id
 
-from ...exceptions import (
+from ..exceptions import (
     NoCharactersError,
     NoStoryTextError,
     NotFoundError,
     PanelAlreadyGeneratedError,
     UploadImageError,
 )
-from ...schemas.edit_event import EditEventResponseSchema
-from ...schemas.image import ImageResponseSchema
-from ...schemas.panel import (
+from ..schemas.edit_event import EditEventResponseSchema
+from ..schemas.image import ImageResponseSchema
+from ..schemas.panel import (
     PanelRefineRequest,
     PanelRenderEditRequest,
     PanelRenderReferencesSchema,
     PanelResponseSchema,
     SetCanonicalPanelRenderRequest,
 )
-from ...service import PanelService
-from ..dependencies import get_panel_service
+from ..service import PanelService
+from .dependencies import get_panel_service
 
 router = APIRouter(tags=["panels", "v2"])
 

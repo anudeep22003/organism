@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from .v2.router import router as v2_router
+from .router import router as v2_router
 
 router = APIRouter(prefix="/comic-builder", tags=["comic", "builder"])
 

@@ -10,8 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.auth.api import get_current_user_id
 from core.services.database import get_async_db_session
 
-from ...exceptions import ExportError, NotFoundError
-from ...service.export_service import ExportService
+from ..exceptions import ExportError, NotFoundError
+from ..service.export_service import ExportService
 
 router = APIRouter(tags=["export", "v2"])
 

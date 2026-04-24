@@ -7,14 +7,14 @@ from loguru import logger
 
 from core.auth.api import get_current_user_id
 
-from ...exceptions import (
+from ..exceptions import (
     CharacterExtractionError,
     CharacterRefinementError,
     NoStoryTextError,
     NotFoundError,
     UploadImageError,
 )
-from ...schemas.character import (
+from ..schemas.character import (
     CharacterRefineRequest,
     CharacterRenderEditRequest,
     CharacterRenderReferencesSchema,
@@ -22,10 +22,10 @@ from ...schemas.character import (
     CharacterUpdateSchema,
     SetCanonicalRenderRequest,
 )
-from ...schemas.edit_event import EditEventResponseSchema
-from ...schemas.image import ImageResponseSchema
-from ...service import CharacterService, ImageService
-from ..dependencies import get_character_service, get_image_service
+from ..schemas.edit_event import EditEventResponseSchema
+from ..schemas.image import ImageResponseSchema
+from ..service import CharacterService, ImageService
+from .dependencies import get_character_service, get_image_service
 
 router = APIRouter(tags=["characters", "v2"])
 
