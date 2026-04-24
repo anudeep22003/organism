@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import Cookie, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.services.database import get_async_db_session
+from core.infrastructure.database import get_async_db_session
 
 from ..config import ACCESS_TOKEN_COOKIE_NAME
 from ..exceptions import (
