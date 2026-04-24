@@ -39,7 +39,7 @@ from core.story_engine.models import (
 from core.story_engine.models import Image as ImageModel
 from core.story_engine.models.edit_event import EditEventTargetType
 from core.story_engine.models.image import ImageDiscriminatorKey
-from core.story_engine.repository import RepositoryV2
+from core.story_engine.repository import Repository
 from core.story_engine.service.image_service import ImageService
 from tests.auth_helpers import auth_cookie_header
 
@@ -92,8 +92,8 @@ async def test_upload_reference_image_via_service(
     character: Character,
 ) -> None:
     """Calling ImageUploadService directly writes one image row and one blob."""
-    repo = RepositoryV2(db_session)
-    service = ImageService(db=db_session, repository_v2=repo)
+    repo = Repository(db_session)
+    service = ImageService(db=db_session, repository=repo)
 
     await service.upload_character_reference_image(
         user_id=user.id,
@@ -221,8 +221,8 @@ async def test_get_character_reference_images_via_endpoint(
     character: Character,
 ) -> None:
     """After uploading a reference image, the list endpoint returns it."""
-    repo = RepositoryV2(db_session)
-    service = ImageService(db=db_session, repository_v2=repo)
+    repo = Repository(db_session)
+    service = ImageService(db=db_session, repository=repo)
 
     # Upload one reference image directly via service
     uploaded = await service.upload_character_reference_image(

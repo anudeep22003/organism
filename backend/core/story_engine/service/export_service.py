@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..exceptions import ExportError
 from ..models.image import Image as ImageModel
 from ..models.panel import Panel
-from ..repository import RepositoryV2
+from ..repository import Repository
 from .image_service import GCSUploadService, get_gcs_upload_service
 from .panel_service import PanelService
 
@@ -196,7 +196,7 @@ class ExportService:
         gcs_service: GCSUploadService | None = None,
     ):
         self.db = db_session
-        self.repository_v2 = RepositoryV2(db_session)
+        self.repository = Repository(db_session)
         self.panel_service = panel_service or PanelService(db_session)
         self.gcs_service = gcs_service or get_gcs_upload_service()
 

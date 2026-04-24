@@ -32,7 +32,7 @@ from core.story_engine.models.edit_event import (
 )
 from core.story_engine.models.image import ImageDiscriminatorKey
 from core.story_engine.models.panel_character import PanelCharacter
-from core.story_engine.repository import RepositoryV2
+from core.story_engine.repository import Repository
 from core.story_engine.service.character_service import CharacterService
 from core.story_engine.service.image_service import ImageService, StorageReceipt
 
@@ -67,7 +67,7 @@ async def test_upload_reference_image_creates_image_row_with_target_id(
     character: Character,
 ) -> None:
     """Image row uses target_id (not character_id FK) and correct discriminator."""
-    repo = RepositoryV2(db_session)
+    repo = Repository(db_session)
 
     mock_receipt = StorageReceipt(
         object_key=f"{user.id}/character/{character.slug}/references/test-key",
@@ -78,7 +78,7 @@ async def test_upload_reference_image_creates_image_row_with_target_id(
         "core.story_engine.service.image_service.GCSUploadService.upload",
         return_value=mock_receipt,
     ):
-        service = ImageService(db=db_session, repository_v2=repo)
+        service = ImageService(db=db_session, repository=repo)
         image = await service.upload_character_reference_image(
             user_id=user.id,
             project_id=project.id,
@@ -106,7 +106,7 @@ async def test_upload_reference_image_output_snapshot_contains_image_id(
     """output_snapshot on the EditEvent contains {"image_id": "<uuid>"} (Decision 7)."""
     from core.story_engine.models import EditEvent
 
-    repo = RepositoryV2(db_session)
+    repo = Repository(db_session)
 
     mock_receipt = StorageReceipt(
         object_key=f"{user.id}/character/{character.slug}/references/test-key",
@@ -117,7 +117,7 @@ async def test_upload_reference_image_output_snapshot_contains_image_id(
         "core.story_engine.service.image_service.GCSUploadService.upload",
         return_value=mock_receipt,
     ):
-        service = ImageService(db=db_session, repository_v2=repo)
+        service = ImageService(db=db_session, repository=repo)
         image = await service.upload_character_reference_image(
             user_id=user.id,
             project_id=project.id,

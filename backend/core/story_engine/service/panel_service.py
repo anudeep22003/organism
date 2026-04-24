@@ -35,7 +35,7 @@ from ..models.edit_event import (
 )
 from ..models.image import Image as ImageModel
 from ..models.image import ImageContentType, ImageDiscriminatorKey
-from ..repository import RepositoryV2
+from ..repository import Repository
 from ..schemas.panel import GeneratedPanelsResponse, PanelContent, PanelContentBase
 from ..storage_keys import panel_render_key
 from .image_service import (
@@ -52,9 +52,9 @@ class PanelService:
         image_service: ImageService | None = None,
     ):
         self.db = db_session
-        self.repository_v2 = RepositoryV2(db_session)
+        self.repository = Repository(db_session)
         self.image_service = image_service or ImageService(
-            db=self.db, repository_v2=self.repository_v2
+            db=self.db, repository=self.repository
         )
 
     # -----------------------------------------------------------------------
@@ -70,7 +70,7 @@ class PanelService:
         Per Decision 9: each panel gets its own EditEvent(GENERATE_PANEL, SUCCEEDED).
         Per Decision 3: character slugs in LLM output are resolved to character UUIDs.
         """
-        story = await self.repository_v2.story.get_story(project_id, story_id)
+        story = await self.repository.story.get_story(project_id, story_id)
         if story is None:
             raise NotFoundError(f"Story {story_id} not found")
 
@@ -82,7 +82,7 @@ class PanelService:
         story_text = story.story_text
 
         # Load all characters to build slug → id mapping for resolution
-        characters = await self.repository_v2.character.get_all_characters_for_a_story(
+        characters = await self.repository.character.get_all_characters_for_a_story(
             story_id
         )
         slug_to_id: dict[str, uuid.UUID] = {c.slug: c.id for c in characters}
@@ -108,7 +108,7 @@ class PanelService:
                     "characters": panel_content.characters,
                 },
             )
-            await self.repository_v2.panel.create_panel(panel)
+            await self.repository.panel.create_panel(panel)
             await self.db.flush()  # assign panel.id before using it
 
             # Resolve slugs to character IDs and create join rows (Decision 3)
@@ -120,7 +120,7 @@ class PanelService:
                         f"{story_id} characters — skipping join row"
                     )
                     continue
-                await self.repository_v2.panel.create_panel_character(
+                await self.repository.panel.create_panel_character(
                     panel_id=panel.id, character_id=character_id
                 )
 
@@ -134,7 +134,7 @@ class PanelService:
                 status=EditEventStatus.SUCCEEDED,
                 output_snapshot=panel.attributes,
             )
-            await self.repository_v2.edit_event.add_edit_event_to_db(edit_event)
+            await self.repository.edit_event.add_edit_event_to_db(edit_event)
             await self.db.flush()
 
             # Link panel to its source event
@@ -168,11 +168,11 @@ class PanelService:
         Creates panel_character join rows for each character the LLM assigns,
         mirroring the bulk generate_panels flow.
         """
-        story = await self.repository_v2.story.get_story(project_id, story_id)
+        story = await self.repository.story.get_story(project_id, story_id)
         if story is None:
             raise NotFoundError(f"Story {story_id} not found")
 
-        panel = await self.repository_v2.panel.get_panel(panel_id, story_id)
+        panel = await self.repository.panel.get_panel(panel_id, story_id)
         if panel is None:
             raise NotFoundError(f"Panel {panel_id} not found in story {story_id}")
 
@@ -183,7 +183,7 @@ class PanelService:
             )
 
         # Load characters to build slug list for constrained LLM extraction
-        characters = await self.repository_v2.character.get_all_characters_for_a_story(
+        characters = await self.repository.character.get_all_characters_for_a_story(
             story_id
         )
         slug_to_id: dict[str, uuid.UUID] = {c.slug: c.id for c in characters}
@@ -207,7 +207,7 @@ class PanelService:
             status=EditEventStatus.PENDING,
             input_snapshot={},
         )
-        await self.repository_v2.edit_event.add_edit_event_to_db(edit_event)
+        await self.repository.edit_event.add_edit_event_to_db(edit_event)
         await self.db.flush()
         edit_event_id = edit_event.id
         await self.db.commit()
@@ -232,10 +232,8 @@ class PanelService:
                 for slug in panel_content.characters
                 if slug in slug_to_id
             ]
-            await self.repository_v2.panel.replace_panel_characters(
-                panel_id, resolved_ids
-            )
-            await self.repository_v2.edit_event.update_edit_event(
+            await self.repository.panel.replace_panel_characters(panel_id, resolved_ids)
+            await self.repository.edit_event.update_edit_event(
                 edit_event_id,
                 EditEventStatus.SUCCEEDED,
                 output_snapshot=new_attributes,
@@ -245,7 +243,7 @@ class PanelService:
             return panel
 
         except Exception:
-            await self.repository_v2.edit_event.update_edit_event(
+            await self.repository.edit_event.update_edit_event(
                 edit_event_id, EditEventStatus.FAILED
             )
             await self.db.commit()
@@ -269,11 +267,11 @@ class PanelService:
         persists the updated attributes under a REFINE_PANEL edit event.
         Mirrors refine_character in character_service.py.
         """
-        story = await self.repository_v2.story.get_story(project_id, story_id)
+        story = await self.repository.story.get_story(project_id, story_id)
         if story is None:
             raise NotFoundError(f"Story {story_id} not found")
 
-        panel = await self.repository_v2.panel.get_panel(panel_id, story_id)
+        panel = await self.repository.panel.get_panel(panel_id, story_id)
         if panel is None:
             raise NotFoundError(f"Panel {panel_id} not found in story {story_id}")
 
@@ -283,7 +281,7 @@ class PanelService:
                 f"Panel {panel_id} has no content yet — generate it before refining"
             )
 
-        characters = await self.repository_v2.character.get_all_characters_for_a_story(
+        characters = await self.repository.character.get_all_characters_for_a_story(
             story_id
         )
         slug_to_id: dict[str, uuid.UUID] = {c.slug: c.id for c in characters}
@@ -303,7 +301,7 @@ class PanelService:
             status=EditEventStatus.PENDING,
             input_snapshot=input_attrs,
         )
-        await self.repository_v2.edit_event.add_edit_event_to_db(edit_event)
+        await self.repository.edit_event.add_edit_event_to_db(edit_event)
         await self.db.flush()
         edit_event_id = edit_event.id
         await self.db.commit()
@@ -328,10 +326,8 @@ class PanelService:
                 for slug in panel_content.characters
                 if slug in slug_to_id
             ]
-            await self.repository_v2.panel.replace_panel_characters(
-                panel_id, resolved_ids
-            )
-            await self.repository_v2.edit_event.update_edit_event(
+            await self.repository.panel.replace_panel_characters(panel_id, resolved_ids)
+            await self.repository.edit_event.update_edit_event(
                 edit_event_id,
                 EditEventStatus.SUCCEEDED,
                 output_snapshot=new_attributes,
@@ -341,7 +337,7 @@ class PanelService:
             return panel
 
         except Exception:
-            await self.repository_v2.edit_event.update_edit_event(
+            await self.repository.edit_event.update_edit_event(
                 edit_event_id, EditEventStatus.FAILED
             )
             await self.db.commit()
@@ -495,10 +491,10 @@ class PanelService:
         to the most-recently created PANEL_RENDER image when the pointer is NULL.
         Mirrors get_canonical_character_render in character_service.py.
         """
-        panel = await self.repository_v2.panel.get_panel_by_id(panel_id)
+        panel = await self.repository.panel.get_panel_by_id(panel_id)
         if panel is not None and panel.canonical_render_id is not None:
-            return await self.repository_v2.image.get_image(panel.canonical_render_id)
-        return await self.repository_v2.image.get_canonical_render(
+            return await self.repository.image.get_image(panel.canonical_render_id)
+        return await self.repository.image.get_canonical_render(
             target_id=panel_id,
             discriminator_key=ImageDiscriminatorKey.PANEL_RENDER,
         )
@@ -521,15 +517,15 @@ class PanelService:
         belonging to this panel. Creates a SET_CANONICAL_RENDER audit event
         immediately as SUCCEEDED (no PENDING state). Returns the updated panel.
         """
-        story = await self.repository_v2.story.get_story(project_id, story_id)
+        story = await self.repository.story.get_story(project_id, story_id)
         if story is None:
             raise NotFoundError(f"Story {story_id} not found in project {project_id}")
 
-        panel = await self.repository_v2.panel.get_panel(panel_id, story_id)
+        panel = await self.repository.panel.get_panel(panel_id, story_id)
         if panel is None:
             raise NotFoundError(f"Panel {panel_id} not found in story {story_id}")
 
-        image = await self.repository_v2.image.get_image(image_id)
+        image = await self.repository.image.get_image(image_id)
         if (
             image is None
             or image.target_id != panel_id
@@ -539,9 +535,7 @@ class PanelService:
                 f"Render image {image_id} not found for panel {panel_id}"
             )
 
-        await self.repository_v2.panel.set_canonical_render(
-            panel_id, story_id, image_id
-        )
+        await self.repository.panel.set_canonical_render(panel_id, story_id, image_id)
 
         edit_event = EditEvent.create_edit_event(
             project_id=project_id,
@@ -552,7 +546,7 @@ class PanelService:
             input_snapshot={"image_id": str(image_id)},
             status=EditEventStatus.SUCCEEDED,
         )
-        await self.repository_v2.edit_event.add_edit_event_to_db(edit_event)
+        await self.repository.edit_event.add_edit_event_to_db(edit_event)
 
         await self.db.commit()
         await self.db.refresh(panel)
@@ -585,7 +579,7 @@ class PanelService:
 
     async def get_panel_reference_images(self, panel_id: uuid.UUID) -> list[ImageModel]:
         """Return all PANEL_REFERENCE images for a panel, newest first."""
-        return await self.repository_v2.image.get_panel_reference_images(panel_id)
+        return await self.repository.image.get_panel_reference_images(panel_id)
 
     async def delete_reference_image(
         self,
@@ -603,18 +597,16 @@ class PanelService:
         """
         from ..repository.exception import NotFoundError as RepositoryNotFoundError
 
-        story = await self.repository_v2.story.get_story(project_id, story_id)
+        story = await self.repository.story.get_story(project_id, story_id)
         if story is None:
             raise NotFoundError(f"Story {story_id} not found in project {project_id}")
 
-        panel = await self.repository_v2.panel.get_panel(panel_id, story_id)
+        panel = await self.repository.panel.get_panel(panel_id, story_id)
         if panel is None:
             raise NotFoundError(f"Panel {panel_id} not found in story {story_id}")
 
         try:
-            await self.repository_v2.image.delete_panel_reference_image(
-                image_id, panel_id
-            )
+            await self.repository.image.delete_panel_reference_image(image_id, panel_id)
             await self.db.commit()
         except RepositoryNotFoundError as e:
             raise NotFoundError(str(e)) from e
@@ -632,11 +624,11 @@ class PanelService:
         """
         from ..models.image import Image as ImageModel
 
-        story = await self.repository_v2.story.get_story(project_id, story_id)
+        story = await self.repository.story.get_story(project_id, story_id)
         if story is None:
             raise NotFoundError(f"Story {story_id} not found")
 
-        panels = await self.repository_v2.panel.get_panels_for_story(story_id)
+        panels = await self.repository.panel.get_panels_for_story(story_id)
 
         result: list[tuple[Panel, ImageModel | None]] = []
         for panel in panels:
@@ -654,11 +646,11 @@ class PanelService:
     ) -> tuple[Panel, Any]:
         """Return a single panel with its canonical render."""
 
-        story = await self.repository_v2.story.get_story(project_id, story_id)
+        story = await self.repository.story.get_story(project_id, story_id)
         if story is None:
             raise NotFoundError(f"Story {story_id} not found")
 
-        panel = await self.repository_v2.panel.get_panel(panel_id, story_id)
+        panel = await self.repository.panel.get_panel(panel_id, story_id)
         if panel is None:
             raise NotFoundError(f"Panel {panel_id} not found in story {story_id}")
 
@@ -687,11 +679,11 @@ class PanelService:
           6. Create EditEvent(RENDER_PANEL, SUCCEEDED).
           7. Return (panel, image) — mirrors render_character return signature.
         """
-        story = await self.repository_v2.story.get_story(project_id, story_id)
+        story = await self.repository.story.get_story(project_id, story_id)
         if story is None:
             raise NotFoundError(f"Story {story_id} not found")
 
-        panel = await self.repository_v2.panel.get_panel(panel_id, story_id)
+        panel = await self.repository.panel.get_panel(panel_id, story_id)
         if panel is None:
             raise NotFoundError(f"Panel {panel_id} not found in story {story_id}")
 
@@ -707,20 +699,20 @@ class PanelService:
             user_instruction="",
             status=EditEventStatus.PENDING,
         )
-        await self.repository_v2.edit_event.add_edit_event_to_db(edit_event)
+        await self.repository.edit_event.add_edit_event_to_db(edit_event)
         await self.db.flush()
         edit_event_id = edit_event.id
         await self.db.commit()
 
         try:
             # Resolve character renders for image_urls (Decision 16)
-            character_ids = await self.repository_v2.panel.get_character_ids_for_panel(
+            character_ids = await self.repository.panel.get_character_ids_for_panel(
                 panel_id
             )
             gcs_service = get_gcs_upload_service()
             image_urls: list[str] = []
             for character_id in character_ids:
-                character_render = await self.repository_v2.image.get_canonical_render(
+                character_render = await self.repository.image.get_canonical_render(
                     target_id=character_id,
                     discriminator_key=ImageDiscriminatorKey.CHARACTER_RENDER,
                 )
@@ -785,16 +777,16 @@ class PanelService:
                 discriminator_key=ImageDiscriminatorKey.PANEL_RENDER,
                 meta={},
             )
-            await self.repository_v2.image.create_image(image_model)
+            await self.repository.image.create_image(image_model)
             await self.db.flush()
 
             # Auto-set canonical render pointer (no edit event — RENDER_PANEL records it)
-            await self.repository_v2.panel.set_canonical_render(
+            await self.repository.panel.set_canonical_render(
                 panel_id, story_id, image_model.id
             )
 
             # TX2: complete edit event
-            await self.repository_v2.edit_event.update_edit_event(
+            await self.repository.edit_event.update_edit_event(
                 edit_event_id,
                 EditEventStatus.SUCCEEDED,
                 output_snapshot={"image_id": str(image_model.id)},
@@ -803,15 +795,13 @@ class PanelService:
             await self.db.refresh(image_model)
 
             # Refresh panel so canonical_render_id is up-to-date
-            refreshed_panel = await self.repository_v2.panel.get_panel(
-                panel_id, story_id
-            )
+            refreshed_panel = await self.repository.panel.get_panel(panel_id, story_id)
             if refreshed_panel is None:
                 raise NotFoundError(f"Panel {panel_id} not found in story {story_id}")
             return refreshed_panel, image_model
 
         except Exception:
-            await self.repository_v2.edit_event.update_edit_event(
+            await self.repository.edit_event.update_edit_event(
                 edit_event_id, EditEventStatus.FAILED
             )
             await self.db.commit()
@@ -838,15 +828,15 @@ class PanelService:
         as a PANEL_RENDER image for this panel — upload or render it first via the
         appropriate endpoint. That image persists independently of this call.
         """
-        story = await self.repository_v2.story.get_story(project_id, story_id)
+        story = await self.repository.story.get_story(project_id, story_id)
         if story is None:
             raise NotFoundError(f"Story {story_id} not found")
 
-        panel = await self.repository_v2.panel.get_panel(panel_id, story_id)
+        panel = await self.repository.panel.get_panel(panel_id, story_id)
         if panel is None:
             raise NotFoundError(f"Panel {panel_id} not found in story {story_id}")
 
-        source_image = await self.repository_v2.image.get_image(source_image_id)
+        source_image = await self.repository.image.get_image(source_image_id)
         if source_image is None or source_image.target_id != panel_id:
             raise NotFoundError(
                 f"Source image {source_image_id} not found for panel {panel_id}"
@@ -861,12 +851,12 @@ class PanelService:
         image_urls = [source_signed_url]
 
         # Resolve character renders — same block as render_panel
-        character_ids = await self.repository_v2.panel.get_character_ids_for_panel(
+        character_ids = await self.repository.panel.get_character_ids_for_panel(
             panel_id
         )
         character_render_ids: list[str] = []
         for character_id in character_ids:
-            character_render = await self.repository_v2.image.get_canonical_render(
+            character_render = await self.repository.image.get_canonical_render(
                 target_id=character_id,
                 discriminator_key=ImageDiscriminatorKey.CHARACTER_RENDER,
             )
@@ -886,9 +876,7 @@ class PanelService:
         }
 
         if reference_image_id is not None:
-            reference_image = await self.repository_v2.image.get_image(
-                reference_image_id
-            )
+            reference_image = await self.repository.image.get_image(reference_image_id)
             if reference_image is None or reference_image.target_id != panel_id:
                 raise NotFoundError(
                     f"Reference image {reference_image_id} not found for panel {panel_id}"
@@ -908,7 +896,7 @@ class PanelService:
             input_snapshot=input_snapshot,
             status=EditEventStatus.PENDING,
         )
-        await self.repository_v2.edit_event.add_edit_event_to_db(edit_event)
+        await self.repository.edit_event.add_edit_event_to_db(edit_event)
         await self.db.flush()
         edit_event_id = edit_event.id
         await self.db.commit()
@@ -955,15 +943,15 @@ class PanelService:
                 discriminator_key=ImageDiscriminatorKey.PANEL_RENDER,
                 meta={},
             )
-            await self.repository_v2.image.create_image(image_model)
+            await self.repository.image.create_image(image_model)
             await self.db.flush()
 
             # Auto-set canonical render pointer (no edit event — RENDER_PANEL_EDIT records it)
-            await self.repository_v2.panel.set_canonical_render(
+            await self.repository.panel.set_canonical_render(
                 panel_id, story_id, image_model.id
             )
 
-            await self.repository_v2.edit_event.update_edit_event(
+            await self.repository.edit_event.update_edit_event(
                 edit_event_id,
                 EditEventStatus.SUCCEEDED,
                 output_snapshot={"image_id": str(image_model.id)},
@@ -973,7 +961,7 @@ class PanelService:
             return image_model
 
         except Exception:
-            await self.repository_v2.edit_event.update_edit_event(
+            await self.repository.edit_event.update_edit_event(
                 edit_event_id, EditEventStatus.FAILED
             )
             await self.db.commit()
@@ -1018,21 +1006,21 @@ class PanelService:
            deleted automatically (per raise_to_architect in Story 110).
         3. Delete the panel row — cascades panel_character rows via DB FK.
         """
-        story = await self.repository_v2.story.get_story(project_id, story_id)
+        story = await self.repository.story.get_story(project_id, story_id)
         if story is None:
             raise NotFoundError(f"Story {story_id} not found")
 
-        panel = await self.repository_v2.panel.get_panel(panel_id, story_id)
+        panel = await self.repository.panel.get_panel(panel_id, story_id)
         if panel is None:
             raise NotFoundError(f"Panel {panel_id} not found in story {story_id}")
 
         # Explicit cleanup of polymorphic image rows (no DB FK cascade)
-        await self.repository_v2.image.delete_images_for_target(
+        await self.repository.image.delete_images_for_target(
             target_id=panel_id,
             discriminator_key=ImageDiscriminatorKey.PANEL_RENDER,
         )
 
-        await self.repository_v2.panel.delete_panel(panel_id, story_id)
+        await self.repository.panel.delete_panel(panel_id, story_id)
         await self.db.commit()
 
     # -----------------------------------------------------------------------
@@ -1043,15 +1031,15 @@ class PanelService:
         self, project_id: uuid.UUID, story_id: uuid.UUID, panel_id: uuid.UUID
     ) -> list[ImageModel]:
         """Return all render Image rows for a panel, newest first."""
-        story = await self.repository_v2.story.get_story(project_id, story_id)
+        story = await self.repository.story.get_story(project_id, story_id)
         if story is None:
             raise NotFoundError(f"Story {story_id} not found")
 
-        panel = await self.repository_v2.panel.get_panel(panel_id, story_id)
+        panel = await self.repository.panel.get_panel(panel_id, story_id)
         if panel is None:
             raise NotFoundError(f"Panel {panel_id} not found in story {story_id}")
 
-        return await self.repository_v2.image.get_renders_for_target(
+        return await self.repository.image.get_renders_for_target(
             target_id=panel_id,
             discriminator_key=ImageDiscriminatorKey.PANEL_RENDER,
         )
@@ -1068,15 +1056,15 @@ class PanelService:
         limit: int = 20,
     ) -> list[EditEvent]:
         """Return all edit events for a panel, ordered newest first."""
-        story = await self.repository_v2.story.get_story(project_id, story_id)
+        story = await self.repository.story.get_story(project_id, story_id)
         if story is None:
             raise NotFoundError(f"Story {story_id} not found")
 
-        panel = await self.repository_v2.panel.get_panel(panel_id, story_id)
+        panel = await self.repository.panel.get_panel(panel_id, story_id)
         if panel is None:
             raise NotFoundError(f"Panel {panel_id} not found in story {story_id}")
 
-        return await self.repository_v2.edit_event.get_edit_events_for_target(
+        return await self.repository.edit_event.get_edit_events_for_target(
             target_type=EditEventTargetType.PANEL,
             target_id=panel_id,
             limit=limit,

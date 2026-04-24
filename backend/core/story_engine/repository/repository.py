@@ -8,7 +8,7 @@ from .project_repository import ProjectRepository
 from .story_repository import StoryRepository
 
 
-class RepositoryV2:
+class Repository:
     def __init__(self, db: AsyncSession):
         self.db = db
         self.project = ProjectRepository(db)
