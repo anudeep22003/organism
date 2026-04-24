@@ -1,7 +1,8 @@
 import { useCallback, useRef, useState } from "react";
 import { MediaManager } from "@/audio/services/mediaManager";
 import { WhisperTranscriber } from "@/audio/services/transcriber";
-import type { RecordingState } from "./types";
+
+type RecordingState = "idle" | "recording" | "transcribing";
 
 export function useVoiceRecorder(
   onTranscription: (text: string) => void,
