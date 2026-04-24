@@ -1,4 +1,4 @@
-import type { ImageRecord } from "@scene-engine/shared/scene-engine.types";
+import type { ImageRecord } from "@scene-engine/core/scene-engine.types";
 
 export type PanelRecord = {
   id: string;

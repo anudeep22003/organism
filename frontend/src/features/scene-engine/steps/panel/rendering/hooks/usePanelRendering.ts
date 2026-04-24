@@ -1,11 +1,11 @@
 import { httpClient } from "@/lib/httpClient";
-import { STORY_API_BASE } from "@scene-engine/shared/scene-engine.constants";
+import { STORY_API_BASE } from "@scene-engine/core/scene-engine.constants";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { panelsOptions } from "../../panel.queries";
 import { splicePanelIntoList, uploadReferenceImageRequest, buildHttpErrorMessage } from "../../panel.utils";
 import type { PanelBundle } from "../../panel.types";
-import type { ImageRecord } from "@scene-engine/shared/scene-engine.types";
+import type { ImageRecord } from "@scene-engine/core/scene-engine.types";
 import { panelRendersOptions } from "../rendering.queries";
 
 export function usePanelRendering(projectId: string, storyId: string) {

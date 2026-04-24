@@ -1,9 +1,9 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@scene-engine/components/Skeleton";
 import { useSceneEngine } from "@scene-engine/context";
-import { imageSignedUrlOptions } from "@scene-engine/shared/scene-engine.queries";
+import { imageSignedUrlOptions } from "@scene-engine/core/scene-engine.queries";
 import type { CharacterBundle } from "../../character.types";
-import type { ImageRecord } from "@scene-engine/shared/scene-engine.types";
+import type { ImageRecord } from "@scene-engine/core/scene-engine.types";
 import { useCharacterRendering } from "../hooks/useCharacterRendering";
 
 type CharacterRenderBlockProps = {
