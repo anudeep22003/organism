@@ -6,7 +6,7 @@ from typing import AsyncIterator, Protocol
 from openai.types.chat import ChatCompletionChunk
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.services.intelligence.clients import async_openai_client
+from core.infrastructure.intelligence.openai import async_openai_client
 
 from ..events import ErrorPayload, EventEnvelope, EventType
 from ..exceptions import (

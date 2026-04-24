@@ -9,8 +9,7 @@ import json
 from loguru import logger
 from pydantic import BaseModel, Field
 
-from core.services.intelligence import instructor_client
-from core.services.intelligence.models import ModelsEnum
+from core.infrastructure.intelligence import OpenAIModel, instructor_client
 
 
 class StoryIdentity(BaseModel):
@@ -55,7 +54,7 @@ async def generate_story_identity(meta: dict) -> tuple[str, str] | None:
 
     try:
         identity = await instructor_client.chat.completions.create(
-            model=ModelsEnum.GPT_4O_MINI.value,
+            model=OpenAIModel.GPT_4O_MINI.value,
             response_model=StoryIdentity,
             max_retries=2,
             messages=[

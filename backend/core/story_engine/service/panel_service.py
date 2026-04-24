@@ -17,8 +17,8 @@ from fastapi import UploadFile
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.services.intelligence import instructor_client
-from core.services.intelligence.media_generator import fal_async_client
+from core.infrastructure.intelligence import instructor_client
+from core.infrastructure.intelligence.media_generator import fal_async_client
 
 from ..exceptions import (
     FalResponseError,
