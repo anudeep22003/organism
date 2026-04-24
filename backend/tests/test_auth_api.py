@@ -386,9 +386,9 @@ async def test_refresh_rotates_session_and_sets_new_cookies(
         assert old_refresh_token is not None
         assert old_access_token is not None
 
+        api_client.cookies.set(REFRESH_TOKEN_COOKIE_NAME, old_refresh_token)
         refresh_response = await api_client.post(
             "/api/auth/refresh",
-            cookies={REFRESH_TOKEN_COOKIE_NAME: old_refresh_token},
             headers=_csrf_headers(api_client),
         )
 
@@ -416,9 +416,9 @@ async def test_refresh_rotates_session_and_sets_new_cookies(
         assert len(revoked_sessions) == 1
         assert len(active_sessions) == 1
 
+        api_client.cookies.set(REFRESH_TOKEN_COOKIE_NAME, old_refresh_token)
         old_token_response = await api_client.post(
             "/api/auth/refresh",
-            cookies={REFRESH_TOKEN_COOKIE_NAME: old_refresh_token},
             headers=_csrf_headers(api_client),
         )
         assert old_token_response.status_code == 401
@@ -454,10 +454,11 @@ async def test_refresh_rejects_legacy_sha256_style_session_hash(
     db_session.add(session)
     await db_session.commit()
     refresh_token = f"{session.id}.legacysecret"
+    api_client.cookies.set(REFRESH_TOKEN_COOKIE_NAME, refresh_token)
+    api_client.cookies.set(CSRF_TOKEN_COOKIE_NAME, "legacysecret")
 
     response = await api_client.post(
         "/api/auth/refresh",
-        cookies={REFRESH_TOKEN_COOKIE_NAME: refresh_token},
         headers={CSRF_TOKEN_HEADER_NAME: "legacysecret"},
     )
 
@@ -519,9 +520,9 @@ async def test_logout_revokes_session_and_clears_cookies(
         refresh_token = callback_response.cookies.get(REFRESH_TOKEN_COOKIE_NAME)
         assert refresh_token is not None
 
+        api_client.cookies.set(REFRESH_TOKEN_COOKIE_NAME, refresh_token)
         logout_response = await api_client.post(
             "/api/auth/logout",
-            cookies={REFRESH_TOKEN_COOKIE_NAME: refresh_token},
             headers=_csrf_headers(api_client),
         )
 
@@ -542,9 +543,9 @@ async def test_logout_revokes_session_and_clears_cookies(
         me_response = await api_client.get("/api/auth/me")
         assert me_response.status_code == 401
 
+        api_client.cookies.set(REFRESH_TOKEN_COOKIE_NAME, refresh_token)
         second_logout = await api_client.post(
             "/api/auth/logout",
-            cookies={REFRESH_TOKEN_COOKIE_NAME: refresh_token},
         )
         assert second_logout.status_code == 204
     finally:
