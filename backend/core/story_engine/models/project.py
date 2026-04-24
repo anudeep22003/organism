@@ -34,7 +34,6 @@ class Project(ORMBase):
         onupdate=get_current_datetime_utc,
     )
     meta: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
-    state: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
     stories: Mapped[list[Story]] = relationship(
         "Story",

@@ -248,8 +248,6 @@ async def test_create_project_response_shape(
     assert "name" in body
     assert "createdAt" in body
     assert "updatedAt" in body
-    assert "state" in body  # legacy state blob — must still be present
-
     await db_session.execute(
         text("DELETE FROM project WHERE id = :id"), {"id": uuid.UUID(body["id"])}
     )
