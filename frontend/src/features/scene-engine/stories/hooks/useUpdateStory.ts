@@ -1,9 +1,8 @@
 import { httpClient } from "@/lib/httpClient";
-import { myProjectOptions } from "@/features/story/projects/projects.queries";
+import { STORY_API_BASE } from "@scene-engine/shared/scene-engine.constants";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type { StoryListEntryType } from "@/features/story/shared/story.types";
-
-const STORY_API_BASE = "/api/comic-builder/v2" as const;
+import { currentProjectOptions } from "../stories.queries";
+import type { StoryListItem } from "../stories.types";
 
 type StoryMeta = {
   tone: string;
@@ -28,11 +27,13 @@ export const useUpdateStory = () => {
 
   return useMutation({
     mutationFn: ({ projectId, storyId, name, description, meta }: UpdateStoryPayload) =>
-      httpClient.patch<StoryListEntryType>(
+      httpClient.patch<StoryListItem>(
         `${STORY_API_BASE}/projects/${projectId}/story/${storyId}`,
         { name, description, meta },
       ),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: myProjectOptions.queryKey }),
+      queryClient.invalidateQueries({
+        queryKey: currentProjectOptions.queryKey,
+      }),
   });
 };

@@ -1,8 +1,8 @@
 import { httpClient } from "@/lib/httpClient";
+import { STORY_API_BASE } from "@scene-engine/shared/scene-engine.constants";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { STORY_API_BASE } from "../../shared/story.constants";
-import type { StoryListEntryType } from "../../shared/story.types";
-import { myProjectOptions } from "../projects.queries";
+import { currentProjectOptions } from "../stories.queries";
+import type { StoryListItem } from "../stories.types";
 
 type StoryMeta = {
   tone: string;
@@ -26,11 +26,13 @@ export const useCreateStory = () => {
 
   return useMutation({
     mutationFn: ({ projectId, name, description, meta }: CreateStoryPayload) =>
-      httpClient.post<StoryListEntryType>(
+      httpClient.post<StoryListItem>(
         `${STORY_API_BASE}/projects/${projectId}/story`,
         { name, description, meta },
       ),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: myProjectOptions.queryKey }),
+      queryClient.invalidateQueries({
+        queryKey: currentProjectOptions.queryKey,
+      }),
   });
 };
