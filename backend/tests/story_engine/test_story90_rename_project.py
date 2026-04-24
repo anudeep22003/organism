@@ -80,7 +80,6 @@ async def test_rename_project_response_matches_project_response_schema(
     assert "name" in body
     assert "createdAt" in body
     assert "updatedAt" in body
-    assert "state" in body
 
 
 async def test_rename_project_404_for_nonexistent_project(

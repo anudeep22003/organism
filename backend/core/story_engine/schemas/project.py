@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any
 
 from pydantic import Field
 
@@ -25,7 +24,6 @@ class ProjectRenameSchema(ProjectSchemaBase):
 
 class ProjectUpdateSchema(ProjectSchemaBase):
     name: str | None = None
-    state: dict[str, Any] | None = None
 
 
 class ProjectResponseSchema(ProjectSchemaBase):
@@ -33,7 +31,6 @@ class ProjectResponseSchema(ProjectSchemaBase):
     name: str | None = None
     created_at: datetime
     updated_at: datetime
-    state: dict[str, Any] | None = None
 
 
 class ProjectListResponseSchema(ProjectSchemaBase):
