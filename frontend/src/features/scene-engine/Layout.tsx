@@ -1,4 +1,4 @@
-import { useTheme } from "@/context/ThemeContext";
+import { useTheme } from "@/shared/theme/ThemeContext";
 import { useAuth } from "@/features/auth";
 import { useQuery } from "@tanstack/react-query";
 import { Outlet, useNavigate, useParams } from "react-router";

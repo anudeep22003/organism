@@ -1,4 +1,4 @@
-import { BACKEND_URL } from "@/constants";
+import { BACKEND_URL } from "@/config";
 import { httpClient } from "@/lib/httpClient";
 import { AUTH_SERVICE_ENDPOINTS } from "./auth.constants";
 import type { AuthUser } from "../model/auth.types";

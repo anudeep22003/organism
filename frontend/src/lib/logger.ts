@@ -1,4 +1,4 @@
-import { MODE } from "@/constants";
+import { MODE } from "@/config";
 import log from "loglevel";
 
 // Configure root logger based on environment

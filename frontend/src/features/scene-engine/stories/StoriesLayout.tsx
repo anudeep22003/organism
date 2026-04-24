@@ -1,4 +1,4 @@
-import { useTheme } from "@/context/ThemeContext";
+import { useTheme } from "@/shared/theme/ThemeContext";
 import { useAuth } from "@/features/auth";
 import { Outlet, useNavigate } from "react-router";
 
