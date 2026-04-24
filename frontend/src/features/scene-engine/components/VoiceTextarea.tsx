@@ -1,4 +1,4 @@
-import { useVoiceRecorder } from "@/components/InputBox/useVoiceRecorder";
+import { useVoiceRecorder } from "./prompt-input/useVoiceRecorder";
 import { Mic01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useCallback, useEffect } from "react";
