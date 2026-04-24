@@ -1,4 +1,4 @@
-export type StoryListEntryType = {
+export type StoryListItem = {
   id: string;
   projectId: string;
   storyText: string;
@@ -8,10 +8,10 @@ export type StoryListEntryType = {
   description: string | null;
 };
 
-export type MyProjectType = {
+export type CurrentProject = {
   id: string;
   name: string | null;
   createdAt: string;
   updatedAt: string;
-  stories: StoryListEntryType[];
+  stories: StoryListItem[];
 };

@@ -9,12 +9,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { useCreateStory } from "@/features/story/projects/hooks/useCreateStory";
-import type { StoryListEntryType } from "@/features/story/shared/story.types";
 import VoiceTextarea from "@scene-engine/components/VoiceTextarea";
 import { useState } from "react";
+import { useCreateStory } from "./hooks/useCreateStory";
 import { useDeleteStory } from "./hooks/useDeleteStory";
 import { useUpdateStory } from "./hooks/useUpdateStory";
+import type { StoryListItem } from "./stories.types";
 
 type RadioGroupProps = {
   options: string[];
@@ -86,7 +86,7 @@ function Field({
 type StoryModalProps = {
   projectId: string;
   onDismiss: () => void;
-  story?: StoryListEntryType;
+  story?: StoryListItem;
 };
 
 export function NewStoryModal({ projectId, onDismiss, story }: StoryModalProps) {
