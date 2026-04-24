@@ -10,7 +10,6 @@ import { sceneEngineRoutes } from "./features/scene-engine/routes";
 import { storiesRoutes } from "./features/scene-engine/stories/stories.routes";
 import { legacyStoryRoutes } from "./features/story";
 import { comicBuilderRoutes } from "./pages/comic-builder/routes";
-import HumanAiWorkspace from "./pages/HumanAiWorkspace";
 
 export const routes = [
   {
@@ -19,10 +18,6 @@ export const routes = [
       {
         path: "/",
         element: <Navigate to="/stories" replace />,
-      },
-      {
-        path: "/generative-space",
-        element: <HumanAiWorkspace />,
       },
       ...storiesRoutes,
       ...sceneEngineRoutes,
