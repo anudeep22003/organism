@@ -1,4 +1,4 @@
-import { BACKEND_URL } from "@/constants";
+import { BACKEND_URL } from "@/config";
 import { AUTH_SERVICE_ENDPOINTS } from "@/features/auth/api/auth.constants";
 import axios, {
   AxiosError,
