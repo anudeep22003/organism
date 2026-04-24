@@ -236,10 +236,10 @@ skip Secret Manager entirely. Add directly to the `plain_env_vars` dict in
 Then `make up` — no `populate-secrets`, no IAM changes needed.
 
 Runtime origin config follows this pattern too. For StoryEngine auth rollout,
-`FRONTEND_URL` is a plain env var managed by Pulumi, while the auth credentials
-(`GOOGLE_OAUTH_CLIENT_SECRET`, `JWT_SECRET_KEY`, `AUTH_SESSION_SECRET`,
-`FERNET_ENCRYPTION_KEY`) remain Secret Manager values populated via
-`make populate-secrets`.
+`FRONTEND_URL` and `API_URL` are plain env vars managed by Pulumi, while the
+auth credentials (`GOOGLE_OAUTH_CLIENT_SECRET`, `JWT_SECRET_KEY`,
+`AUTH_SESSION_SECRET`, `FERNET_ENCRYPTION_KEY`) remain Secret Manager values
+populated via `make populate-secrets`.
 
 ---
 

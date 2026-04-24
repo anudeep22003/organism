@@ -261,13 +261,16 @@ a fallback, which is always set correctly at build time via the above mechanism.
 
 ### FRONTEND_URL is the canonical frontend origin in infra
 For the auth rollout, infra standardizes on a single plain env var:
-`FRONTEND_URL=https://dev.dekatha.com`. This value is used for auth redirects
-and is the intended single source of truth for browser origin policy in the
-backend as well.
+`FRONTEND_URL=https://dev.dekatha.com`. This value is used for frontend
+redirect destinations and browser CORS policy in the backend.
 
-Local dev must provide the same setting in `backend/.env.local`, keeping one
-frontend-origin contract across environments instead of separate redirect and
-CORS inputs.
+The canonical external backend origin is provided separately as:
+`API_URL=https://api.dekatha.com`. OAuth callback URLs are built from this
+value so Google always sees the public HTTPS API origin rather than an
+internally reconstructed request URL after load balancer TLS termination.
+
+Local dev must provide both settings in `backend/.env.local`, keeping the
+frontend and backend public origins explicit across environments.
 
 ---
 
