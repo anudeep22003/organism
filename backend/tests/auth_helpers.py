@@ -1,7 +1,7 @@
 import uuid
 
-from core.auth_v2.config import ACCESS_TOKEN_COOKIE_NAME
-from core.auth_v2.security import AccessTokenManager
+from core.auth.config import ACCESS_TOKEN_COOKIE_NAME
+from core.auth.security import AccessTokenManager
 
 _access_token_manager = AccessTokenManager()
 

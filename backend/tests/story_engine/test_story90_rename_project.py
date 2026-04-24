@@ -13,7 +13,7 @@ import uuid
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.auth_v2.models.user import User
+from core.auth.models.user import User
 from core.story_engine.models import Project
 from tests.auth_helpers import auth_cookie_header
 
@@ -102,7 +102,7 @@ async def test_rename_project_404_for_other_users_project(
     project: Project,
 ) -> None:
     """PATCH returns 404 when the project belongs to a different user (ownership boundary)."""
-    from core.auth_v2.models.user import User as UserModel
+    from core.auth.models.user import User as UserModel
 
     other_user = UserModel(
         email=f"other-rename-{uuid.uuid4()}@example.com", password_hash="x"

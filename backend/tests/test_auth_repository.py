@@ -2,8 +2,8 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.auth_v2.models import GoogleOAuthAccount, User
-from core.auth_v2.repositories import AuthRepository
+from core.auth.models import GoogleOAuthAccount, User
+from core.auth.repositories import AuthRepository
 
 
 async def test_create_google_oauth_account_links_to_user(

@@ -1,8 +1,8 @@
-class AuthV2Error(Exception):
+class AuthError(Exception):
     pass
 
 
-class OAuthError(AuthV2Error):
+class OAuthError(AuthError):
     pass
 
 
@@ -18,23 +18,23 @@ class OAuthProfileFieldError(OAuthError):
     pass
 
 
-class RateLimitExceededError(AuthV2Error):
+class RateLimitExceededError(AuthError):
     def __init__(self, retry_after: int | None = None) -> None:
         super().__init__("Too many requests")
         self.retry_after = retry_after
 
 
-class InvalidAccessTokenError(AuthV2Error):
+class InvalidAccessTokenError(AuthError):
     pass
 
 
-class ExpiredAccessTokenError(AuthV2Error):
+class ExpiredAccessTokenError(AuthError):
     pass
 
 
-class InvalidRefreshTokenError(AuthV2Error):
+class InvalidRefreshTokenError(AuthError):
     pass
 
 
-class UserNotFoundError(AuthV2Error):
+class UserNotFoundError(AuthError):
     pass

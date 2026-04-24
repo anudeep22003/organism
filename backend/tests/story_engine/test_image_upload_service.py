@@ -27,7 +27,7 @@ from PIL import Image
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.auth_v2.models.user import User
+from core.auth.models.user import User
 from core.config import settings
 from core.story_engine.models import (
     Character,

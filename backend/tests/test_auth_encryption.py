@@ -1,4 +1,4 @@
-from core.auth_v2.security import (
+from core.auth.security import (
     FernetTokenEncryptor,
     TokenDecryptionError,
 )

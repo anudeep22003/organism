@@ -26,9 +26,8 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         if request.method not in _UNSAFE_METHODS:
             return await call_next(request)
 
-        # Legacy auth routes still use the shared refresh_token cookie name but do not
-        # issue an auth_v2 csrf_token cookie yet. Bypass validation in that case until
-        # the old auth stack is removed and cookie auth is fully standardized.
+        # Some older routes may not issue the csrf_token cookie yet. Bypass validation
+        # in that case until cookie auth is standardized across the remaining surface.
         if CSRF_TOKEN_COOKIE_NAME not in request.cookies:
             return await call_next(request)
 

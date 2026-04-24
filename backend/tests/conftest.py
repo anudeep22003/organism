@@ -34,9 +34,9 @@ load_dotenv(
 
 # These imports must come after load_dotenv — pydantic-settings reads .env.local
 # but load_dotenv with override=True above ensures test values take precedence.
-from core.auth_v2.config import ACCESS_TOKEN_COOKIE_NAME  # noqa: E402
-from core.auth_v2.models.user import User  # noqa: E402
-from core.auth_v2.security import AccessTokenManager  # noqa: E402
+from core.auth.config import ACCESS_TOKEN_COOKIE_NAME  # noqa: E402
+from core.auth.models.user import User  # noqa: E402
+from core.auth.security import AccessTokenManager  # noqa: E402
 from core.config import settings  # noqa: E402
 from core.story_engine.models import Character, Project, Story  # noqa: E402
 from main import fastapi_app  # noqa: E402
