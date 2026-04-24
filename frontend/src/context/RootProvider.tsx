@@ -1,10 +1,5 @@
 import { type ReactNode } from "react";
 import { ThemeProvider } from "./ThemeContext";
-import { SocketProvider } from "./SocketContext";
-import MediaContextProvider from "./MediaContext";
-import ChatProvider from "./ChatContext";
-import UIProvider from "./UIContext";
-import MessageMaintenanceProvider from "./MessageMaintenanceContext";
 import { AuthProvider } from "@/features/auth";
 import { Provider } from "react-redux";
 import { store } from "@/store";
@@ -18,19 +13,7 @@ export const RootProvider = ({ children }: { children: ReactNode }) => {
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <Provider store={store}>
-            <TooltipProvider>
-              <SocketProvider>
-                <MediaContextProvider>
-                  <UIProvider>
-                    <ChatProvider>
-                      <MessageMaintenanceProvider>
-                        {children}
-                      </MessageMaintenanceProvider>
-                    </ChatProvider>
-                  </UIProvider>
-                </MediaContextProvider>
-              </SocketProvider>
-            </TooltipProvider>
+            <TooltipProvider>{children}</TooltipProvider>
           </Provider>
         </AuthProvider>
       </QueryClientProvider>
