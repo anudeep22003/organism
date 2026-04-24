@@ -31,7 +31,7 @@ from ..models.edit_event import (
 )
 from ..models.image import ImageContentType, ImageDiscriminatorKey
 from ..repository import NotFoundError as RepositoryNotFoundError
-from ..repository import RepositoryV2
+from ..repository import Repository
 from ..schemas.character import CharacterAttributesSchema as CharacterAttributes
 from ..storage_keys import character_render_key
 from .image_service import (
@@ -48,9 +48,9 @@ class CharacterService:
         image_service: ImageService | None = None,
     ):
         self.db = db_session
-        self.repository_v2 = RepositoryV2(db_session)
+        self.repository = Repository(db_session)
         self.image_service = image_service or ImageService(
-            db=self.db, repository_v2=self.repository_v2
+            db=self.db, repository=self.repository
         )
 
     def _build_character_refinement_prompt(
@@ -80,7 +80,7 @@ class CharacterService:
     async def get_character_history(
         self, character_id: uuid.UUID, limit: int = 20
     ) -> list[EditEvent]:
-        return await self.repository_v2.edit_event.get_edit_events_for_target(
+        return await self.repository.edit_event.get_edit_events_for_target(
             target_type=EditEventTargetType.CHARACTER,
             target_id=character_id,
             limit=limit,
@@ -99,14 +99,14 @@ class CharacterService:
         character service methods, though the character → story → project
         ownership is validated via story_id.
         """
-        character = await self.repository_v2.character.get_character(
+        character = await self.repository.character.get_character(
             character_id, story_id
         )
         if character is None:
             raise NotFoundError(
                 f"Character {character_id} not found in story {story_id}"
             )
-        return await self.repository_v2.image.get_renders_for_target(
+        return await self.repository.image.get_renders_for_target(
             target_id=character_id,
             discriminator_key=ImageDiscriminatorKey.CHARACTER_RENDER,
         )
@@ -121,12 +121,10 @@ class CharacterService:
         canonical_render_id is NULL (covers existing characters and the period
         before the user has explicitly chosen one).
         """
-        character = await self.repository_v2.character.get_character_by_id(character_id)
+        character = await self.repository.character.get_character_by_id(character_id)
         if character is not None and character.canonical_render_id is not None:
-            return await self.repository_v2.image.get_image(
-                character.canonical_render_id
-            )
-        return await self.repository_v2.image.get_canonical_render(
+            return await self.repository.image.get_image(character.canonical_render_id)
+        return await self.repository.image.get_canonical_render(
             target_id=character_id,
             discriminator_key=ImageDiscriminatorKey.CHARACTER_RENDER,
         )
@@ -139,9 +137,7 @@ class CharacterService:
         No ownership check — callers are responsible for verifying character
         access before calling this method.
         """
-        return await self.repository_v2.image.get_character_reference_images(
-            character_id
-        )
+        return await self.repository.image.get_character_reference_images(character_id)
 
     async def set_canonical_render(
         self,
@@ -156,18 +152,20 @@ class CharacterService:
         Verifies character ownership and that the image is a CHARACTER_RENDER
         belonging to this character. Returns the updated character.
         """
-        character = await self.repository_v2.character.get_character_for_user_in_project_and_story(
-            user_id=user_id,
-            project_id=project_id,
-            story_id=story_id,
-            character_id=character_id,
+        character = (
+            await self.repository.character.get_character_for_user_in_project_and_story(
+                user_id=user_id,
+                project_id=project_id,
+                story_id=story_id,
+                character_id=character_id,
+            )
         )
         if character is None:
             raise NotFoundError(
                 f"Character {character_id} not found for user {user_id} in project {project_id}"
             )
 
-        image = await self.repository_v2.image.get_image(image_id)
+        image = await self.repository.image.get_image(image_id)
         if (
             image is None
             or image.target_id != character_id
@@ -177,7 +175,7 @@ class CharacterService:
                 f"Render image {image_id} not found for character {character_id}"
             )
 
-        await self.repository_v2.character.set_canonical_render(
+        await self.repository.character.set_canonical_render(
             character_id, story_id, image_id
         )
 
@@ -190,7 +188,7 @@ class CharacterService:
             input_snapshot={"image_id": str(image_id)},
             status=EditEventStatus.SUCCEEDED,
         )
-        await self.repository_v2.edit_event.add_edit_event_to_db(edit_event)
+        await self.repository.edit_event.add_edit_event_to_db(edit_event)
 
         await self.db.commit()
         await self.db.refresh(character)
@@ -199,7 +197,7 @@ class CharacterService:
     async def extract_characters_from_story(
         self, project_id: uuid.UUID, story_id: uuid.UUID
     ) -> list[Character]:
-        story = await self.repository_v2.story.get_story(project_id, story_id)
+        story = await self.repository.story.get_story(project_id, story_id)
         if story is None:
             raise NotFoundError(f"Story {story_id} not found")
 
@@ -222,11 +220,11 @@ class CharacterService:
             )
             for c in extracted_characters
         ]
-        await self.repository_v2.character.bulk_create_characters(characters)
+        await self.repository.character.bulk_create_characters(characters)
         await self.db.commit()
 
         created_characters = (
-            await self.repository_v2.character.get_all_characters_for_a_story(story_id)
+            await self.repository.character.get_all_characters_for_a_story(story_id)
         )
 
         return list(created_characters)
@@ -284,22 +282,20 @@ class CharacterService:
     async def get_story_characters(
         self, project_id: uuid.UUID, story_id: uuid.UUID
     ) -> list[Character]:
-        story = await self.repository_v2.story.get_story(project_id, story_id)
+        story = await self.repository.story.get_story(project_id, story_id)
         if story is None:
             raise NotFoundError(f"Story {story_id} not found")
 
-        return await self.repository_v2.character.get_all_characters_for_a_story(
-            story_id
-        )
+        return await self.repository.character.get_all_characters_for_a_story(story_id)
 
     async def get_character(
         self, project_id: uuid.UUID, story_id: uuid.UUID, character_id: uuid.UUID
     ) -> Character:
-        story = await self.repository_v2.story.get_story(project_id, story_id)
+        story = await self.repository.story.get_story(project_id, story_id)
         if story is None:
             raise NotFoundError(f"Story {story_id} not found")
 
-        character = await self.repository_v2.character.get_character(
+        character = await self.repository.character.get_character(
             character_id, story_id
         )
         if character is None:
@@ -316,12 +312,12 @@ class CharacterService:
         character_id: uuid.UUID,
         updates: dict,
     ) -> Character:
-        story = await self.repository_v2.story.get_story(project_id, story_id)
+        story = await self.repository.story.get_story(project_id, story_id)
         if story is None:
             raise NotFoundError(f"Story {story_id} not found")
 
         try:
-            character = await self.repository_v2.character.update_character(
+            character = await self.repository.character.update_character(
                 character_id, story_id, updates
             )
             await self.db.commit()
@@ -337,14 +333,14 @@ class CharacterService:
         character_id: uuid.UUID,
         instruction: str,
     ) -> Character:
-        story = await self.repository_v2.story.get_story(project_id, story_id)
+        story = await self.repository.story.get_story(project_id, story_id)
         if story is None:
             raise NotFoundError(f"Story {story_id} not found")
 
         # extract fields before they expire (ORM cost)
         story_text = story.story_text
 
-        character = await self.repository_v2.character.get_character(
+        character = await self.repository.character.get_character(
             character_id, story_id
         )
         if character is None:
@@ -356,7 +352,7 @@ class CharacterService:
         character_current_attributes = dict(character.attributes)
 
         # TX1: create edit event
-        edit_event = await self.repository_v2.edit_event.create_edit_event(
+        edit_event = await self.repository.edit_event.create_edit_event(
             project_id=project_id,
             target_type=EditEventTargetType.CHARACTER,
             target_id=character_id,
@@ -378,21 +374,21 @@ class CharacterService:
             # TX2: persist refined attributes + complete edit event atomically
             async with self.db.begin_nested():
                 refined_character = (
-                    await self.repository_v2.character.replace_character_attributes(
+                    await self.repository.character.replace_character_attributes(
                         character_id,
                         story_id,
                         refined_attributes,
                         source_event_id=edit_event_id,
                     )
                 )
-                await self.repository_v2.edit_event.update_edit_event(
+                await self.repository.edit_event.update_edit_event(
                     edit_event_id,
                     EditEventStatus.SUCCEEDED,
                     output_snapshot=refined_character.attributes,
                 )
             await self.db.commit()
 
-            refreshed_character = await self.repository_v2.character.get_character(
+            refreshed_character = await self.repository.character.get_character(
                 character_id, story_id
             )
             if refreshed_character is None:
@@ -401,7 +397,7 @@ class CharacterService:
                 )
             return refreshed_character
         except Exception:
-            await self.repository_v2.edit_event.update_edit_event(
+            await self.repository.edit_event.update_edit_event(
                 edit_event_id, EditEventStatus.FAILED
             )
             await self.db.commit()
@@ -410,12 +406,12 @@ class CharacterService:
     async def delete_character(
         self, project_id: uuid.UUID, story_id: uuid.UUID, character_id: uuid.UUID
     ) -> None:
-        story = await self.repository_v2.story.get_story(project_id, story_id)
+        story = await self.repository.story.get_story(project_id, story_id)
         if story is None:
             raise NotFoundError(f"Story {story_id} not found")
 
         try:
-            await self.repository_v2.character.delete_character(character_id, story_id)
+            await self.repository.character.delete_character(character_id, story_id)
             await self.db.commit()
         except RepositoryNotFoundError as e:
             raise NotFoundError(str(e)) from e
@@ -473,7 +469,7 @@ class CharacterService:
         story_id: uuid.UUID,
         character_id: uuid.UUID,
     ) -> tuple[Character, ImageModel]:
-        character = await self.repository_v2.character.get_character(
+        character = await self.repository.character.get_character(
             character_id, story_id
         )
         if character is None:
@@ -493,7 +489,7 @@ class CharacterService:
             user_instruction="",
             status=EditEventStatus.PENDING,
         )
-        await self.repository_v2.edit_event.add_edit_event_to_db(edit_event)
+        await self.repository.edit_event.add_edit_event_to_db(edit_event)
         await self.db.flush()
         edit_event_id = edit_event.id
         await self.db.commit()
@@ -549,14 +545,14 @@ class CharacterService:
                 discriminator_key=ImageDiscriminatorKey.CHARACTER_RENDER,
                 meta={},
             )
-            await self.repository_v2.image.create_image(image_model)
+            await self.repository.image.create_image(image_model)
             await self.db.flush()
 
             # TX2: persist image row, set canonical, complete edit event atomically
-            await self.repository_v2.character.set_canonical_render(
+            await self.repository.character.set_canonical_render(
                 character_id, story_id, image_model.id
             )
-            await self.repository_v2.edit_event.update_edit_event(
+            await self.repository.edit_event.update_edit_event(
                 edit_event_id,
                 EditEventStatus.SUCCEEDED,
                 output_snapshot={"image_id": str(image_model.id)},
@@ -564,7 +560,7 @@ class CharacterService:
             await self.db.commit()
             await self.db.refresh(image_model)
 
-            refreshed_character = await self.repository_v2.character.get_character(
+            refreshed_character = await self.repository.character.get_character(
                 character_id, story_id
             )
             if refreshed_character is None:
@@ -574,7 +570,7 @@ class CharacterService:
             return refreshed_character, image_model
 
         except Exception:
-            await self.repository_v2.edit_event.update_edit_event(
+            await self.repository.edit_event.update_edit_event(
                 edit_event_id, EditEventStatus.FAILED
             )
             await self.db.commit()
@@ -619,18 +615,20 @@ class CharacterService:
         edit event and persists the image row. That image will continue to appear in
         the character's referenceImages list after this call.
         """
-        character = await self.repository_v2.character.get_character_for_user_in_project_and_story(
-            user_id=user_id,
-            project_id=project_id,
-            story_id=story_id,
-            character_id=character_id,
+        character = (
+            await self.repository.character.get_character_for_user_in_project_and_story(
+                user_id=user_id,
+                project_id=project_id,
+                story_id=story_id,
+                character_id=character_id,
+            )
         )
         if character is None:
             raise NotFoundError(
                 f"Character {character_id} not found for user {user_id} in project {project_id}"
             )
 
-        source_image = await self.repository_v2.image.get_image(source_image_id)
+        source_image = await self.repository.image.get_image(source_image_id)
         if source_image is None or source_image.target_id != character_id:
             raise NotFoundError(
                 f"Source image {source_image_id} not found for character {character_id}"
@@ -643,9 +641,7 @@ class CharacterService:
         input_snapshot: dict[str, str] = {"source_image_id": str(source_image_id)}
 
         if reference_image_id is not None:
-            reference_image = await self.repository_v2.image.get_image(
-                reference_image_id
-            )
+            reference_image = await self.repository.image.get_image(reference_image_id)
             if reference_image is None or reference_image.target_id != character_id:
                 raise NotFoundError(
                     f"Reference image {reference_image_id} not found for character {character_id}"
@@ -665,7 +661,7 @@ class CharacterService:
             input_snapshot=input_snapshot,
             status=EditEventStatus.PENDING,
         )
-        await self.repository_v2.edit_event.add_edit_event_to_db(edit_event)
+        await self.repository.edit_event.add_edit_event_to_db(edit_event)
         await self.db.flush()
         edit_event_id = edit_event.id
         await self.db.commit()
@@ -714,13 +710,13 @@ class CharacterService:
                 discriminator_key=ImageDiscriminatorKey.CHARACTER_RENDER,
                 meta={},
             )
-            await self.repository_v2.image.create_image(image_model)
+            await self.repository.image.create_image(image_model)
             await self.db.flush()
 
-            await self.repository_v2.character.set_canonical_render(
+            await self.repository.character.set_canonical_render(
                 character_id, story_id, image_model.id
             )
-            await self.repository_v2.edit_event.update_edit_event(
+            await self.repository.edit_event.update_edit_event(
                 edit_event_id,
                 EditEventStatus.SUCCEEDED,
                 output_snapshot={"image_id": str(image_model.id)},
@@ -730,7 +726,7 @@ class CharacterService:
             return image_model
 
         except Exception:
-            await self.repository_v2.edit_event.update_edit_event(
+            await self.repository.edit_event.update_edit_event(
                 edit_event_id, EditEventStatus.FAILED
             )
             await self.db.commit()
@@ -744,20 +740,20 @@ class CharacterService:
         character_id: uuid.UUID,
         image_id: uuid.UUID,
     ) -> None:
-        character = await self.repository_v2.character.get_character_for_user_in_project_and_story(
-            user_id=user_id,
-            project_id=project_id,
-            story_id=story_id,
-            character_id=character_id,
+        character = (
+            await self.repository.character.get_character_for_user_in_project_and_story(
+                user_id=user_id,
+                project_id=project_id,
+                story_id=story_id,
+                character_id=character_id,
+            )
         )
         if character is None:
             raise NotFoundError(
                 f"Character {character_id} not found for user {user_id} in project {project_id}"
             )
         try:
-            await self.repository_v2.image.delete_reference_image(
-                image_id, character_id
-            )
+            await self.repository.image.delete_reference_image(image_id, character_id)
             await self.db.commit()
         except RepositoryNotFoundError as e:
             raise NotFoundError(str(e)) from e

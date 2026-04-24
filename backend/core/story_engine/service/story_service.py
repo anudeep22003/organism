@@ -20,7 +20,7 @@ from ..models.edit_event import (
     EditEventStatus,
     EditEventTargetType,
 )
-from ..repository import RepositoryV2
+from ..repository import Repository
 from ..repository.exception import NotFoundError as RepoNotFoundError
 from ..schemas.story import GenerateStoryRequest
 
@@ -100,7 +100,7 @@ class StoryService:
         processor: StreamProcessor | None = None,
     ):
         self.db = db_session
-        self.repository_v2 = RepositoryV2(db_session)
+        self.repository = Repository(db_session)
         self.stream_generator = stream_generator or StoryStreamGenerator()
         self.processor = processor or OpenAIStreamProcessor()
 
@@ -128,12 +128,12 @@ class StoryService:
     async def get_story(
         self, project_id: uuid.UUID, story_id: uuid.UUID
     ) -> Story | None:
-        return await self.repository_v2.story.get_story(project_id, story_id)
+        return await self.repository.story.get_story(project_id, story_id)
 
     async def get_story_history(
         self, story_id: uuid.UUID, limit: int = 20
     ) -> list[EditEvent]:
-        return await self.repository_v2.edit_event.get_edit_events_for_target(
+        return await self.repository.edit_event.get_edit_events_for_target(
             target_type=EditEventTargetType.STORY, target_id=story_id, limit=limit
         )
 
@@ -151,7 +151,7 @@ class StoryService:
         Raises NotFoundError if the story does not exist in the given project.
         """
         try:
-            story = await self.repository_v2.story.update_story_meta_and_identity(
+            story = await self.repository.story.update_story_meta_and_identity(
                 project_id, story_id, meta=meta, name=name, description=description
             )
         except RepoNotFoundError as e:
@@ -167,7 +167,7 @@ class StoryService:
         story_id: uuid.UUID,
         request: GenerateStoryRequest,
     ) -> AsyncIterator[EventEnvelope]:
-        story_with_project = await self.repository_v2.story.get_story_with_project(
+        story_with_project = await self.repository.story.get_story_with_project(
             story_id
         )
         if story_with_project is None:
@@ -186,7 +186,7 @@ class StoryService:
         )
 
         # TX1: create edit event
-        edit_event = await self.repository_v2.edit_event.create_edit_event(
+        edit_event = await self.repository.edit_event.create_edit_event(
             project_id=project_id,
             target_type=EditEventTargetType.STORY,
             target_id=story_id,
@@ -226,13 +226,13 @@ class StoryService:
                     full_story = "".join(accumulator)
                     # TX2: persist story + complete edit event atomically
                     async with self.db.begin_nested():
-                        await self.repository_v2.story.update_story_with_story_text_and_user_input_text(
+                        await self.repository.story.update_story_with_story_text_and_user_input_text(
                             params.story_id,
                             full_story,
                             params.user_input_text,
                             source_event_id=params.edit_event_id,
                         )
-                        await self.repository_v2.edit_event.update_edit_event(
+                        await self.repository.edit_event.update_edit_event(
                             params.edit_event_id,
                             EditEventStatus.SUCCEEDED,
                             output_snapshot={"storyText": full_story},
@@ -240,7 +240,7 @@ class StoryService:
                     await self.db.commit()
                     break
         except Exception as e:
-            await self.repository_v2.edit_event.update_edit_event(
+            await self.repository.edit_event.update_edit_event(
                 params.edit_event_id, EditEventStatus.FAILED
             )
             await self.db.commit()

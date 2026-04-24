@@ -33,7 +33,7 @@ from core.story_engine.models.edit_event import (
 from core.story_engine.models.image import Image as ImageModel
 from core.story_engine.models.image import ImageContentType, ImageDiscriminatorKey
 from core.story_engine.models.panel_character import PanelCharacter
-from core.story_engine.repository import RepositoryV2
+from core.story_engine.repository import Repository
 from core.story_engine.service.image_service import StorageReceipt
 from tests.auth_helpers import auth_cookie_header
 
@@ -327,7 +327,7 @@ async def test_render_panel_get_canonical_render_returns_most_recent(
     db_session.add(newer)
     await db_session.commit()
 
-    repo = RepositoryV2(db_session)
+    repo = Repository(db_session)
     canonical = await repo.image.get_canonical_render(
         target_id=panel.id,
         discriminator_key=ImageDiscriminatorKey.PANEL_RENDER,

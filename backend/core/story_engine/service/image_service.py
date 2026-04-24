@@ -30,7 +30,7 @@ from ..models import (
 from ..models import (
     Image as ImageModel,
 )
-from ..repository import RepositoryV2
+from ..repository import Repository
 from ..storage_keys import character_reference_key, panel_reference_key
 
 ORIGINAL_QUALITY = 90
@@ -72,9 +72,9 @@ class ProcessedImage:
 
 
 class ImageService:
-    def __init__(self, db: AsyncSession, repository_v2: RepositoryV2):
+    def __init__(self, db: AsyncSession, repository: Repository):
         self.db = db
-        self.repository_v2 = repository_v2
+        self.repository = repository
         self.gcs_upload_service = get_gcs_upload_service()
         self.image_processor = ImageProcessor()
 
@@ -103,7 +103,7 @@ class ImageService:
             input_snapshot=None,
             status=EditEventStatus.PENDING,
         )
-        await self.repository_v2.edit_event.add_edit_event_to_db(edit_event)
+        await self.repository.edit_event.add_edit_event_to_db(edit_event)
         await self.db.flush()
         edit_event_id = edit_event.id
         object_storage_key = key_builder(edit_event_id)
@@ -132,10 +132,10 @@ class ImageService:
             image_models_to_create.append(image_model)
 
         for image_model in image_models_to_create:
-            await self.repository_v2.image.create_image(image_model)
+            await self.repository.image.create_image(image_model)
         await self.db.flush()
         first_image = image_models_to_create[0]
-        await self.repository_v2.edit_event.update_edit_event(
+        await self.repository.edit_event.update_edit_event(
             edit_event_id=edit_event_id,
             status=EditEventStatus.SUCCEEDED,
             output_snapshot={"image_id": str(first_image.id)},
@@ -198,16 +198,14 @@ class ImageService:
         await self._get_authorized_character(
             user_id, project_id, story_id, character_id
         )
-        return await self.repository_v2.image.get_character_reference_images(
-            character_id
-        )
+        return await self.repository.image.get_character_reference_images(character_id)
 
     async def get_signed_url(
         self,
         image_id: uuid.UUID,
         user_id: uuid.UUID,
     ) -> tuple[str, datetime.datetime]:
-        image = await self.repository_v2.image.get_image(image_id)
+        image = await self.repository.image.get_image(image_id)
         if image is None or image.user_id != user_id:
             raise NotFoundError(f"Image {image_id} not found")
         url, expires_at = self.gcs_upload_service.generate_signed_url(image.object_key)
@@ -220,8 +218,10 @@ class ImageService:
         story_id: uuid.UUID,
         character_id: uuid.UUID,
     ) -> Character:
-        character = await self.repository_v2.character.get_character_for_user_in_project_and_story(
-            user_id, project_id, story_id, character_id
+        character = (
+            await self.repository.character.get_character_for_user_in_project_and_story(
+                user_id, project_id, story_id, character_id
+            )
         )
         if character is None:
             raise NotFoundError(
@@ -237,10 +237,10 @@ class ImageService:
         panel_id: uuid.UUID,
     ) -> Panel:
         """Verify the story exists in the project, then verify the panel belongs to that story."""
-        story = await self.repository_v2.story.get_story(project_id, story_id)
+        story = await self.repository.story.get_story(project_id, story_id)
         if story is None:
             raise NotFoundError(f"Story {story_id} not found in project {project_id}")
-        panel = await self.repository_v2.panel.get_panel(panel_id, story_id)
+        panel = await self.repository.panel.get_panel(panel_id, story_id)
         if panel is None:
             raise NotFoundError(f"Panel {panel_id} not found in story {story_id}")
         return panel

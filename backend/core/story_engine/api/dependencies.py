@@ -9,7 +9,7 @@ from core.auth.api import get_current_user_id
 from core.services.database import get_async_db_session
 
 from ..models import Project
-from ..repository import RepositoryV2
+from ..repository import Repository
 from ..service import (
     CharacterService,
     ImageService,
@@ -61,7 +61,7 @@ async def get_character_service(
 async def get_image_service(
     db: Annotated[AsyncSession, Depends(get_async_db_session)],
 ) -> ImageService:
-    return ImageService(db=db, repository_v2=RepositoryV2(db))
+    return ImageService(db=db, repository=Repository(db))
 
 
 async def get_panel_service(
