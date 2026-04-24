@@ -77,7 +77,7 @@ Example:
 
 Shared infrastructure can stay explicit:
 - `core.common`
-- `core.services.database`
+- `core.infrastructure.database`
 - `core.config`
 
 Do not create flat compatibility shim files just to re-export moved modules. If a symbol needs to cross the package boundary, export it from `core/auth/__init__.py`.
