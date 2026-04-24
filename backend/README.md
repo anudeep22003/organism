@@ -81,7 +81,8 @@ Each character is rendered individually via FAL. Prompts are **type-aware** — 
 
 ### Phase 4: Panel Generation
 
-The story text and a **cast list** (available character names from the AssetManager) are sent to GPT-4o. The LLM breaks the story into panel descriptions, each with:
+The story text and available character context are sent to GPT-4o. The LLM
+breaks the story into panel descriptions, each with:
 
 - `background` — scene description
 - `characters` — list of character names (constrained to the cast list)
@@ -89,21 +90,12 @@ The story text and a **cast list** (available character names from the AssetMana
 
 ### Phase 5: Panel Rendering
 
-For each panel, the AssetManager resolves character names → image URLs. If characters are present, an **edit model** composites them into the scene. If no characters are present, a **generation model** creates the scene from text alone. Results are stored as `Artifact` on each panel.
-
-### Phase 6: Bulk Panel Rendering
-
-Renders all panels sequentially, emitting a WebSocket `state.updated` event after each panel so the UI can show progress.
+For each panel, the backend resolves the required character renders and uses
+the appropriate image generation flow to create the final panel image.
 
 ### Key Design Decisions
 
-**JSONB State Storage** — The entire `ConsolidatedComicState` (story + characters + panels) is stored as a single JSONB column on the `Project` model. This keeps the schema simple and allows atomic state updates.
-
-**Asset Manager for Character Consistency** — The `AssetManager` provides slug-normalized name → UUID → URL resolution, ensuring panels reference the correct character images. Missing characters are handled gracefully (logged and skipped).
-
 **Concurrent Media Generation** — The `ConcurrentMediaGenerator` wraps all FAL calls behind an `asyncio.Semaphore(10)` to prevent overwhelming the external API. It also handles **model selection** — choosing between generation and edit models based on whether character image URLs are provided.
-
-**WebSocket Notifications** — Long-running operations (character renders, panel renders) emit Socket.IO events so the frontend can update in real-time without polling.
 
 ## API Endpoints
 
