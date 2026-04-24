@@ -1,12 +1,12 @@
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/features/auth";
-import { myProjectOptions } from "@/features/story/projects/projects.queries";
 import { useQuery } from "@tanstack/react-query";
 import { Outlet, useNavigate, useParams } from "react-router";
 import { SceneEngineProvider, useSceneEngine } from "./context";
 import { SCENE_STEPS } from "./steps";
 import Stepper from "./components/Stepper";
 import StepperControls from "./components/StepperControls";
+import { currentProjectOptions } from "./stories/stories.queries";
 
 function SceneEngineShell() {
   const { logout } = useAuth();
@@ -64,9 +64,9 @@ function SceneEngineShell() {
 
 function SceneEngineLayoutInner() {
   const { storyId } = useParams<{ storyId: string }>();
-  const { data: myProject } = useQuery(myProjectOptions);
+  const { data: currentProject } = useQuery(currentProjectOptions);
 
-  if (!myProject || !storyId) {
+  if (!currentProject || !storyId) {
     return (
       <div className="flex h-screen items-center justify-center">
         <span className="text-xs text-muted-foreground">Loading...</span>
@@ -75,7 +75,7 @@ function SceneEngineLayoutInner() {
   }
 
   return (
-    <SceneEngineProvider projectId={myProject.id} storyId={storyId}>
+    <SceneEngineProvider projectId={currentProject.id} storyId={storyId}>
       <SceneEngineShell />
     </SceneEngineProvider>
   );

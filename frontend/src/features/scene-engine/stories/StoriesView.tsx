@@ -1,19 +1,19 @@
-import { myProjectOptions } from "@/features/story/projects/projects.queries";
-import type { StoryListEntryType } from "@/features/story/shared/story.types";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { Skeleton } from "../components/Skeleton";
 import { NewStoryModal } from "./NewStoryModal";
+import { currentProjectOptions } from "./stories.queries";
+import type { StoryListItem } from "./stories.types";
 
 function StoryGrid({
   stories,
   isEditMode,
   onCardClick,
 }: {
-  stories: StoryListEntryType[];
+  stories: StoryListItem[];
   isEditMode: boolean;
-  onCardClick: (story: StoryListEntryType) => void;
+  onCardClick: (story: StoryListItem) => void;
 }) {
   const navigate = useNavigate();
 
@@ -70,8 +70,8 @@ function StoriesGridSkeleton() {
 export default function StoriesView() {
   const [showModal, setShowModal] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [editingStory, setEditingStory] = useState<StoryListEntryType | null>(null);
-  const { data: myProject, isLoading } = useQuery(myProjectOptions);
+  const [editingStory, setEditingStory] = useState<StoryListItem | null>(null);
+  const { data: currentProject, isLoading } = useQuery(currentProjectOptions);
 
   const handleDismiss = () => {
     setShowModal(false);
@@ -79,15 +79,15 @@ export default function StoriesView() {
     setIsEditMode(false);
   };
 
-  const handleCardClick = (story: StoryListEntryType) => {
+  const handleCardClick = (story: StoryListItem) => {
     setEditingStory(story);
   };
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col gap-4 p-6">
-      {(showModal || editingStory) && myProject && (
+      {(showModal || editingStory) && currentProject && (
         <NewStoryModal
-          projectId={myProject.id}
+          projectId={currentProject.id}
           story={editingStory ?? undefined}
           onDismiss={handleDismiss}
         />
@@ -119,7 +119,7 @@ export default function StoriesView() {
         <StoriesGridSkeleton />
       ) : (
         <StoryGrid
-          stories={myProject?.stories ?? []}
+          stories={currentProject?.stories ?? []}
           isEditMode={isEditMode}
           onCardClick={handleCardClick}
         />

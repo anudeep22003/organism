@@ -1,8 +1,7 @@
 import { httpClient } from "@/lib/httpClient";
-import { myProjectOptions } from "@/features/story/projects/projects.queries";
+import { STORY_API_BASE } from "@scene-engine/shared/scene-engine.constants";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-
-const STORY_API_BASE = "/api/comic-builder/v2" as const;
+import { currentProjectOptions } from "../stories.queries";
 
 type DeleteStoryPayload = {
   projectId: string;
@@ -18,6 +17,8 @@ export const useDeleteStory = () => {
         `${STORY_API_BASE}/projects/${projectId}/story/${storyId}`,
       ),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: myProjectOptions.queryKey }),
+      queryClient.invalidateQueries({
+        queryKey: currentProjectOptions.queryKey,
+      }),
   });
 };
