@@ -366,11 +366,12 @@ This module expects infra to provide:
 - `AUTH_SESSION_SECRET`
 - `FERNET_ENCRYPTION_KEY`
 - `FRONTEND_URL`
+- `API_URL`
 
 There is an infra handoff note in `.notes/auth-infra-handoff.md`.
 
 Important deployment assumptions:
-- Google OAuth authorized redirect URI must be `${BACKEND_URL}/api/auth/callback`
+- Google OAuth authorized redirect URI must be `${API_URL}/api/auth/callback`
 - cookie auth currently assumes same-site frontend/backend deployment characteristics because cookies use `SameSite=Lax`
 
 ## Testing Guidance
