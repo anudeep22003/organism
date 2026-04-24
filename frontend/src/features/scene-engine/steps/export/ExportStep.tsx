@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { BACKEND_URL } from "@/constants";
 import { useSceneEngine } from "@scene-engine/context";
-import { STORY_API_BASE } from "@scene-engine/shared/scene-engine.constants";
+import { STORY_API_BASE } from "@scene-engine/core/scene-engine.constants";
 
 type ExportFormat = "zip" | "instagram" | "pdf";
 

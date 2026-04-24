@@ -1,5 +1,5 @@
 import { httpClient } from "@/lib/httpClient";
-import { STORY_API_BASE } from "@scene-engine/shared/scene-engine.constants";
+import { STORY_API_BASE } from "@scene-engine/core/scene-engine.constants";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { currentProjectOptions } from "../stories.queries";
 

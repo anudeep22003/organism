@@ -1,5 +1,5 @@
 import { httpClient } from "@/lib/httpClient";
-import { STORY_API_BASE } from "@scene-engine/shared/scene-engine.constants";
+import { STORY_API_BASE } from "@scene-engine/core/scene-engine.constants";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { charactersOptions } from "../../character.queries";
 import { spliceCharacterIntoList, uploadReferenceImageRequest, buildHttpErrorMessage } from "../../character.utils";

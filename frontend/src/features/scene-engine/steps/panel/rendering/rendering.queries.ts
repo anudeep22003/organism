@@ -1,7 +1,7 @@
 import { httpClient } from "@/lib/httpClient";
 import { queryOptions } from "@tanstack/react-query";
-import { STORY_API_BASE, STORY_QUERY_ROOT } from "@scene-engine/shared/scene-engine.constants";
-import type { ImageRecord } from "@scene-engine/shared/scene-engine.types";
+import { STORY_API_BASE, STORY_QUERY_ROOT } from "@scene-engine/core/scene-engine.constants";
+import type { ImageRecord } from "@scene-engine/core/scene-engine.types";
 
 export const panelRendersOptions = (
   projectId: string,
