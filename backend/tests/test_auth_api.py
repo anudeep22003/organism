@@ -20,6 +20,7 @@ from core.auth.security import (
     get_encryptor,
     reset_auth_rate_limiter,
 )
+from core.config import settings
 
 
 @pytest.fixture(autouse=True)
@@ -103,7 +104,7 @@ async def test_google_auth_login_redirects_to_google(api_client: AsyncClient) ->
     assert response.headers["location"].startswith("https://accounts.google.com/")
     mock_google_client.authorize_redirect.assert_awaited_once()
     redirect_uri = mock_google_client.authorize_redirect.await_args.args[1]
-    assert redirect_uri == "https://api.dekatha.com/api/auth/callback"
+    assert redirect_uri == f"{settings.api_url}/api/auth/callback"
 
 
 async def test_google_auth_login_rate_limit_returns_429(

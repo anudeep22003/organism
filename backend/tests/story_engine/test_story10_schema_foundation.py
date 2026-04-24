@@ -166,6 +166,8 @@ async def test_render_character_creates_image_row_with_character_render_discrimi
         bucket="test-bucket",
     )
     fake_image_bytes = _make_minimal_jpeg().read()
+    mock_gcs_service = MagicMock()
+    mock_gcs_service.upload.return_value = mock_receipt
 
     with (
         patch(
@@ -174,8 +176,8 @@ async def test_render_character_creates_image_row_with_character_render_discrimi
             return_value=_mock_fal_response(),
         ),
         patch(
-            "core.story_engine.service.character_service.GCSUploadService.upload",
-            return_value=mock_receipt,
+            "core.story_engine.service.character_service.get_gcs_upload_service",
+            return_value=mock_gcs_service,
         ),
         patch(
             "core.story_engine.service.character_service.httpx.AsyncClient",
@@ -225,6 +227,8 @@ async def test_render_character_does_not_update_render_url(
         bucket="test-bucket",
     )
     fake_image_bytes = _make_minimal_jpeg().read()
+    mock_gcs_service = MagicMock()
+    mock_gcs_service.upload.return_value = mock_receipt
 
     with (
         patch(
@@ -233,8 +237,8 @@ async def test_render_character_does_not_update_render_url(
             return_value=_mock_fal_response(),
         ),
         patch(
-            "core.story_engine.service.character_service.GCSUploadService.upload",
-            return_value=mock_receipt,
+            "core.story_engine.service.character_service.get_gcs_upload_service",
+            return_value=mock_gcs_service,
         ),
         patch(
             "core.story_engine.service.character_service.httpx.AsyncClient",
@@ -276,6 +280,8 @@ async def test_render_character_twice_creates_two_image_rows(
         bucket="test-bucket",
     )
     fake_image_bytes = _make_minimal_jpeg().read()
+    mock_gcs_service = MagicMock()
+    mock_gcs_service.upload.return_value = mock_receipt
 
     def _make_mock_httpx() -> AsyncMock:
         mock_resp = MagicMock()
@@ -295,8 +301,8 @@ async def test_render_character_twice_creates_two_image_rows(
             return_value=_mock_fal_response(),
         ),
         patch(
-            "core.story_engine.service.character_service.GCSUploadService.upload",
-            return_value=mock_receipt,
+            "core.story_engine.service.character_service.get_gcs_upload_service",
+            return_value=mock_gcs_service,
         ),
         patch(
             "core.story_engine.service.character_service.httpx.AsyncClient",
