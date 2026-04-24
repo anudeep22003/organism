@@ -5,8 +5,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from core.auth.api import get_current_user_id
 
-from ...exceptions import NotFoundError
-from ...schemas import (
+from ..exceptions import NotFoundError
+from ..schemas import (
     ProjectCreateSchema,
     ProjectListResponseSchema,
     ProjectRelationalStateSchema,
@@ -15,8 +15,8 @@ from ...schemas import (
     StoryCreateSchema,
     StoryResponseSchema,
 )
-from ...service import ProjectService
-from ..dependencies import get_project_service
+from ..service import ProjectService
+from .dependencies import get_project_service
 
 router = APIRouter(tags=["comic", "builder", "v2", "projects"])
 

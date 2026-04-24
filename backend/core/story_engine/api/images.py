@@ -6,10 +6,10 @@ from loguru import logger
 
 from core.auth.api import get_current_user_id
 
-from ...exceptions import NotFoundError
-from ...schemas.image import ImageSignedUrlResponseSchema
-from ...service import ImageService
-from ..dependencies import get_image_service
+from ..exceptions import NotFoundError
+from ..schemas.image import ImageSignedUrlResponseSchema
+from ..service import ImageService
+from .dependencies import get_image_service
 
 router = APIRouter(tags=["images", "v2"])
 
