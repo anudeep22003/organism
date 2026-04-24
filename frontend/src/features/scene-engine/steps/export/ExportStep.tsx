@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BACKEND_URL } from "@/constants";
+import { BACKEND_URL } from "@/config";
 import { useSceneEngine } from "@scene-engine/context";
 import { STORY_API_BASE } from "@scene-engine/core/scene-engine.constants";
 

@@ -5,9 +5,9 @@ import {
   AuthSuccessPage,
   RequireAuth,
   RequireGuest,
-} from "./features/auth";
-import { sceneEngineRoutes } from "./features/scene-engine/routes";
-import { storiesRoutes } from "./features/scene-engine/stories/stories.routes";
+} from "../features/auth";
+import { sceneEngineRoutes } from "../features/scene-engine/routes";
+import { storiesRoutes } from "../features/scene-engine/stories/stories.routes";
 
 export const routes = [
   {
