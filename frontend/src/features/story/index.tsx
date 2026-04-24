@@ -1,1 +1,0 @@
-export { legacyStoryRoutes } from "./routes";
