@@ -37,6 +37,10 @@ def _frontend_auth_redirect(path: str) -> str:
     return f"{settings.frontend_url.rstrip('/')}{path}"
 
 
+def _google_callback_url() -> str:
+    return f"{settings.api_url.rstrip('/')}/api/auth/callback"
+
+
 @router.get("/login")
 async def login(
     request: Request,
@@ -46,7 +50,6 @@ async def login(
     ],
 ) -> RedirectResponse:
     google = oauth.create_client("google")
-    redirect_uri = str(request.url_for("callback"))
     user_agent, ip = client_context
     log_auth_event(
         "auth.login.started",
@@ -56,7 +59,7 @@ async def login(
     )
     return await google.authorize_redirect(  # type: ignore[no-any-return]
         request,
-        redirect_uri,
+        _google_callback_url(),
         access_type="offline",
         prompt="consent",
     )

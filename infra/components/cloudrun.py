@@ -51,6 +51,7 @@ import pulumi_gcp as gcp
 
 from components.config import (
     APP,
+    API_URL,
     FRONTEND_URL,
     GOOGLE_OAUTH_CLIENT_ID,
     IMAGE_TAG,
@@ -107,6 +108,8 @@ class CloudRunService(pulumi.ComponentResource):
                 # Canonical frontend origin for auth redirects and browser CORS.
                 # Not a secret — it is a public origin, not a credential.
                 "FRONTEND_URL": FRONTEND_URL,
+                # Canonical external backend origin used for absolute callback URLs.
+                "API_URL": API_URL,
                 # Public OAuth client identifier used to start the Google auth flow.
                 "GOOGLE_OAUTH_CLIENT_ID": GOOGLE_OAUTH_CLIENT_ID,
                 # Disables FastAPI's /docs, /redoc, and /openapi.json in Cloud Run.
