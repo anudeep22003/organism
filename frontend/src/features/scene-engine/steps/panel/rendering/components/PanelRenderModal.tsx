@@ -5,7 +5,7 @@ import PromptInput from "@scene-engine/components/PromptInput";
 import { Skeleton } from "@scene-engine/components/Skeleton";
 import { useSceneEngine } from "@scene-engine/context";
 import type { PanelBundle } from "../../panel.types";
-import type { ImageRecord } from "@scene-engine/shared/scene-engine.types";
+import type { ImageRecord } from "@scene-engine/core/scene-engine.types";
 import { panelRendersOptions } from "../rendering.queries";
 import { usePanelRendering } from "../hooks/usePanelRendering";
 import { Carousel } from "./Carousel";

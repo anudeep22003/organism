@@ -5,7 +5,7 @@ import PromptInput from "@scene-engine/components/PromptInput";
 import { Skeleton } from "@scene-engine/components/Skeleton";
 import { useSceneEngine } from "@scene-engine/context";
 import type { CharacterBundle } from "../../character.types";
-import type { ImageRecord } from "@scene-engine/shared/scene-engine.types";
+import type { ImageRecord } from "@scene-engine/core/scene-engine.types";
 import { characterRendersOptions } from "../rendering.queries";
 import { useCharacterRendering } from "../hooks/useCharacterRendering";
 import { Carousel } from "./Carousel";
