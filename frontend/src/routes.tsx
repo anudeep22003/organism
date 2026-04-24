@@ -8,7 +8,6 @@ import {
 } from "./features/auth";
 import { sceneEngineRoutes } from "./features/scene-engine/routes";
 import { storiesRoutes } from "./features/scene-engine/stories/stories.routes";
-import { legacyStoryRoutes } from "./features/story";
 
 export const routes = [
   {
@@ -20,7 +19,6 @@ export const routes = [
       },
       ...storiesRoutes,
       ...sceneEngineRoutes,
-      ...legacyStoryRoutes,
     ],
   },
   {
