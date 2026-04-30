@@ -72,20 +72,18 @@ class Event(ORMBase):
     )
 
     @classmethod
-    def create(
+    def create_pending_event(
         cls,
         *,
         event_type: str,
+        payload: dict[str, Any],
         aggregate_type: str | None = None,
         aggregate_id: uuid.UUID | None = None,
-        payload: dict[str, Any] | None = None,
-        available_at: datetime | None = None,
     ) -> "Event":
         return cls(
             event_type=event_type,
             aggregate_type=aggregate_type,
             aggregate_id=aggregate_id,
-            payload=payload or {},
+            payload=payload,
             status=EventStatus.PENDING.value,
-            available_at=available_at or get_current_datetime_utc(),
         )
