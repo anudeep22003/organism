@@ -4,8 +4,13 @@ from typing import Annotated
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
 from loguru import logger
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import settings
+from core.events.emitter import emit_event
+from core.events.models import AggregateType, EventType
+from core.events.schemas import EmitEventSchema
+from core.infrastructure.database import get_async_db_session
 
 from ..config import CSRF_TOKEN_COOKIE_NAME, REFRESH_TOKEN_COOKIE_NAME
 from ..exceptions import (
@@ -73,6 +78,7 @@ async def callback(
     client_context: Annotated[
         tuple[str | None, str | None], Depends(get_request_client_context)
     ],
+    db_session: Annotated[AsyncSession, Depends(get_async_db_session)],
 ) -> RedirectResponse:
     user_agent, ip = client_context
     google_sub: str | None = None
@@ -93,6 +99,15 @@ async def callback(
             token=token,
             user_agent=user_agent,
             ip=ip,
+        )
+        await emit_event(
+            event=EmitEventSchema(
+                event_type=EventType.USER_CREATED,
+                aggregate_type=AggregateType.USER,
+                aggregate_id=result.user_id,
+                payload={"dummy": "payload"},
+            ),
+            db_session=db_session,
         )
         log_auth_event(
             "auth.login.succeeded",
