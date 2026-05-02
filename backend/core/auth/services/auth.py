@@ -1,7 +1,11 @@
 import uuid
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from core.events.emitter import emit_event
+from core.events.models import AggregateType, EventType
+from core.events.schemas import EmitEventSchema
 
 from ..exceptions import UserNotFoundError
 from ..models import User
@@ -59,6 +63,15 @@ class AuthService:
             ip=ip,
         )
         await self.db.commit()
+        await emit_event(
+            event=EmitEventSchema(
+                event_type=EventType.USER_CREATED,
+                aggregate_type=AggregateType.USER,
+                aggregate_id=callback_user.user_id,
+                payload=asdict(callback_user),
+            ),
+            db_session=self.db,
+        )
         return CallbackResult(user_id=callback_user.user_id, tokens=tokens)
 
     async def get_current_user(self, user_id: uuid.UUID) -> User:
