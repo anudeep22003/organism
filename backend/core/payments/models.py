@@ -55,6 +55,7 @@ class StripeCustomerModel(ORMBase):
         stripe_created_at: datetime,
         livemode: bool,
         raw_stripe_object: dict,
+        stripe_object: str,
     ) -> StripeCustomerModel:
         return cls(
             user_id=user_id,
@@ -62,4 +63,5 @@ class StripeCustomerModel(ORMBase):
             stripe_created_at=stripe_created_at,
             livemode=livemode,
             raw_stripe_object=raw_stripe_object,
+            stripe_object=stripe_object,
         )
