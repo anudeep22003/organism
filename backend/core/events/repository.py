@@ -1,5 +1,6 @@
 import uuid
 from collections.abc import Sequence
+from datetime import datetime
 
 from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,3 +28,21 @@ class EventRepository:
         )
         result = await self.db.execute(query)
         return result.scalars().all()
+
+    async def update_event(
+        self,
+        event: Event,
+        *,
+        status: EventStatus,
+        claimed_at: datetime,
+        processed_at: datetime,
+        failed_at: datetime | None,
+        last_error: str | None,
+    ) -> None:
+        event.update_event(
+            status=status,
+            claimed_at=claimed_at,
+            processed_at=processed_at,
+            failed_at=failed_at,
+            last_error=last_error,
+        )

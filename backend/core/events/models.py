@@ -87,3 +87,20 @@ class Event(ORMBase):
             payload=payload,
             status=EventStatus.PENDING.value,
         )
+
+    def update_event(
+        event: Event,
+        *,
+        status: EventStatus,
+        claimed_at: datetime,
+        processed_at: datetime,
+        failed_at: datetime | None,
+        last_error: str | None,
+    ) -> None:
+        event.status = status.value
+        event.claimed_at = claimed_at
+        event.processed_at = processed_at
+        event.failed_at = failed_at
+        if last_error is not None:
+            event.last_error = last_error
+        event.attempt_count += 1

@@ -68,7 +68,9 @@ class AuthService:
                 event_type=EventType.USER_CREATED,
                 aggregate_type=AggregateType.USER,
                 aggregate_id=callback_user.user_id,
-                payload=asdict(callback_user),
+                payload=asdict(
+                    callback_user
+                ),  # the payload that contains the information for stripe to create a customer
             ),
             db_session=self.db,
         )

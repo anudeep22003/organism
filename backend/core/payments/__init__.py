@@ -1,3 +1,3 @@
-from .models import StripeCustomer
+from .models import StripeCustomerModel
 
-__all__ = ["StripeCustomer"]
+__all__ = ["StripeCustomerModel"]
