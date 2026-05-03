@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Awaitable, Callable
 
+from core.infrastructure.database import get_async_session_maker
+
 from .models import Event, EventStatus, EventType
 from .repository import EventRepository
 
@@ -44,7 +46,6 @@ DispatchHandlerMap = dict[
 class EventDispatcher:
     def __init__(
         self,
-        repository: "EventRepository",
         dispatch_handlers_map: DispatchHandlerMap,
     ) -> None:
         self.repository = repository
@@ -71,14 +72,16 @@ class EventDispatcher:
     async def _confirm_handling_fn(
         self, event_id: uuid.UUID, params: UpdateEventParams
     ) -> None:
-        event = await self.repository.get_event_by_id(event_id)
-        if event is None:
-            raise EventNotFoundError(f"Event {event_id} not found")
-        await self.repository.update_event(
-            event,
-            status=params.status,
-            claimed_at=params.claimed_at,
-            processed_at=params.processed_at,
-            failed_at=params.failed_at,
-            last_error=params.last_error,
-        )
+        async with get_async_session_maker()() as db_session:
+            event = await self.repository.get_event_by_id(event_id)
+            if event is None:
+                raise EventNotFoundError(f"Event {event_id} not found")
+            await self.repository.update_event(
+                event,
+                status=params.status,
+                claimed_at=params.claimed_at,
+                processed_at=params.processed_at,
+                failed_at=params.failed_at,
+                last_error=params.last_error,
+            )
+            await db_session.commit()

@@ -1,3 +1,5 @@
+import uuid
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,7 +16,7 @@ class PaymentsRepository:
         self.db.add(stripe_customer)
 
     async def get_stripe_customer_by_user_id(
-        self, user_id: str
+        self, user_id: uuid.UUID
     ) -> StripeCustomerModel | None:
         query = select(StripeCustomerModel).where(
             StripeCustomerModel.user_id == user_id

@@ -1,5 +1,5 @@
 import uuid
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -68,11 +68,12 @@ class AuthService:
                 event_type=EventType.USER_CREATED,
                 aggregate_type=AggregateType.USER,
                 aggregate_id=callback_user.user_id,
-                payload=asdict(
-                    callback_user
-                ),  # the payload that contains the information for stripe to create a customer
+                payload={
+                    "user_id": str(callback_user.user_id),
+                    "email": callback_user.email,
+                    "name": callback_user.name or None,
+                },
             ),
-            db_session=self.db,
         )
         return CallbackResult(user_id=callback_user.user_id, tokens=tokens)
 
