@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from loguru import logger
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
-from stripe import Customer
+from stripe import Customer, RequestOptions
 from stripe.params import CustomerCreateParams
 
 from core.infrastructure.stripe_client import get_stripe_client
@@ -59,7 +59,9 @@ class PaymentsService:
 
         # create a customer at stripe
         try:
-            stripe_customer = await self._create_customer_at_stripe(email, name)
+            stripe_customer = await self._create_customer_at_stripe(
+                email=email, internal_user_id=user_id, name=name
+            )
         except Exception as e:
             logger.error(f"Error creating customer at stripe: {e}")
             raise
@@ -79,14 +81,19 @@ class PaymentsService:
         return
 
     async def _create_customer_at_stripe(
-        self, email: str, name: str | None = None
+        self, *, email: str, internal_user_id: uuid.UUID, name: str | None
     ) -> Customer:
-        if name:
-            params = CustomerCreateParams(name=name, email=email)
-        else:
-            params = CustomerCreateParams(email=email)
+        params = CustomerCreateParams(
+            name=name or "No name on google account",
+            email=email,
+            metadata={"internal_user_id": str(internal_user_id)},
+        )
+        options = RequestOptions(
+            idempotency_key=str(internal_user_id),
+        )
         stripe_customer = await self.stripe_client.v1.customers.create_async(
-            params=params
+            params=params,
+            options=options,
         )
         logger.info(f"Stripe customer created: {stripe_customer}")
         return stripe_customer
