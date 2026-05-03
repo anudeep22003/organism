@@ -7,7 +7,7 @@ from core.config import settings
 
 
 @lru_cache(maxsize=1)
-def _get_session_maker() -> "async_sessionmaker[AsyncSession]":
+def get_async_session_maker() -> "async_sessionmaker[AsyncSession]":
     """Create the SQLAlchemy async engine and session factory — once, on first call.
 
     @lru_cache(maxsize=1) means this function body executes exactly once regardless
@@ -32,5 +32,5 @@ async def get_async_db_session() -> AsyncGenerator[AsyncSession, None]:
     The session is created from the lazily-initialised session_maker. The engine
     is opened on the very first request that touches the database, not at startup.
     """
-    async with _get_session_maker()() as session:
+    async with get_async_session_maker()() as session:
         yield session
