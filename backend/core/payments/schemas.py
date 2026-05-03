@@ -4,11 +4,11 @@ from pydantic import BaseModel, ConfigDict
 
 
 class StripeCreateCustomerSchema(BaseModel):
-    name: str
+    name: str | None = None
     email: str
 
 
-class StripeCustomerResponse(BaseModel):
+class StripeCustomerResponseSchema(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     id: str

@@ -14,6 +14,8 @@ from ..security import PasswordHasher, TokenDecryptionError, TokenEncryptor
 @dataclass(frozen=True, slots=True)
 class CallbackUserResult:
     user_id: uuid.UUID
+    email: str
+    name: str | None = None
 
 
 class OAuthService:
@@ -72,7 +74,9 @@ class OAuthService:
             await self.repository.google_oauth_account.update_google_oauth_account(
                 google_account
             )
-            return CallbackUserResult(user_id=google_account.user_id)
+            return CallbackUserResult(
+                user_id=google_account.user_id, email=email, name=name
+            )
 
         user = await self.repository.user.get_user_by_email(email)
         if user is None:
@@ -99,7 +103,7 @@ class OAuthService:
         await self.repository.google_oauth_account.create_google_oauth_account(
             google_account
         )
-        return CallbackUserResult(user_id=user.id)
+        return CallbackUserResult(user_id=user.id, email=email, name=name)
 
     async def get_current_user(self, user_id: uuid.UUID) -> User | None:
         return await self.repository.user.get_user_by_id(user_id)
