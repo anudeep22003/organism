@@ -6,10 +6,8 @@ from typing import Literal
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.payments.event_handler import PaymentsEventHandler
-
-from .dispatcher import DispatchHandlerMap, EventDispatcher
-from .models import Event, EventType
+from .dispatcher import EventDispatcher
+from .models import Event
 from .repository import EventRepository
 from .schemas import EmitEventSchema
 
@@ -24,16 +22,7 @@ class EventService:
     def __init__(self, db_session: AsyncSession) -> None:
         self.db = db_session
         self.repository = EventRepository(db_session)
-        self.payments_event_handler = PaymentsEventHandler(db_session)
-        self.dispatcher = EventDispatcher(
-            dispatch_handlers_map=self._dispatch_handler_map(),
-            repository=self.repository,
-        )
-
-    def _dispatch_handler_map(self) -> DispatchHandlerMap:
-        return {
-            EventType.USER_CREATED: [self.payments_event_handler.handle],
-        }
+        self.dispatcher = EventDispatcher()
 
     async def emit_event(
         self,
