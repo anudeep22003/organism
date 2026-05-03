@@ -1,7 +1,9 @@
 import uuid
-from dataclasses import dataclass
 from datetime import datetime
 from typing import Awaitable, Callable
+
+from loguru import logger
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.infrastructure.database import get_async_session_maker
 
@@ -15,73 +17,53 @@ class EventNotFoundError(Exception):
     pass
 
 
-@dataclass(frozen=True, slots=True)
-class UpdateEventParams:
-    event_id: uuid.UUID
-    status: EventStatus
-    processed_at: datetime
-    claimed_at: datetime
-    failed_at: datetime | None
-    last_error: str | None
-
-
-@dataclass(frozen=True, slots=True)
-class DispatchEventForHandling:
-    event_id: uuid.UUID
-    event_retreiver_fn: Callable[
-        [uuid.UUID], Awaitable[Event]
-    ]  # to get the event from the db
-    confirm_handling_fn: (
-        Callable[
-            [uuid.UUID, UpdateEventParams], Awaitable[None]
-        ]  # to succeed, fail, or error after attempting to handle
-    )
-
-
-DispatchHandlerMap = dict[
-    EventType, list[Callable[[DispatchEventForHandling], Awaitable[None]]]
-]
+DispatchHandler = Callable[[Event], Awaitable[None]]
 
 
 class EventDispatcher:
-    def __init__(
-        self,
-        dispatch_handlers_map: DispatchHandlerMap,
-    ) -> None:
-        self.repository = repository
-        self.dispatch_handlers_map = dispatch_handlers_map
-
     async def dispatch_event_for_handling(
         self, event_id: uuid.UUID, event_type: EventType
     ) -> None:
-        dispatch_event_for_handling = DispatchEventForHandling(
-            event_id=event_id,
-            event_retreiver_fn=self._retreive_event_for_handling,
-            confirm_handling_fn=self._confirm_handling_fn,
-        )
-        handlers = self.dispatch_handlers_map[event_type]
-        for handler in handlers:
-            await handler(dispatch_event_for_handling)
-
-    async def _retreive_event_for_handling(self, event_id: uuid.UUID) -> Event:
-        event = await self.repository.get_event_by_id(event_id)
-        if event is None:
-            raise EventNotFoundError(f"Event {event_id} not found")
-        return event
-
-    async def _confirm_handling_fn(
-        self, event_id: uuid.UUID, params: UpdateEventParams
-    ) -> None:
         async with get_async_session_maker()() as db_session:
-            event = await self.repository.get_event_by_id(event_id)
+            repository = EventRepository(db_session)
+            event = await repository.get_event_by_id(event_id)
             if event is None:
                 raise EventNotFoundError(f"Event {event_id} not found")
-            await self.repository.update_event(
-                event,
-                status=params.status,
-                claimed_at=params.claimed_at,
-                processed_at=params.processed_at,
-                failed_at=params.failed_at,
-                last_error=params.last_error,
-            )
+
+            handlers = self._build_handlers(db_session, event_type)
+            claimed_at = datetime.now(event.created_at.tzinfo)
+
+            try:
+                for handler in handlers:
+                    await handler(event)
+            except Exception as exc:
+                logger.exception(f"Failed to handle event {event_id}")
+                await repository.update_event(
+                    event,
+                    status=EventStatus.FAILED,
+                    claimed_at=claimed_at,
+                    processed_at=datetime.now(event.created_at.tzinfo),
+                    failed_at=datetime.now(event.created_at.tzinfo),
+                    last_error=str(exc),
+                )
+            else:
+                await repository.update_event(
+                    event,
+                    status=EventStatus.COMPLETED,
+                    claimed_at=claimed_at,
+                    processed_at=datetime.now(event.created_at.tzinfo),
+                    failed_at=None,
+                    last_error=None,
+                )
+
             await db_session.commit()
+
+    def _build_handlers(
+        self, db_session: AsyncSession, event_type: EventType
+    ) -> list[DispatchHandler]:
+        from core.payments.event_handler import PaymentsEventHandler
+
+        if event_type == EventType.USER_CREATED:
+            return [PaymentsEventHandler(db_session).handle]
+
+        raise ValueError(f"No handlers configured for event type {event_type}")
