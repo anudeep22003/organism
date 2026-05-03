@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.infrastructure.database import get_async_session_maker
 
-from .models import Event, EventStatus, EventType
+from .models import EventStatus, EventType
 from .repository import EventRepository
 
 
@@ -17,7 +17,7 @@ class EventNotFoundError(Exception):
     pass
 
 
-DispatchHandler = Callable[[Event], Awaitable[None]]
+DispatchHandler = Callable[[dict[str, str | None]], Awaitable[None]]
 
 
 class EventDispatcher:
@@ -32,10 +32,11 @@ class EventDispatcher:
 
             handlers = self._build_handlers(db_session, event_type)
             claimed_at = datetime.now(event.created_at.tzinfo)
+            payload = event.payload
 
             try:
                 for handler in handlers:
-                    await handler(event)
+                    await handler(payload)
             except Exception as exc:
                 logger.exception(f"Failed to handle event {event_id}")
                 await repository.update_event(

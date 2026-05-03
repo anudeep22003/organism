@@ -104,4 +104,5 @@ class PaymentsService:
             livemode=stripe_customer.livemode,
             raw_stripe_object=stripe_customer.to_dict(),
             stripe_created_at=created_at_datetime,
+            stripe_object=stripe_customer.object,
         )
