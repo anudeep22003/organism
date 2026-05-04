@@ -29,6 +29,7 @@ class EventService:
             aggregate_id=event_schema.aggregate_id,
             payload=event_schema.payload,
         )
+        # Flush assigns the durable event id before we hand work off to the dispatcher.
         self.repository.add(event_model)
         await self.db.flush()
         return event_model.id
@@ -53,6 +54,8 @@ async def emit_event(*, event: EmitEventSchema) -> None:
         event_id = await event_service.create_event(event_schema=event)
         await db_session.commit()
 
+    # Dispatch runs after the event row is committed so the handler always starts
+    # from durable state, not request-scoped ORM objects.
     dispatcher = EventDispatcher()
     task = asyncio.create_task(dispatcher.dispatch_event_for_handling(event_id))
     task.add_done_callback(lambda task: _log_dispatch_result(event_id, task))

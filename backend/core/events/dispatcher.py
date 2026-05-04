@@ -27,11 +27,15 @@ class EventDispatcher:
                 raise EventNotFoundError(f"Event {event_id} not found")
 
             try:
+                # The dispatcher owns the local transaction boundary for handling:
+                # domain side effects stage changes, then we persist both business
+                # state and event completion together in one commit.
                 await self._dispatch_event(db_session=db_session, event=event)
                 repository.mark_completed(event, handled_at=get_current_datetime_utc())
                 await db_session.commit()
             except Exception as exc:
                 logger.exception("Failed to handle event {}", event_id)
+                # Roll back any staged local writes before recording failure state.
                 await db_session.rollback()
 
                 failed_event = await repository.get_event_by_id(event_id)

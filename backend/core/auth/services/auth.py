@@ -63,6 +63,7 @@ class AuthService:
             ip=ip,
         )
         await self.db.commit()
+        # Emit only after auth commits so signup/login success is not coupled to Stripe.
         await emit_event(
             event=EmitEventSchema(
                 event_type=EventType.USER_CREATED,
