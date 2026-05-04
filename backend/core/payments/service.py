@@ -25,6 +25,8 @@ class PaymentsService:
         email: str,
         name: str | None,
     ) -> None:
+        # Local lookup is the fast path; Stripe idempotency and metadata are the
+        # backup guardrails if a prior external create succeeded but DB persistence did not.
         stripe_customer_model = await self.repository.get_stripe_customer_by_user_id(
             user_id
         )
@@ -38,6 +40,7 @@ class PaymentsService:
             name=name,
         )
         new_stripe_customer = self._create_stripe_customer(user_id, stripe_customer)
+        # The dispatcher commits this staged row together with the event status update.
         self.repository.add_stripe_customer(new_stripe_customer)
         logger.info("Prepared stripe customer for user_id: {}", user_id)
 
@@ -49,6 +52,7 @@ class PaymentsService:
             email=email,
             metadata={"internal_user_id": str(internal_user_id)},
         )
+        # Stable idempotency lets retries reuse the same Stripe-side create result.
         options = RequestOptions(
             idempotency_key=str(internal_user_id),
         )

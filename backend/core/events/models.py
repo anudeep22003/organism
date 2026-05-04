@@ -43,6 +43,8 @@ class Event(ORMBase):
         UUID(as_uuid=True), nullable=True, index=True
     )
     payload: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, nullable=False)
+    # Some queue-style fields remain because the current DB schema already has them,
+    # even though the runtime path here is still a simple in-process dispatcher.
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default=EventStatus.PENDING
     )
