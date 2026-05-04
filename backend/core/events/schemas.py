@@ -11,3 +11,9 @@ class EmitEventSchema(AliasedBaseModel):
     aggregate_type: AggregateType
     aggregate_id: uuid.UUID
     payload: dict[str, Any]
+
+
+class UserCreatedEventPayload(AliasedBaseModel):
+    user_id: uuid.UUID
+    email: str
+    name: str | None = None

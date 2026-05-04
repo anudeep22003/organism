@@ -2,83 +2,44 @@ import uuid
 from datetime import datetime, timezone
 
 from loguru import logger
-from pydantic import BaseModel, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 from stripe import Customer, RequestOptions
 from stripe.params import CustomerCreateParams
 
 from core.infrastructure.stripe_client import get_stripe_client
 
-from .models import StripeCustomerModel
+from .models import StripeCustomer
 from .repository import PaymentsRepository
-
-
-class CreateCustomerPayload(BaseModel):
-    user_id: uuid.UUID
-    email: str
-    name: str | None = None
-
-
-class EventPayloadMalformedError(Exception):
-    """Error validating event payload."""
-
-    pass
 
 
 class PaymentsService:
     def __init__(self, db: AsyncSession):
         self.stripe_client = get_stripe_client()
         self.db = db
-        self.payments_repository = PaymentsRepository(db)
+        self.repository = PaymentsRepository(db)
 
-    async def handle_create_customer(
+    async def provision_customer(
         self,
-        payload: dict[str, str | None],
+        *,
+        user_id: uuid.UUID,
+        email: str,
+        name: str | None,
     ) -> None:
-        try:
-            validated_payload = CreateCustomerPayload.model_validate(payload)
-        except ValidationError as e:
-            logger.error(f"Invalid payload: {e}")
-            raise EventPayloadMalformedError(
-                f"Invalid payload: {e}, payload: {payload}, error: {e.errors()}"
-            ) from e
-
-        user_id, email, name = (
-            validated_payload.user_id,
-            validated_payload.email,
-            validated_payload.name,
-        )
-
-        # check if user_id has an attached stripe entry
-        stripe_customer_model = (
-            await self.payments_repository.get_stripe_customer_by_user_id(user_id)
+        stripe_customer_model = await self.repository.get_stripe_customer_by_user_id(
+            user_id
         )
         if stripe_customer_model is not None:
-            logger.info(f"Stripe customer already exists for user_id: {user_id}")
+            logger.info("Stripe customer already exists for user_id: {}", user_id)
             return
 
-        # create a customer at stripe
-        try:
-            stripe_customer = await self._create_customer_at_stripe(
-                email=email, internal_user_id=user_id, name=name
-            )
-        except Exception as e:
-            logger.error(f"Error creating customer at stripe: {e}")
-            raise
-
-        new_stripe_customer_model = await self._create_stripe_customer_model(
-            user_id, stripe_customer
+        stripe_customer = await self._create_customer_at_stripe(
+            email=email,
+            internal_user_id=user_id,
+            name=name,
         )
-
-        # then persist it to our db
-        await self.payments_repository.create_stripe_customer_in_db(
-            new_stripe_customer_model
-        )
-        await self.db.commit()
-        logger.info(
-            f"Stripe customer created and persisted to db: {new_stripe_customer_model}"
-        )
-        return
+        new_stripe_customer = self._create_stripe_customer(user_id, stripe_customer)
+        self.repository.add_stripe_customer(new_stripe_customer)
+        logger.info("Prepared stripe customer for user_id: {}", user_id)
 
     async def _create_customer_at_stripe(
         self, *, email: str, internal_user_id: uuid.UUID, name: str | None
@@ -95,17 +56,16 @@ class PaymentsService:
             params=params,
             options=options,
         )
-        logger.info(f"Stripe customer created: {stripe_customer}")
+        logger.info("Stripe customer created: {}", stripe_customer.id)
         return stripe_customer
 
-    async def _create_stripe_customer_model(
+    def _create_stripe_customer(
         self, user_id: uuid.UUID, stripe_customer: Customer
-    ) -> StripeCustomerModel:
-        # stripe sends unix timestamp in int, conveting to datetime
+    ) -> StripeCustomer:
         created_at_datetime = datetime.fromtimestamp(
             stripe_customer.created, timezone.utc
         )
-        return StripeCustomerModel.create(
+        return StripeCustomer.create(
             user_id=user_id,
             stripe_customer_id=stripe_customer.id,
             livemode=stripe_customer.livemode,

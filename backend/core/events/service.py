@@ -1,56 +1,58 @@
 import asyncio
 import uuid
-from dataclasses import dataclass
-from typing import Literal
 
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.infrastructure.database import get_async_session_maker
+
 from .dispatcher import EventDispatcher
-from .models import Event
 from .repository import EventRepository
 from .schemas import EmitEventSchema
-
-
-@dataclass(frozen=True, slots=True)
-class EventCreationStatus:
-    status: Literal["succeeded", "failed"]
-    error: Exception | None = None
 
 
 class EventService:
     def __init__(self, db_session: AsyncSession) -> None:
         self.db = db_session
         self.repository = EventRepository(db_session)
-        self.dispatcher = EventDispatcher()
 
-    async def emit_event(
+    async def create_event(
         self,
         *,
         event_schema: EmitEventSchema,
-    ) -> EventCreationStatus:
-        event_model = Event.create_pending_event(
+    ) -> uuid.UUID:
+        from .models import Event
+
+        event_model = Event.create(
             event_type=event_schema.event_type,
             aggregate_type=event_schema.aggregate_type,
             aggregate_id=event_schema.aggregate_id,
             payload=event_schema.payload,
         )
-        try:
-            event = await self.repository.create_event(event_model)
-        except Exception as e:
-            return EventCreationStatus(status="failed", error=e)
-        try:
-            await self.db.commit()
-        except Exception as e:
-            return EventCreationStatus(status="failed", error=e)
+        self.repository.add(event_model)
+        await self.db.flush()
+        return event_model.id
 
-        task = asyncio.create_task(
-            self.dispatcher.dispatch_event_for_handling(
-                event.id, event_schema.event_type
-            )
-        )
-        task.add_done_callback(lambda _: logger.debug(f"Event handled: {event}"))
-        return EventCreationStatus(status="succeeded")
 
-    async def get_event(self, event_id: uuid.UUID) -> Event | None:
-        return await self.repository.get_event_by_id(event_id)
+def _log_dispatch_result(event_id: uuid.UUID, task: "asyncio.Task[None]") -> None:
+    if task.cancelled():
+        logger.warning("Event handling cancelled: {}", event_id)
+        return
+
+    exception = task.exception()
+    if exception is not None:
+        logger.error("Event handling failed for {}: {}", event_id, exception)
+        return
+
+    logger.debug("Event handled: {}", event_id)
+
+
+async def emit_event(*, event: EmitEventSchema) -> None:
+    async with get_async_session_maker()() as db_session:
+        event_service = EventService(db_session=db_session)
+        event_id = await event_service.create_event(event_schema=event)
+        await db_session.commit()
+
+    dispatcher = EventDispatcher()
+    task = asyncio.create_task(dispatcher.dispatch_event_for_handling(event_id))
+    task.add_done_callback(lambda task: _log_dispatch_result(event_id, task))

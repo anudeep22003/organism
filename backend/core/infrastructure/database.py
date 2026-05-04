@@ -20,7 +20,7 @@ def get_async_session_maker() -> "async_sessionmaker[AsyncSession]":
     (which transitively import this module) without needing API keys.
     """
     engine = create_async_engine(settings.database_url, echo=False)
-    return async_sessionmaker(bind=engine, expire_on_commit=False)
+    return async_sessionmaker(bind=engine)
 
 
 async def get_async_db_session() -> AsyncGenerator[AsyncSession, None]:
