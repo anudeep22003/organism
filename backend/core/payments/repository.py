@@ -3,7 +3,7 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .models import StripeCustomer
+from .models import CheckoutSession, StripeCustomer
 
 
 class PaymentsRepository:
@@ -19,3 +19,6 @@ class PaymentsRepository:
 
     def add_stripe_customer(self, stripe_customer: StripeCustomer) -> None:
         self.db.add(stripe_customer)
+
+    def add_checkout_session(self, checkout_session: CheckoutSession) -> None:
+        self.db.add(checkout_session)

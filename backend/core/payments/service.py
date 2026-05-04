@@ -5,10 +5,18 @@ from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 from stripe import Customer, RequestOptions
 from stripe.params import CustomerCreateParams
+from stripe.params.checkout import SessionCreateParams
 
 from core.infrastructure.stripe_client import get_stripe_client
+from core.payments.models.checkout_session import FulfillmentStatus
 
-from .models import StripeCustomer
+from .models import (
+    CheckoutSession,
+    CheckoutSessionMode,
+    PaymentIntent,
+    StripeCustomer,
+    StripeStatus,
+)
 from .repository import PaymentsRepository
 
 
@@ -77,3 +85,62 @@ class PaymentsService:
             stripe_created_at=created_at_datetime,
             stripe_object=stripe_customer.object,
         )
+
+    async def create_checkout_session(
+        self,
+        *,
+        user_id: uuid.UUID,
+        price_id: str,
+    ) -> str:
+        stripe_customer = await self.repository.get_stripe_customer_by_user_id(user_id)
+        if stripe_customer is None:
+            # should we create a customer if one is not found as a failsafe
+            raise ValueError("Stripe customer not found")
+
+        stripe_customer_id = stripe_customer.stripe_customer_id
+        internal_stripe_customer_record_id = stripe_customer.id
+
+        # first create an entry in our database before calling stripe session create
+        checkout_session = CheckoutSession.create_session_entry(
+            user_id=user_id,
+            stripe_customer_record_id=internal_stripe_customer_record_id,
+            stripe_customer_id=stripe_customer_id,
+            price_id=price_id,
+            intent=PaymentIntent.SUBSCRIPTION_PURCHASE,
+            mode=CheckoutSessionMode.PAYMENT,
+            stripe_status=StripeStatus.OPEN,
+            fulfillment_status=FulfillmentStatus.PENDING,
+        )
+        self.repository.add_checkout_session(checkout_session)
+
+        # create an idempotency key with intent prefixed to avoid key collision
+        # stripe cannot accept same indempotency key for all requests
+        idempotency_key = f"checkout_session:create:{str(user_id)}"
+
+        params = SessionCreateParams(
+            customer=stripe_customer_id,
+            client_reference_id=str(user_id),
+            line_items=[{"price": price_id, "quantity": 1}],
+            mode=CheckoutSessionMode.PAYMENT.value,
+            success_url="http://localhost:5173/payments/success",
+        )
+        options = RequestOptions(
+            idempotency_key=idempotency_key,
+        )
+
+        stripe_session = await self.stripe_client.v1.checkout.sessions.create_async(
+            params=params,
+            options=options,
+        )
+        logger.info("Stripe session created: {}", stripe_session.id)
+        logger.info("[STRIPE_SESSION]: {}", stripe_session.to_dict())
+
+        if stripe_session is None:
+            raise ValueError("Stripe session not found")
+        if stripe_session.url is None:
+            raise ValueError("Stripe session URL not found")
+
+        # update the db entry
+        checkout_session.update_session_entry_with_stripe_session(stripe_session)
+        await self.db.commit()
+        return stripe_session.url
