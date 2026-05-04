@@ -15,7 +15,6 @@ from core.common.utils import get_current_datetime_utc
 
 class EventStatus(StrEnum):
     PENDING = "pending"
-    PROCESSING = "processing"
     COMPLETED = "completed"
     FAILED = "failed"
 
@@ -72,7 +71,7 @@ class Event(ORMBase):
     )
 
     @classmethod
-    def create_pending_event(
+    def create(
         cls,
         *,
         event_type: str,
@@ -88,19 +87,18 @@ class Event(ORMBase):
             status=EventStatus.PENDING.value,
         )
 
-    def update_event(
-        event: Event,
-        *,
-        status: EventStatus,
-        claimed_at: datetime,
-        processed_at: datetime,
-        failed_at: datetime | None,
-        last_error: str | None,
-    ) -> None:
-        event.status = status.value
-        event.claimed_at = claimed_at
-        event.processed_at = processed_at
-        event.failed_at = failed_at
-        if last_error is not None:
-            event.last_error = last_error
-        event.attempt_count += 1
+    def mark_completed(self, *, handled_at: datetime) -> None:
+        self.status = EventStatus.COMPLETED.value
+        self.claimed_at = handled_at
+        self.processed_at = handled_at
+        self.failed_at = None
+        self.last_error = None
+        self.attempt_count += 1
+
+    def mark_failed(self, *, handled_at: datetime, error: str) -> None:
+        self.status = EventStatus.FAILED.value
+        self.claimed_at = handled_at
+        self.processed_at = handled_at
+        self.failed_at = handled_at
+        self.last_error = error
+        self.attempt_count += 1

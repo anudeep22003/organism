@@ -11,7 +11,7 @@ from core.common import ORMBase
 from core.common.utils import get_current_datetime_utc
 
 
-class StripeCustomerModel(ORMBase):
+class StripeCustomer(ORMBase):
     __tablename__ = "stripe_customer"
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -56,7 +56,7 @@ class StripeCustomerModel(ORMBase):
         livemode: bool,
         raw_stripe_object: dict,
         stripe_object: str,
-    ) -> StripeCustomerModel:
+    ) -> "StripeCustomer":
         return cls(
             user_id=user_id,
             stripe_customer_id=stripe_customer_id,
