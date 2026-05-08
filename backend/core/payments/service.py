@@ -1,12 +1,15 @@
 import uuid
 from datetime import datetime, timezone
+from typing import cast
 
+import stripe
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 from stripe import Customer, RequestOptions
 from stripe.params import CustomerCreateParams
 from stripe.params.checkout import SessionCreateParams
 
+from core.config import settings
 from core.infrastructure.stripe_client import get_stripe_client
 from core.payments.models.checkout_session import FulfillmentStatus
 
@@ -18,6 +21,12 @@ from .models import (
     StripeStatus,
 )
 from .repository import PaymentsRepository
+
+
+class StripeWebhookValidationError(Exception):
+    """Error raised when a stripe webhook event is not valid."""
+
+    pass
 
 
 class PaymentsService:
@@ -144,3 +153,30 @@ class PaymentsService:
         checkout_session.update_session_entry_with_stripe_session(stripe_session)
         await self.db.commit()
         return stripe_session.url
+
+    async def handle_stripe_webhook_event(
+        self,
+        *,
+        body: bytes,
+        stripe_signature: str,
+    ) -> None:
+        _ = self._validate_stripe_webhook_body(body=body, sig_header=stripe_signature)
+
+    def _validate_stripe_webhook_body(
+        self, body: bytes, sig_header: str
+    ) -> "stripe.Event":
+        try:
+            event = stripe.Webhook.construct_event(
+                payload=body,
+                sig_header=sig_header,
+                secret=settings.stripe_webhook_secret,
+            )
+            logger.info("Stripe validation passed")
+            logger.info("[STRIPE_EVENT]: {}", event.to_dict())
+            return cast(stripe.Event, event)
+        except stripe.error.SignatureVerificationError:
+            raise StripeWebhookValidationError("Invalid stripe webhook signature")
+        except Exception as e:
+            raise StripeWebhookValidationError(
+                f"Error validating stripe webhook body: {e}"
+            )

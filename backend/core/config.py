@@ -35,6 +35,7 @@ class AppSettings(BaseSettings):
     landing_url: str = Field(description="The landing page url")
     csrf_cookie_domain: str | None = None
     stripe_secret_key: str
+    stripe_webhook_secret: str
     # Optional — only needed locally for GCS access outside Cloud Run.
     # Cloud Run services authenticate via the attached service account (no key file).
     google_application_credentials: str = ""
