@@ -10,8 +10,9 @@ from sqlalchemy.orm import Mapped, mapped_column
 from stripe import Customer
 from stripe.checkout import Session
 
-from core.common import ORMBase
 from core.common.utils import get_current_datetime_utc
+
+from .base import StripeORMBase
 
 
 class StripeStatus(StrEnum):
@@ -42,7 +43,7 @@ class CheckoutSessionMode(StrEnum):
     SETUP = "setup"
 
 
-class CheckoutSession(ORMBase):
+class CheckoutSession(StripeORMBase):
     __tablename__ = "checkout_session"
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -60,7 +61,7 @@ class CheckoutSession(ORMBase):
     )
     stripe_customer_record_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("stripe_customer.id", ondelete="CASCADE"),
+        ForeignKey("stripe.stripe_customer.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )

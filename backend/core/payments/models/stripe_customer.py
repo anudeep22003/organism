@@ -7,11 +7,12 @@ from sqlalchemy import Boolean, DateTime, ForeignKey, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from core.common import ORMBase
 from core.common.utils import get_current_datetime_utc
 
+from .base import StripeORMBase
 
-class StripeCustomer(ORMBase):
+
+class StripeCustomer(StripeORMBase):
     __tablename__ = "stripe_customer"
 
     id: Mapped[uuid.UUID] = mapped_column(
