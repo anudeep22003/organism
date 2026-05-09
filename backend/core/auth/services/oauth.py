@@ -56,6 +56,16 @@ class OAuthService:
             )
         )
         if google_account is not None:
+            user = await self.repository.user.get_user_by_id(google_account.user_id)
+            if user is None:
+                raise OAuthUserInfoError(
+                    "Google OAuth account is linked to a missing user"
+                )
+            User.upsert(
+                existing_user=user,
+                email=email,
+                name=name,
+            )
             if google_account.refresh_token is not None and refresh_token is None:
                 google_account.refresh_token = self._encrypt_if_plaintext(
                     google_account.refresh_token
@@ -79,11 +89,14 @@ class OAuthService:
             )
 
         user = await self.repository.user.get_user_by_email(email)
-        if user is None:
-            user = User.create(
-                email=email,
-                password_hash=self._oauth_only_password_hash(),
-            )
+        is_new_user = user is None
+        user = User.upsert(
+            existing_user=user,
+            email=email,
+            name=name,
+            password_hash=self._oauth_only_password_hash() if is_new_user else None,
+        )
+        if is_new_user:
             await self.repository.user.create_user(user)
             await self.repository.db.flush()
 
