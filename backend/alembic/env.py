@@ -33,7 +33,8 @@ import core.payments.models as PaymentModels  # noqa: F401, E402
 import core.story_engine.models as story_engine_models  # noqa: F401, E402
 from core.common import ORMBase  # noqa: E402
 from core.events.models import Event  # noqa: F401, E402
-from core.payments.models import StripeORMBase  # noqa: F401, E402
+
+# from core.payments.models import StripeORMBase  # noqa: F401, E402
 
 # import core.comic_builder.models as comic_builder_models  # noqa: F401
 
