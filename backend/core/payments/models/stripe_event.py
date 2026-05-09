@@ -23,9 +23,8 @@ class StripeEvent(ORMBase):
     __tablename__ = "event"
     __table_args__: object = (
         Index("ix_event_customer_id", "customer_id"),
-        Index("ix_event_type_received_at", "event_type", "received_at"),
-        Index("ix_stripe_event_event_type", "event_type"),
-        Index("ix_stripe_event_stripe_event_id", "stripe_event_id", unique=True),
+        Index("ix_event_event_type", "event_type"),
+        Index("ix_event_stripe_event_id", "stripe_event_id", unique=True),
         {"schema": "stripe"},
     )
 

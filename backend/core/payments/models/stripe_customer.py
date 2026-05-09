@@ -11,15 +11,15 @@ from core.common import ORMBase, get_current_datetime_utc
 
 
 class StripeCustomer(ORMBase):
-    __tablename__ = "stripe_customer"
+    __tablename__ = "customer"
     __table_args__: object = (
         Index(
-            "ix_stripe_stripe_customer_user_id",
+            "ix_customer_user_id",
             "user_id",
             unique=True,
         ),
         Index(
-            "ix_stripe_stripe_customer_stripe_customer_id",
+            "ix_customer_stripe_customer_id",
             "stripe_customer_id",
             unique=True,
         ),
