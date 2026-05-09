@@ -2,7 +2,6 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
-from sqlalchemy import MetaData
 from sqlalchemy.orm import DeclarativeBase
 
 
@@ -28,9 +27,5 @@ class AliasedBaseModel(BaseModel):
         return super().model_dump_json(**kwargs)
 
 
-shared_metadata = MetaData()
-
-
 class ORMBase(DeclarativeBase):
-    metadata = shared_metadata
     pass

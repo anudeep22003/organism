@@ -3,17 +3,29 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
+from core.common import ORMBase
 from core.common.utils import get_current_datetime_utc
 
-from .base import StripeORMBase
 
-
-class StripeCustomer(StripeORMBase):
+class StripeCustomer(ORMBase):
     __tablename__ = "stripe_customer"
+    __table_args__: object = (
+        Index(
+            "ix_stripe_stripe_customer_user_id",
+            "user_id",
+            unique=True,
+        ),
+        Index(
+            "ix_stripe_stripe_customer_stripe_customer_id",
+            "stripe_customer_id",
+            unique=True,
+        ),
+        {"schema": "stripe"},
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
@@ -22,12 +34,8 @@ class StripeCustomer(StripeORMBase):
         UUID(as_uuid=True),
         ForeignKey("user.id", ondelete="CASCADE"),
         nullable=False,
-        unique=True,
-        index=True,
     )
-    stripe_customer_id: Mapped[str] = mapped_column(
-        String(255), nullable=False, unique=True, index=True
-    )
+    stripe_customer_id: Mapped[str] = mapped_column(String(255), nullable=False)
     stripe_object: Mapped[str] = mapped_column(String(50), nullable=False)
     livemode: Mapped[bool] = mapped_column(Boolean, nullable=False)
     raw_stripe_object: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)

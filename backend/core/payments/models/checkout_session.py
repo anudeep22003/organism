@@ -4,15 +4,14 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from enum import StrEnum
 
-from sqlalchemy import DateTime, ForeignKey, String
+from sqlalchemy import DateTime, ForeignKey, Index, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from stripe import Customer
 from stripe.checkout import Session
 
+from core.common import ORMBase
 from core.common.utils import get_current_datetime_utc
-
-from .base import StripeORMBase
 
 
 class StripeStatus(StrEnum):
@@ -43,8 +42,33 @@ class CheckoutSessionMode(StrEnum):
     SETUP = "setup"
 
 
-class CheckoutSession(StripeORMBase):
+class CheckoutSession(ORMBase):
     __tablename__ = "checkout_session"
+    __table_args__: object = (
+        Index("ix_stripe_checkout_session_user_id", "user_id"),
+        Index(
+            "ix_stripe_checkout_session_stripe_session_id",
+            "stripe_session_id",
+            unique=True,
+        ),
+        Index(
+            "ix_stripe_checkout_session_stripe_customer_record_id",
+            "stripe_customer_record_id",
+        ),
+        Index(
+            "ix_stripe_checkout_session_stripe_customer_id",
+            "stripe_customer_id",
+        ),
+        Index(
+            "ix_stripe_checkout_session_stripe_payment_intent_id",
+            "stripe_payment_intent_id",
+        ),
+        Index(
+            "ix_stripe_checkout_session_stripe_subscription_id",
+            "stripe_subscription_id",
+        ),
+        {"schema": "stripe"},
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
@@ -53,26 +77,20 @@ class CheckoutSession(StripeORMBase):
         UUID(as_uuid=True),
         ForeignKey("user.id", ondelete="CASCADE"),
         nullable=False,
-        index=True,
     )
 
-    stripe_session_id: Mapped[str | None] = mapped_column(
-        String(255), nullable=True, unique=True, index=True
-    )
+    stripe_session_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     stripe_customer_record_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("stripe.stripe_customer.id", ondelete="CASCADE"),
         nullable=False,
-        index=True,
     )
-    stripe_customer_id: Mapped[str | None] = mapped_column(
-        String(255), nullable=True, index=True
-    )
+    stripe_customer_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     stripe_payment_intent_id: Mapped[str | None] = mapped_column(
-        String(255), nullable=True, index=True
+        String(255), nullable=True
     )
     stripe_subscription_id: Mapped[str | None] = mapped_column(
-        String(255), nullable=True, index=True
+        String(255), nullable=True
     )
 
     mode: Mapped[str] = mapped_column(String(50), nullable=False)
