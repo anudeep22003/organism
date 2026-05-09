@@ -1,3 +1,4 @@
+import json
 import uuid
 from datetime import datetime, timezone
 from typing import cast
@@ -18,6 +19,7 @@ from .models import (
     CheckoutSessionMode,
     PaymentIntent,
     StripeCustomer,
+    StripeEvent,
     StripeStatus,
 )
 from .repository import PaymentsRepository
@@ -124,7 +126,7 @@ class PaymentsService:
 
         # create an idempotency key with intent prefixed to avoid key collision
         # stripe cannot accept same indempotency key for all requests
-        idempotency_key = f"checkout_session:create:{str(user_id)}"
+        idempotency_key = f"checkout_session:create:{str(checkout_session.id)}"
 
         params = SessionCreateParams(
             customer=stripe_customer_id,
@@ -160,7 +162,16 @@ class PaymentsService:
         body: bytes,
         stripe_signature: str,
     ) -> None:
-        _ = self._validate_stripe_webhook_body(body=body, sig_header=stripe_signature)
+        stripe_event = self._validate_stripe_webhook_body(
+            body=body, sig_header=stripe_signature
+        )
+        logger.info("stripe event received: type: {}", stripe_event.type)
+
+        _ = StripeEvent.create(
+            stripe_event=stripe_event,
+        )
+        await self.db.commit()
+        logger.info("stripe event committed to db: type: {}", stripe_event.type)
 
     def _validate_stripe_webhook_body(
         self, body: bytes, sig_header: str
@@ -172,7 +183,8 @@ class PaymentsService:
                 secret=settings.stripe_webhook_secret,
             )
             logger.info("Stripe validation passed")
-            logger.info("[STRIPE_EVENT]: {}", event.to_dict())
+            # logger.info("[STRIPE_EVENT]: {}", event.to_dict())
+            self._log_to_file(event.to_dict())
             return cast(stripe.Event, event)
         except stripe.error.SignatureVerificationError:
             raise StripeWebhookValidationError("Invalid stripe webhook signature")
@@ -180,3 +192,7 @@ class PaymentsService:
             raise StripeWebhookValidationError(
                 f"Error validating stripe webhook body: {e}"
             )
+
+    def _log_to_file(self, _dict: dict) -> None:
+        with open("stripe_event.json", "a", encoding="utf-8") as f:
+            f.write(json.dumps(_dict) + "\n")

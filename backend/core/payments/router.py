@@ -53,5 +53,5 @@ async def webhook(
         )
     except StripeWebhookValidationError as e:
         logger.warning("Stripe webhook validation error: {}", e)
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="invalid stripe webhook signature")
     return {"message": "Webhook received"}
