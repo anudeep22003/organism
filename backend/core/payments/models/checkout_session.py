@@ -10,8 +10,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from stripe import Customer
 from stripe.checkout import Session
 
-from core.common import ORMBase
-from core.common.utils import get_current_datetime_utc
+from core.common import ORMBase, get_current_datetime_utc
 
 
 class StripeStatus(StrEnum):

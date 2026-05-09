@@ -7,8 +7,7 @@ from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from core.common import ORMBase
-from core.common.utils import get_current_datetime_utc
+from core.common import ORMBase, get_current_datetime_utc
 
 
 class StripeCustomer(ORMBase):
