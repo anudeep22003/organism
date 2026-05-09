@@ -10,6 +10,7 @@ from stripe import Customer, RequestOptions
 from stripe.params import CustomerCreateParams
 from stripe.params.checkout import SessionCreateParams
 
+from core.auth.models import User
 from core.config import settings
 from core.infrastructure.stripe_client import get_stripe_client
 from core.payments.models.checkout_session import FulfillmentStatus
@@ -27,6 +28,18 @@ from .repository import PaymentsRepository
 
 class StripeWebhookValidationError(Exception):
     """Error raised when a stripe webhook event is not valid."""
+
+    pass
+
+
+class UserNotFoundError(Exception):
+    """Error raised when a user is not found."""
+
+    pass
+
+
+class StripeCustomerAlreadyExistsError(Exception):
+    """Error raised when a stripe customer already exists for a user."""
 
     pass
 
@@ -53,27 +66,55 @@ class PaymentsService:
             logger.info("Stripe customer already exists for user_id: {}", user_id)
             return
 
-        stripe_customer = await self._create_customer_at_stripe(
-            email=email,
-            internal_user_id=user_id,
-            name=name,
+        user = await self.db.get(User, user_id)
+        if user is None:
+            raise UserNotFoundError(f"User {user_id} not found")
+
+        stripe_customer = await self._create_customer_at_stripe(user=user)
+        new_stripe_customer = self._create_stripe_customer_model(
+            user_id, stripe_customer
         )
-        new_stripe_customer = self._create_stripe_customer(user_id, stripe_customer)
         # The dispatcher commits this staged row together with the event status update.
         self.repository.add_stripe_customer(new_stripe_customer)
         logger.info("Prepared stripe customer for user_id: {}", user_id)
 
-    async def _create_customer_at_stripe(
-        self, *, email: str, internal_user_id: uuid.UUID, name: str | None
-    ) -> Customer:
+    async def user_stripe_customer_id(self, user_id: uuid.UUID) -> str | None:
+        stripe_customer = await self.repository.get_stripe_customer_by_user_id(user_id)
+        if stripe_customer is None:
+            return None
+        return stripe_customer.stripe_customer_id
+
+    async def _internal_create_stripe_customer(
+        self, *, user_id: uuid.UUID
+    ) -> StripeCustomer:
+        user = await self.db.get(User, user_id)
+        if user is None:
+            raise UserNotFoundError(f"User {user_id} not found")
+
+        if await self.user_stripe_customer_id(user_id) is not None:
+            raise StripeCustomerAlreadyExistsError(
+                f"Stripe customer already exists for user_id: {user_id}"
+            )
+
+        stripe_customer = await self._create_customer_at_stripe(user=user)
+        new_stripe_customer = self._create_stripe_customer_model(
+            user.id, stripe_customer
+        )
+        self.repository.add_stripe_customer(new_stripe_customer)
+        logger.info("Prepared stripe customer for user_id: {}", user.id)
+        await self.db.commit()
+        await self.db.refresh(new_stripe_customer)
+        return new_stripe_customer
+
+    async def _create_customer_at_stripe(self, *, user: User) -> Customer:
         params = CustomerCreateParams(
-            name=name or "No name on google account",
-            email=email,
-            metadata={"internal_user_id": str(internal_user_id)},
+            name=user.name or "No name on google account",
+            email=user.email,
+            metadata={"internal_user_id": str(user.id)},
         )
         # Stable idempotency lets retries reuse the same Stripe-side create result.
         options = RequestOptions(
-            idempotency_key=str(internal_user_id),
+            idempotency_key=f"customer:create:{str(user.id)}",
         )
         stripe_customer = await self.stripe_client.v1.customers.create_async(
             params=params,
@@ -82,7 +123,7 @@ class PaymentsService:
         logger.info("Stripe customer created: {}", stripe_customer.id)
         return stripe_customer
 
-    def _create_stripe_customer(
+    def _create_stripe_customer_model(
         self, user_id: uuid.UUID, stripe_customer: Customer
     ) -> StripeCustomer:
         created_at_datetime = datetime.fromtimestamp(
@@ -106,7 +147,10 @@ class PaymentsService:
         stripe_customer = await self.repository.get_stripe_customer_by_user_id(user_id)
         if stripe_customer is None:
             # should we create a customer if one is not found as a failsafe
-            raise ValueError("Stripe customer not found")
+            logger.warning("Stripe customer not found for user_id: {}", user_id)
+            stripe_customer = await self._internal_create_stripe_customer(
+                user_id=user_id
+            )
 
         stripe_customer_id = stripe_customer.stripe_customer_id
         internal_stripe_customer_record_id = stripe_customer.id
@@ -123,6 +167,8 @@ class PaymentsService:
             fulfillment_status=FulfillmentStatus.PENDING,
         )
         self.repository.add_checkout_session(checkout_session)
+        await self.db.flush()
+        await self.db.refresh(checkout_session)
 
         # create an idempotency key with intent prefixed to avoid key collision
         # stripe cannot accept same indempotency key for all requests
@@ -167,9 +213,10 @@ class PaymentsService:
         )
         logger.info("stripe event received: type: {}", stripe_event.type)
 
-        _ = StripeEvent.create(
+        stripe_event_model = StripeEvent.create(
             stripe_event=stripe_event,
         )
+        self.db.add(stripe_event_model)
         await self.db.commit()
         logger.info("stripe event committed to db: type: {}", stripe_event.type)
 
