@@ -3,6 +3,7 @@ from .checkout_session import (
     CheckoutSessionMode,
     PaymentIntent,
     PaymentStatus,
+    StripeORMBase,
     StripeStatus,
 )
 from .stripe_customer import StripeCustomer
@@ -14,4 +15,5 @@ __all__ = [
     "StripeStatus",
     "StripeCustomer",
     "CheckoutSessionMode",
+    "StripeORMBase",
 ]
