@@ -54,9 +54,7 @@ class PaymentsService:
         self,
         *,
         user_id: uuid.UUID,
-        email: str,
-        name: str | None,
-    ) -> None:
+    ) -> StripeCustomer:
         # Local lookup is the fast path; Stripe idempotency and metadata are the
         # backup guardrails if a prior external create succeeded but DB persistence did not.
         stripe_customer_model = await self.repository.get_stripe_customer_by_user_id(
@@ -64,7 +62,7 @@ class PaymentsService:
         )
         if stripe_customer_model is not None:
             logger.info("Stripe customer already exists for user_id: {}", user_id)
-            return
+            return stripe_customer_model
 
         user = await self.db.get(User, user_id)
         if user is None:
@@ -77,6 +75,8 @@ class PaymentsService:
         # The dispatcher commits this staged row together with the event status update.
         self.repository.add_stripe_customer(new_stripe_customer)
         logger.info("Prepared stripe customer for user_id: {}", user_id)
+        await self.db.flush()
+        return new_stripe_customer
 
     async def user_stripe_customer_id(self, user_id: uuid.UUID) -> str | None:
         stripe_customer = await self.repository.get_stripe_customer_by_user_id(user_id)
@@ -87,26 +87,12 @@ class PaymentsService:
     async def _internal_create_stripe_customer(
         self, *, user_id: uuid.UUID
     ) -> StripeCustomer:
-        user = await self.db.get(User, user_id)
-        if user is None:
-            raise UserNotFoundError(f"User {user_id} not found")
-
-        if await self.user_stripe_customer_id(user_id) is not None:
-            raise StripeCustomerAlreadyExistsError(
-                f"Stripe customer already exists for user_id: {user_id}"
-            )
-
-        stripe_customer = await self._create_customer_at_stripe(user=user)
-        new_stripe_customer = self._create_stripe_customer_model(
-            user.id, stripe_customer
-        )
-        self.repository.add_stripe_customer(new_stripe_customer)
-        logger.info("Prepared stripe customer for user_id: {}", user.id)
-        await self.db.commit()
-        await self.db.refresh(new_stripe_customer)
-        return new_stripe_customer
+        stripe_customer = await self.provision_customer(user_id=user_id)
+        await self.db.commit()  # since the above method only flushes, and depends on event dispatcher to commit
+        return stripe_customer
 
     async def _create_customer_at_stripe(self, *, user: User) -> Customer:
+        await self.db.refresh(user)
         params = CustomerCreateParams(
             name=user.name or "No name on google account",
             email=user.email,
@@ -151,7 +137,7 @@ class PaymentsService:
             stripe_customer = await self._internal_create_stripe_customer(
                 user_id=user_id
             )
-
+        await self.db.refresh(stripe_customer)
         stripe_customer_id = stripe_customer.stripe_customer_id
         internal_stripe_customer_record_id = stripe_customer.id
 

@@ -15,5 +15,3 @@ class EmitEventSchema(AliasedBaseModel):
 
 class UserCreatedEventPayload(AliasedBaseModel):
     user_id: uuid.UUID
-    email: str
-    name: str | None = None

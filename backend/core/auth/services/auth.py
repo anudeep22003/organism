@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.events.models import AggregateType, EventType
-from core.events.schemas import EmitEventSchema, UserCreatedEventPayload
+from core.events.schemas import EmitEventSchema
 from core.events.service import emit_event
 
 from ..exceptions import UserNotFoundError
@@ -69,11 +69,7 @@ class AuthService:
                 event_type=EventType.USER_CREATED,
                 aggregate_type=AggregateType.USER,
                 aggregate_id=callback_user.user_id,
-                payload=UserCreatedEventPayload(
-                    user_id=callback_user.user_id,
-                    email=callback_user.email,
-                    name=callback_user.name or None,
-                ).model_dump(mode="json"),
+                payload={"user_id": callback_user.user_id},
             ),
         )
         return CallbackResult(user_id=callback_user.user_id, tokens=tokens)

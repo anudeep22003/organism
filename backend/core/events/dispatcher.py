@@ -53,9 +53,7 @@ class EventDispatcher:
         if event.event_type == EventType.USER_CREATED:
             payload = UserCreatedEventPayload.model_validate(event.payload)
             await PaymentsService(db_session).provision_customer(
-                user_id=payload.user_id,
-                email=payload.email,
-                name=payload.name,
+                user_id=payload.user_id
             )
             return
 
