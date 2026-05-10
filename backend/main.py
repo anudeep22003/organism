@@ -10,6 +10,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from core.api.routers import router as v1_router
 from core.auth.api import CSRFMiddleware
 from core.config import settings
+from core.infrastructure.database import configure_psycopg_json_dumps
 from core.logging import setup_logging
 from core.sockets import register_sio_handlers, sio
 
@@ -23,6 +24,7 @@ async def lifecycle_manager(app: FastAPI) -> AsyncGenerator[None, None]:
         region=settings.gcp_region,
     )
     register_sio_handlers()
+    configure_psycopg_json_dumps()
     yield
     logger.info("StoryEngine shutting down")
 

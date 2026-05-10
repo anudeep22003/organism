@@ -1,6 +1,9 @@
+import json
+from decimal import Decimal
 from functools import lru_cache
 from typing import AsyncGenerator
 
+from psycopg.types.json import set_json_dumps
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from core.config import settings
@@ -34,3 +37,22 @@ async def get_async_db_session() -> AsyncGenerator[AsyncSession, None]:
     """
     async with get_async_session_maker()() as session:
         yield session
+
+
+def _json_dumps(obj: object) -> str:
+    return json.dumps(obj, default=_default)
+
+
+def _default(o: object) -> str:
+    if isinstance(o, Decimal):
+        return str(o)
+    raise TypeError(f"Object of type {o.__class__.__name__} is not JSON serializable")
+
+
+# Run once at app startup (e.g. in your FastAPI lifespan):
+def configure_psycopg_json_dumps() -> None:
+    """
+    Stripe Decimal objects break the default psycopg JSON serializer.
+    Configure psycopg to use a custom JSON serializer for Decimal objects.
+    """
+    set_json_dumps(_json_dumps)
