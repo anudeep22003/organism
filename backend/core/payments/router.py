@@ -9,7 +9,7 @@ from core.auth.api import get_current_user_id
 from core.common import AliasedBaseModel
 from core.infrastructure.database import get_async_db_session
 
-from .service import PaymentsService, StripeWebhookValidationError
+from .service import PaymentsService, StripeWebhookValidationError, UnhandledException
 
 router = APIRouter(prefix="/billing", tags=["billing"])
 
@@ -30,7 +30,11 @@ async def create_checkout_session(
     user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     service: Annotated[PaymentsService, Depends(get_payments_service)],
 ) -> dict[str, str]:
-    price_id = "price_1TTLxCAMWKJyocPOBfg70ec9"
+    # price_id = "price_1TTLxCAMWKJyocPOBfg70ec9"
+    # price_id = "price_1TTLpLAMWKJyocPOzDFvIMFG"
+    # price_id = "price_1TVSvzAMWKJyocPOhf76pKXx"
+    # price_id = "price_1TVTLYAMWKJyocPOEzUSFEIT"
+    price_id = "price_1TVTbWAMWKJyocPO4ayR6keZ"
     url = await service.create_checkout_session(
         user_id=user_id,
         price_id=price_id,
@@ -54,4 +58,9 @@ async def webhook(
     except StripeWebhookValidationError as e:
         logger.warning("Stripe webhook validation error: {}", e)
         raise HTTPException(status_code=400, detail="invalid stripe webhook signature")
+    except UnhandledException as e:
+        logger.error("Unhandled error handling stripe webhook: {}", e)
+        raise HTTPException(
+            status_code=500, detail=f"Unhandled error handling stripe webhook: {e}"
+        )
     return {"message": "Webhook received"}

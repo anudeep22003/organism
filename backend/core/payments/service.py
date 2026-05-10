@@ -1,4 +1,3 @@
-import json
 import uuid
 from datetime import datetime, timezone
 from typing import cast
@@ -40,6 +39,12 @@ class UserNotFoundError(Exception):
 
 class StripeCustomerAlreadyExistsError(Exception):
     """Error raised when a stripe customer already exists for a user."""
+
+    pass
+
+
+class UnhandledException(Exception):
+    """Error raised when an unknown error occurs."""
 
     pass
 
@@ -164,7 +169,8 @@ class PaymentsService:
             customer=stripe_customer_id,
             client_reference_id=str(user_id),
             line_items=[{"price": price_id, "quantity": 1}],
-            mode=CheckoutSessionMode.PAYMENT.value,
+            mode=CheckoutSessionMode.SUBSCRIPTION.value,
+            # mode=CheckoutSessionMode.PAYMENT.value,
             success_url="http://localhost:5173/payments/success",
         )
         options = RequestOptions(
@@ -216,16 +222,16 @@ class PaymentsService:
                 secret=settings.stripe_webhook_secret,
             )
             logger.info("Stripe validation passed")
-            # logger.info("[STRIPE_EVENT]: {}", event.to_dict())
-            self._log_to_file(event.to_dict())
+            try:
+                # this is in case the event.to_dict fails and takes the entire webhook handling down
+                logger.info("[STRIPE_EVENT]: {}", event.to_dict())
+            except Exception as e:
+                logger.error("Error logging stripe event: {}", e)
+
             return cast(stripe.Event, event)
         except stripe.error.SignatureVerificationError:
             raise StripeWebhookValidationError("Invalid stripe webhook signature")
         except Exception as e:
-            raise StripeWebhookValidationError(
-                f"Error validating stripe webhook body: {e}"
-            )
-
-    def _log_to_file(self, _dict: dict) -> None:
-        with open("stripe_event.json", "a", encoding="utf-8") as f:
-            f.write(json.dumps(_dict) + "\n")
+            raise UnhandledException(
+                f"Unknown error validating stripe webhook body: {e}"
+            ) from e
