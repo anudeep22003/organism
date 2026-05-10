@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from typing import Any
 
 import stripe
 from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String
@@ -23,7 +24,7 @@ class StripeSubscriptionFields:
     cancel_at_period_end: bool
     canceled_at: datetime | None
     trial_end: datetime | None
-    raw: dict
+    raw: dict[str, Any]
 
 
 class Subscription(ORMBase):
@@ -136,14 +137,17 @@ class Subscription(ORMBase):
         return StripeSubscriptionFields(
             stripe_subscription_id=stripe_subscription_id,
             stripe_customer_id=stripe_customer_id,
-            status=subscription.status,
+            status=cls._require_str(subscription.status, field_name="status"),
             price_id=price_id,
             current_period_start=current_period_start,
             current_period_end=current_period_end,
-            cancel_at_period_end=subscription.cancel_at_period_end,
+            cancel_at_period_end=cls._require_bool(
+                subscription.cancel_at_period_end,
+                field_name="cancel_at_period_end",
+            ),
             canceled_at=cls._timestamp_to_datetime(subscription.canceled_at),
             trial_end=cls._timestamp_to_datetime(subscription.trial_end),
-            raw=subscription.to_dict(),
+            raw=cls._require_dict(subscription.to_dict(), field_name="raw"),
         )
 
     @classmethod
@@ -231,3 +235,21 @@ class Subscription(ORMBase):
         if stripe_id is None:
             raise ValueError("Expected Stripe id but found none")
         return stripe_id
+
+    @staticmethod
+    def _require_str(value: object, *, field_name: str) -> str:
+        if not isinstance(value, str):
+            raise ValueError(f"Expected {field_name} to be a string")
+        return value
+
+    @staticmethod
+    def _require_bool(value: object, *, field_name: str) -> bool:
+        if not isinstance(value, bool):
+            raise ValueError(f"Expected {field_name} to be a boolean")
+        return value
+
+    @staticmethod
+    def _require_dict(value: object, *, field_name: str) -> dict[str, Any]:
+        if not isinstance(value, dict):
+            raise ValueError(f"Expected {field_name} to be a dictionary")
+        return value
