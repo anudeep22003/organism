@@ -94,9 +94,9 @@ class Invoice(ORMBase):
 
         return StripeInvoiceFields(
             stripe_invoice_id=cls._require_stripe_id(invoice.id),
-            status=invoice.status,
-            amount_paid=invoice.amount_paid,
-            currency=invoice.currency,
+            status=cls._require_str(invoice.status, field_name="status"),
+            amount_paid=cls._require_int(invoice.amount_paid, field_name="amount_paid"),
+            currency=cls._require_str(invoice.currency, field_name="currency"),
             period_start=period_start,
             period_end=period_end,
             paid_at=cls._extract_paid_at(invoice),
@@ -162,3 +162,15 @@ class Invoice(ORMBase):
         if stripe_id is None:
             raise ValueError("Expected Stripe id but found none")
         return stripe_id
+
+    @staticmethod
+    def _require_str(value: object, *, field_name: str) -> str:
+        if not isinstance(value, str):
+            raise ValueError(f"Expected {field_name} to be a string")
+        return value
+
+    @staticmethod
+    def _require_int(value: object, *, field_name: str) -> int:
+        if not isinstance(value, int):
+            raise ValueError(f"Expected {field_name} to be an integer")
+        return value
