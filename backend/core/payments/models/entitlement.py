@@ -3,19 +3,22 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
+import stripe
 from sqlalchemy import DateTime, ForeignKey, Index, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from core.common import ORMBase, get_current_datetime_utc
 
+from .invoice import Invoice
+
 
 class Entitlement(ORMBase):
     __tablename__ = "entitlement"
+    # This table intentionally lives in the default public schema because it is
+    # app-owned access state, not a Stripe mirror.
     __table_args__: object = (
         Index("ix_entitlement_user_feature", "user_id", "feature"),
-        # Use a normal composite index here; the requested NOW()-based partial
-        # index would be invalid in Postgres because the predicate is not immutable.
         Index(
             "ix_entitlement_active_lookup",
             "user_id",
@@ -44,3 +47,25 @@ class Entitlement(ORMBase):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=get_current_datetime_utc, nullable=False
     )
+
+    @classmethod
+    def create_from_invoice_paid(
+        cls,
+        *,
+        user_id: uuid.UUID,
+        feature: str,
+        stripe_event: stripe.Event,
+        source: str = "subscription",
+        source_id: str | None = None,
+    ) -> "Entitlement":
+        period_start, period_end = Invoice._extract_service_period(
+            stripe_event.data.object
+        )
+        return cls(
+            user_id=user_id,
+            feature=feature,
+            source=source,
+            source_id=source_id,
+            valid_from=period_start,
+            valid_until=period_end,
+        )
