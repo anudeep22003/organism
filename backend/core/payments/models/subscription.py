@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from enum import StrEnum
 from typing import Any
 
 import stripe
@@ -25,6 +26,12 @@ class StripeSubscriptionFields:
     canceled_at: datetime | None
     trial_end: datetime | None
     raw: dict[str, Any]
+
+
+class StripeSubscriptionStatus(StrEnum):
+    ACTIVE = "active"
+    TRIALING = "trialing"
+    CANCELED = "canceled"
 
 
 class Subscription(ORMBase):
@@ -111,6 +118,12 @@ class Subscription(ORMBase):
             raw=fields.raw,
         )
 
+    def is_active(self) -> bool:
+        return self.status in {
+            StripeSubscriptionStatus.ACTIVE.value,
+            StripeSubscriptionStatus.TRIALING.value,
+        }
+
     def update_from_stripe_event(self, *, stripe_event: stripe.Event) -> "Subscription":
         fields = self._extract_fields(stripe_event=stripe_event)
         self.stripe_subscription_id = fields.stripe_subscription_id
@@ -124,6 +137,14 @@ class Subscription(ORMBase):
         self.trial_end = fields.trial_end
         self.raw = fields.raw
         return self
+
+    @classmethod
+    def extract_stripe_subscription_id(cls, *, stripe_event: stripe.Event) -> str:
+        return cls._require_stripe_id(stripe_event.data.object.id)
+
+    @classmethod
+    def extract_stripe_customer_id(cls, *, stripe_event: stripe.Event) -> str:
+        return cls._require_stripe_id(stripe_event.data.object.customer)
 
     @classmethod
     def _extract_fields(cls, *, stripe_event: stripe.Event) -> StripeSubscriptionFields:

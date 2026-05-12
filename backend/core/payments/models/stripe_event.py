@@ -107,3 +107,12 @@ class StripeEvent(ORMBase):
             invoice_id=hot_fields.invoice_id,
             payload=stripe_event.to_dict(),
         )
+
+    def mark_processed(self) -> "StripeEvent":
+        self.processed_at = get_current_datetime_utc()
+        self.processing_error = None
+        return self
+
+    def mark_failed(self, *, error: str) -> "StripeEvent":
+        self.processing_error = error
+        return self
