@@ -88,6 +88,28 @@ class Invoice(ORMBase):
         )
 
     @classmethod
+    def extract_stripe_invoice_id(cls, *, stripe_event: stripe.Event) -> str:
+        return cls._require_stripe_id(stripe_event.data.object.id)
+
+    @classmethod
+    def extract_stripe_subscription_id(
+        cls, *, stripe_event: stripe.Event
+    ) -> str | None:
+        invoice = stripe_event.data.object
+        top_level_subscription = cls._extract_stripe_id(
+            getattr(invoice, "subscription", None)
+        )
+        if top_level_subscription is not None:
+            return top_level_subscription
+        return cls._extract_first_line_subscription_id(invoice)
+
+    @classmethod
+    def extract_service_period(
+        cls, *, stripe_event: stripe.Event
+    ) -> tuple[datetime, datetime]:
+        return cls._extract_service_period(stripe_event.data.object)
+
+    @classmethod
     def _extract_fields(cls, *, stripe_event: stripe.Event) -> StripeInvoiceFields:
         invoice = stripe_event.data.object
         period_start, period_end = cls._extract_service_period(invoice)
@@ -133,6 +155,19 @@ class Invoice(ORMBase):
         if period_start is None or period_end is None:
             return None
         return (period_start, period_end)
+
+    @classmethod
+    def _extract_first_line_subscription_id(cls, invoice: object) -> str | None:
+        lines = getattr(invoice, "lines", None)
+        data = getattr(lines, "data", None)
+        if not isinstance(data, list) or len(data) == 0:
+            return None
+
+        first_line = data[0]
+        parent = getattr(first_line, "parent", None)
+        subscription_item_details = getattr(parent, "subscription_item_details", None)
+        subscription_id = getattr(subscription_item_details, "subscription", None)
+        return cls._extract_stripe_id(subscription_id)
 
     @classmethod
     def _extract_paid_at(cls, invoice: object) -> datetime | None:
