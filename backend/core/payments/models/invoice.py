@@ -87,6 +87,24 @@ class Invoice(ORMBase):
             raw=fields.raw,
         )
 
+    def update_from_stripe_event(
+        self,
+        *,
+        stripe_event: stripe.Event,
+        subscription_id: uuid.UUID | None = None,
+    ) -> "Invoice":
+        fields = self._extract_fields(stripe_event=stripe_event)
+        self.subscription_id = subscription_id
+        self.stripe_invoice_id = fields.stripe_invoice_id
+        self.status = fields.status
+        self.amount_paid = fields.amount_paid
+        self.currency = fields.currency
+        self.period_start = fields.period_start
+        self.period_end = fields.period_end
+        self.paid_at = fields.paid_at
+        self.raw = fields.raw
+        return self
+
     @classmethod
     def extract_stripe_invoice_id(cls, *, stripe_event: stripe.Event) -> str:
         return cls._require_stripe_id(stripe_event.data.object.id)
