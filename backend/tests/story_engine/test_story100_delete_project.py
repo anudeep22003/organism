@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.auth.models.user import User
 from core.story_engine.models import Character, Project, Story
-from tests.auth_helpers import auth_cookie_header
+from tests.auth_helpers import auth_cookie_header, grant_pro_tier_entitlement
 
 
 def _auth_headers(user_id: uuid.UUID) -> dict[str, str]:
@@ -147,6 +147,7 @@ async def test_delete_project_404_for_other_users_project(
     db_session.add(other_user)
     await db_session.commit()
     await db_session.refresh(other_user)
+    await grant_pro_tier_entitlement(db_session, user_id=other_user.id)
 
     response = await api_client.delete(
         _project_url(project.id),
