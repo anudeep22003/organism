@@ -26,7 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.auth.models.user import User
 from core.story_engine.models import Project, Story
-from tests.auth_helpers import auth_cookie_header
+from tests.auth_helpers import auth_cookie_header, grant_pro_tier_entitlement
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -121,6 +121,7 @@ async def test_list_projects_empty_for_new_user(
     db_session.add(new_user)
     await db_session.commit()
     await db_session.refresh(new_user)
+    await grant_pro_tier_entitlement(db_session, user_id=new_user.id)
 
     response = await api_client.get(_projects_url(), headers=_auth_headers(new_user.id))
 
@@ -155,6 +156,7 @@ async def test_list_projects_does_not_return_other_users_projects(
     db_session.add(other_user)
     await db_session.commit()
     await db_session.refresh(other_user)
+    await grant_pro_tier_entitlement(db_session, user_id=other_user.id)
 
     response = await api_client.get(
         _projects_url(), headers=_auth_headers(other_user.id)
@@ -375,6 +377,7 @@ async def test_get_project_404_for_other_users_project(
     db_session.add(other_user)
     await db_session.commit()
     await db_session.refresh(other_user)
+    await grant_pro_tier_entitlement(db_session, user_id=other_user.id)
 
     response = await api_client.get(
         _project_url(project.id), headers=_auth_headers(other_user.id)
@@ -787,6 +790,7 @@ async def test_my_project_creates_on_first_call(
     db_session.add(new_user)
     await db_session.commit()
     await db_session.refresh(new_user)
+    await grant_pro_tier_entitlement(db_session, user_id=new_user.id)
 
     response = await api_client.get(
         _my_project_url(), headers=_auth_headers(new_user.id)
@@ -817,6 +821,7 @@ async def test_my_project_is_idempotent(
     db_session.add(new_user)
     await db_session.commit()
     await db_session.refresh(new_user)
+    await grant_pro_tier_entitlement(db_session, user_id=new_user.id)
 
     first = await api_client.get(_my_project_url(), headers=_auth_headers(new_user.id))
     second = await api_client.get(_my_project_url(), headers=_auth_headers(new_user.id))
@@ -891,6 +896,8 @@ async def test_my_project_user_isolation(
     await db_session.commit()
     await db_session.refresh(user_a)
     await db_session.refresh(user_b)
+    await grant_pro_tier_entitlement(db_session, user_id=user_a.id)
+    await grant_pro_tier_entitlement(db_session, user_id=user_b.id)
 
     resp_a = await api_client.get(_my_project_url(), headers=_auth_headers(user_a.id))
     resp_b = await api_client.get(_my_project_url(), headers=_auth_headers(user_b.id))

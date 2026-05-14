@@ -1,7 +1,8 @@
 import uuid
 from datetime import datetime
+from typing import Final
 
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .models import (
@@ -13,6 +14,8 @@ from .models import (
     Subscription,
 )
 from .models.subscription import StripeSubscriptionStatus
+
+DEFAULT_ENTITLEMENT_FEATURE: Final[str] = "pro_tier"
 
 
 class PaymentsRepository:
@@ -160,3 +163,28 @@ class PaymentsRepository:
 
     def add_entitlement(self, entitlement: Entitlement) -> None:
         self.db.add(entitlement)
+
+    async def has_current_entitlement(
+        self,
+        *,
+        user_id: uuid.UUID,
+        feature: str,
+        now: datetime,
+    ) -> bool:
+        query = (
+            select(Entitlement.id)
+            .where(
+                and_(
+                    Entitlement.user_id == user_id,
+                    Entitlement.feature == feature,
+                    Entitlement.valid_from <= now,
+                    or_(
+                        Entitlement.valid_until.is_(None),
+                        Entitlement.valid_until > now,
+                    ),
+                )
+            )
+            .limit(1)
+        )
+        result = await self.db.execute(query)
+        return result.scalar_one_or_none() is not None

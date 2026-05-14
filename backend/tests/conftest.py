@@ -19,6 +19,7 @@ automatically via ON DELETE CASCADE defined on each FK constraint.
 import os
 import uuid
 from collections.abc import AsyncGenerator
+from datetime import datetime, timezone
 
 import pytest_asyncio
 from dotenv import load_dotenv
@@ -38,6 +39,7 @@ from core.auth.config import ACCESS_TOKEN_COOKIE_NAME  # noqa: E402
 from core.auth.models.user import User  # noqa: E402
 from core.auth.security import AccessTokenManager  # noqa: E402
 from core.config import settings  # noqa: E402
+from core.payments.models import Entitlement  # noqa: E402
 from core.story_engine.models import Character, Project, Story  # noqa: E402
 from main import fastapi_app  # noqa: E402
 
@@ -105,6 +107,17 @@ async def user(db_session: AsyncSession) -> AsyncGenerator[User, None]:
     db_session.add(u)
     await db_session.commit()
     await db_session.refresh(u)
+
+    entitlement = Entitlement(
+        user_id=u.id,
+        feature="pro_tier",
+        source="test_fixture",
+        source_id=None,
+        valid_from=datetime.now(timezone.utc),
+        valid_until=None,
+    )
+    db_session.add(entitlement)
+    await db_session.commit()
 
     yield u
 
