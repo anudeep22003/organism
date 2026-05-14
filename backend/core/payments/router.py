@@ -9,7 +9,12 @@ from core.auth.api import get_current_user_id
 from core.common import AliasedBaseModel
 from core.infrastructure.database import get_async_db_session
 
-from .service import PaymentsService, StripeWebhookValidationError, UnhandledException
+from .service import (
+    PaymentsService,
+    StripeWebhookValidationError,
+    SubscriptionAlreadyExistsError,
+    UnhandledException,
+)
 
 router = APIRouter(prefix="/billing", tags=["billing"])
 
@@ -35,10 +40,13 @@ async def create_checkout_session(
     # price_id = "price_1TVSvzAMWKJyocPOhf76pKXx"
     # price_id = "price_1TVTLYAMWKJyocPOEzUSFEIT"
     price_id = "price_1TVTbWAMWKJyocPO4ayR6keZ"
-    url = await service.create_checkout_session(
-        user_id=user_id,
-        price_id=price_id,
-    )
+    try:
+        url = await service.create_checkout_session(
+            user_id=user_id,
+            price_id=price_id,
+        )
+    except SubscriptionAlreadyExistsError as e:
+        raise HTTPException(status_code=409, detail=str(e))
     return {"url": url}
 
 

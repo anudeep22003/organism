@@ -31,6 +31,9 @@ class StripeSubscriptionFields:
 class StripeSubscriptionStatus(StrEnum):
     ACTIVE = "active"
     TRIALING = "trialing"
+    PAST_DUE = "past_due"
+    UNPAID = "unpaid"
+    PAUSED = "paused"
     CANCELED = "canceled"
 
 
