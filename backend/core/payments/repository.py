@@ -102,6 +102,7 @@ class PaymentsRepository:
         period_end: datetime,
         exclude_stripe_invoice_id: str | None = None,
     ) -> Invoice | None:
+        """Get an invoice for a subscription period, excluding a specific invoice id if provided."""
         query = select(Invoice).where(
             Invoice.subscription_id == subscription_id,
             Invoice.period_start == period_start,
