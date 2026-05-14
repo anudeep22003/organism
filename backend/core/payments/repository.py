@@ -75,6 +75,24 @@ class PaymentsRepository:
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
+    async def get_blocking_checkout_subscription_by_user_id(
+        self, user_id: uuid.UUID
+    ) -> Subscription | None:
+        query = select(Subscription).where(
+            Subscription.user_id == user_id,
+            Subscription.status.in_(
+                [
+                    StripeSubscriptionStatus.ACTIVE.value,
+                    StripeSubscriptionStatus.TRIALING.value,
+                    StripeSubscriptionStatus.PAST_DUE.value,
+                    StripeSubscriptionStatus.UNPAID.value,
+                    StripeSubscriptionStatus.PAUSED.value,
+                ]
+            ),
+        )
+        result = await self.db.execute(query)
+        return result.scalar_one_or_none()
+
     async def get_subscription_by_stripe_subscription_id(
         self, stripe_subscription_id: str
     ) -> Subscription | None:

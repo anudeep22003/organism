@@ -6,7 +6,7 @@ import stripe
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 from stripe import Customer, RequestOptions
-from stripe.params import CustomerCreateParams
+from stripe.params import CustomerCreateParams, SubscriptionListParams
 from stripe.params.checkout import SessionCreateParams
 
 from core.auth.models import User
@@ -44,6 +44,12 @@ class UserNotFoundError(Exception):
 
 class UnhandledException(Exception):
     """Error raised when an unknown error occurs."""
+
+    pass
+
+
+class SubscriptionAlreadyExistsError(Exception):
+    """Error raised when a user already has a blocking subscription."""
 
     pass
 
@@ -134,6 +140,8 @@ class PaymentsService:
         user_id: uuid.UUID,
         price_id: str,
     ) -> str:
+        await self._ensure_no_blocking_subscription(user_id=user_id)
+
         stripe_customer = await self.repository.get_stripe_customer_by_user_id(user_id)
         if stripe_customer is None:
             # should we create a customer if one is not found as a failsafe
@@ -192,6 +200,63 @@ class PaymentsService:
         checkout_session.update_session_entry_with_stripe_session(stripe_session)
         await self.db.commit()
         return stripe_session.url
+
+    async def _ensure_no_blocking_subscription(self, *, user_id: uuid.UUID) -> None:
+        local_subscription = (
+            await self.repository.get_blocking_checkout_subscription_by_user_id(user_id)
+        )
+        if local_subscription is not None:
+            logger.info(
+                "Blocking checkout for user_id={} due to local subscription {} status={}",
+                user_id,
+                local_subscription.stripe_subscription_id,
+                local_subscription.status,
+            )
+            raise SubscriptionAlreadyExistsError(
+                "User already has an active subscription"
+            )
+
+        stripe_customer = await self.repository.get_stripe_customer_by_user_id(user_id)
+        if stripe_customer is None:
+            return
+
+        stripe_subscription = await self._get_blocking_stripe_subscription(
+            stripe_customer_id=stripe_customer.stripe_customer_id
+        )
+        if stripe_subscription is None:
+            return
+
+        stripe_subscription_id = stripe_subscription.id
+        stripe_status = stripe_subscription.status
+        logger.warning(
+            "Blocking checkout for user_id={} due to Stripe subscription {} status={} missing from local mirror",
+            user_id,
+            stripe_subscription_id,
+            stripe_status,
+        )
+        raise SubscriptionAlreadyExistsError("User already has an active subscription")
+
+    async def _get_blocking_stripe_subscription(
+        self, *, stripe_customer_id: str
+    ) -> stripe.Subscription | None:
+        params = SubscriptionListParams(
+            customer=stripe_customer_id,
+            status="all",
+            limit=100,
+        )
+        subscriptions = await self.stripe_client.v1.subscriptions.list_async(
+            params=params
+        )
+        for subscription in subscriptions.data:
+            if subscription.status in {
+                "active",
+                "trialing",
+                "past_due",
+                "unpaid",
+                "paused",
+            }:
+                return subscription
+        return None
 
     async def handle_stripe_webhook_event(
         self,
