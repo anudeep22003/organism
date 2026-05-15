@@ -1,0 +1,169 @@
+{
+  "id": "evt_1TVTwaAMWKJyocPOvvimRT6t",
+  "data": {
+    "object": {
+      "id": "in_1TVTwWAMWKJyocPOIWrUSKfg",
+      "lines": {
+        "url": "/v1/invoices/in_1TVTwWAMWKJyocPOIWrUSKfg/lines",
+        "data": [
+          {
+            "id": "il_1TVTwVAMWKJyocPO5hrAwMga",
+            "taxes": [],
+            "amount": 30000,
+            "object": "line_item",
+            "parent": {
+              "type": "subscription_item_details",
+              "invoice_item_details": null,
+              "subscription_item_details": {
+                "proration": false,
+                "invoice_item": null,
+                "subscription": "sub_1TVTwYAMWKJyocPOpydP2qtC",
+                "proration_details": { "credited_items": null },
+                "subscription_item": "si_UUSs1nJuWMfMkY"
+              }
+            },
+            "period": { "end": 1778665568, "start": 1778579168 },
+            "invoice": "in_1TVTwWAMWKJyocPOIWrUSKfg",
+            "pricing": {
+              "type": "price_details",
+              "price_details": {
+                "price": "price_1TVTbWAMWKJyocPO4ayR6keZ",
+                "product": "prod_USGM0xWzbrF6nO"
+              },
+              "unit_amount_decimal": "30000"
+            },
+            "currency": "usd",
+            "livemode": false,
+            "metadata": {},
+            "quantity": 1,
+            "subtotal": 30000,
+            "discounts": [],
+            "description": "1 × Base Subscription (at $300.00 / day)",
+            "discountable": true,
+            "discount_amounts": [],
+            "quantity_decimal": "1",
+            "pretax_credit_amounts": []
+          }
+        ],
+        "object": "list",
+        "has_more": false,
+        "total_count": 1
+      },
+      "total": 30000,
+      "footer": null,
+      "issuer": { "type": "self" },
+      "number": "XEE9OARR-0006",
+      "object": "invoice",
+      "parent": {
+        "type": "subscription_details",
+        "quote_details": null,
+        "subscription_details": {
+          "metadata": {},
+          "subscription": "sub_1TVTwYAMWKJyocPOpydP2qtC"
+        }
+      },
+      "status": "paid",
+      "created": 1778579168,
+      "currency": "usd",
+      "customer": "cus_UUDE8Rr8Qy9ZZe",
+      "due_date": null,
+      "livemode": false,
+      "metadata": {},
+      "subtotal": 30000,
+      "attempted": true,
+      "discounts": [],
+      "rendering": null,
+      "amount_due": 30000,
+      "period_end": 1778579168,
+      "test_clock": "clock_1TVT09AMWKJyocPOIE1MyD9j",
+      "amount_paid": 30000,
+      "application": null,
+      "description": null,
+      "invoice_pdf": "https://pay.stripe.com/invoice/test_invoice_fixture/pdf",
+      "total_taxes": [],
+      "account_name": "Example Test Account",
+      "auto_advance": false,
+      "effective_at": 1778579168,
+      "from_invoice": null,
+      "on_behalf_of": null,
+      "period_start": 1778579168,
+      "attempt_count": 0,
+      "automatic_tax": {
+        "status": null,
+        "enabled": false,
+        "provider": null,
+        "liability": null,
+        "disabled_reason": null
+      },
+      "custom_fields": null,
+      "customer_name": "Fixture Customer",
+      "shipping_cost": null,
+      "billing_reason": "subscription_create",
+      "customer_email": "fixture-customer@example.com",
+      "customer_phone": null,
+      "default_source": null,
+      "ending_balance": 0,
+      "receipt_number": null,
+      "account_country": "US",
+      "account_tax_ids": null,
+      "amount_overpaid": 0,
+      "amount_shipping": 0,
+      "latest_revision": null,
+      "amount_remaining": 0,
+      "customer_account": null,
+      "customer_address": null,
+      "customer_tax_ids": [],
+      "payment_settings": {
+        "default_mandate": null,
+        "payment_method_types": null,
+        "payment_method_options": {
+          "pix": null,
+          "upi": null,
+          "card": { "request_three_d_secure": "automatic" },
+          "payto": null,
+          "konbini": null,
+          "acss_debit": null,
+          "bancontact": null,
+          "sepa_debit": null,
+          "us_bank_account": null,
+          "customer_balance": null
+        }
+      },
+      "shipping_details": null,
+      "starting_balance": 0,
+      "collection_method": "charge_automatically",
+      "customer_shipping": null,
+      "default_tax_rates": [],
+      "hosted_invoice_url": "https://invoice.stripe.com/i/test_invoice_fixture",
+      "status_transitions": {
+        "paid_at": 1778579168,
+        "voided_at": null,
+        "finalized_at": 1778579168,
+        "marked_uncollectible_at": null
+      },
+      "customer_tax_exempt": "none",
+      "total_excluding_tax": 30000,
+      "next_payment_attempt": null,
+      "statement_descriptor": null,
+      "webhooks_delivered_at": null,
+      "default_payment_method": null,
+      "subtotal_excluding_tax": 30000,
+      "total_discount_amounts": [],
+      "last_finalization_error": null,
+      "automatically_finalizes_at": null,
+      "total_pretax_credit_amounts": [],
+      "pre_payment_credit_notes_amount": 0,
+      "post_payment_credit_notes_amount": 0
+    }
+  },
+  "type": "invoice.paid",
+  "object": "event",
+  "created": 1778406399,
+  "request": {
+    "id": null,
+    "idempotency_key": "01ed8885-123f-4a14-a5df-c841e4f7046e"
+  },
+  "livemode": false,
+  "api_version": "2026-04-22.dahlia",
+  "pending_webhooks": 2
+}

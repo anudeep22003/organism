@@ -33,11 +33,17 @@ from core.payments.webhooks.handlers import SubscriptionWebhookHandler
 
 configure_psycopg_json_dumps()
 
+FIXTURE_DIR = Path(__file__).parent / "fixtures" / "stripe_events"
+SUBSCRIPTION_FIXTURE_ID = "sub_1TWsUPAMWKJyocPOpT1OEeJe"
+INVOICE_FIXTURE_SUBSCRIPTION_ID = "sub_1TVTwYAMWKJyocPOpydP2qtC"
+STRIPE_CUSTOMER_FIXTURE_ID = "cus_UUDE8Rr8Qy9ZZe"
+INVOICE_FIXTURE_ID = "in_1TVTwWAMWKJyocPOIWrUSKfg"
+
 
 def load_stripe_payload(
     fixture_name: str, *, replacements: dict[str, str] | None = None
 ) -> dict[str, Any]:
-    payload_text = Path("stripe_events", fixture_name).read_text()
+    payload_text = (FIXTURE_DIR / fixture_name).read_text()
     for old_value, new_value in (replacements or {}).items():
         payload_text = payload_text.replace(old_value, new_value)
     return cast(dict[str, Any], json.loads(payload_text))
@@ -115,9 +121,9 @@ async def test_drainer_replays_retryable_invoice_event_after_subscription_create
     invoice_payload = load_stripe_payload(
         "invoice.paid.json",
         replacements={
-            "cus_UUDE8Rr8Qy9ZZe": test_ids["customer_id"],
-            "sub_1TVTwYAMWKJyocPOpydP2qtC": test_ids["subscription_id"],
-            "in_1TVTwWAMWKJyocPOIWrUSKfg": test_ids["invoice_id"],
+            STRIPE_CUSTOMER_FIXTURE_ID: test_ids["customer_id"],
+            INVOICE_FIXTURE_SUBSCRIPTION_ID: test_ids["subscription_id"],
+            INVOICE_FIXTURE_ID: test_ids["invoice_id"],
         },
     )
     invoice_payload["id"] = test_ids["event_id"]
@@ -146,8 +152,8 @@ async def test_drainer_replays_retryable_invoice_event_after_subscription_create
     subscription_event = load_stripe_event(
         "customer.subscription.created.json",
         replacements={
-            "cus_UUDE8Rr8Qy9ZZe": test_ids["customer_id"],
-            "sub_1TVTwYAMWKJyocPOpydP2qtC": test_ids["subscription_id"],
+            STRIPE_CUSTOMER_FIXTURE_ID: test_ids["customer_id"],
+            SUBSCRIPTION_FIXTURE_ID: test_ids["subscription_id"],
         },
     )
     subscription_handler = SubscriptionWebhookHandler(db_session)
@@ -188,9 +194,9 @@ async def test_drainer_processes_pending_unsupported_event(
     unsupported_payload = load_stripe_payload(
         "invoice.paid.json",
         replacements={
-            "cus_UUDE8Rr8Qy9ZZe": test_ids["customer_id"],
-            "sub_1TVTwYAMWKJyocPOpydP2qtC": test_ids["subscription_id"],
-            "in_1TVTwWAMWKJyocPOIWrUSKfg": test_ids["invoice_id"],
+            STRIPE_CUSTOMER_FIXTURE_ID: test_ids["customer_id"],
+            INVOICE_FIXTURE_SUBSCRIPTION_ID: test_ids["subscription_id"],
+            INVOICE_FIXTURE_ID: test_ids["invoice_id"],
         },
     )
     unsupported_payload["id"] = test_ids["event_id"]
@@ -231,8 +237,8 @@ async def test_terminal_failed_event_is_not_drainable(
     initial_subscription_event = load_stripe_event(
         "customer.subscription.created.json",
         replacements={
-            "cus_UUDE8Rr8Qy9ZZe": test_ids["customer_id"],
-            "sub_1TVTwYAMWKJyocPOpydP2qtC": test_ids["subscription_id"],
+            STRIPE_CUSTOMER_FIXTURE_ID: test_ids["customer_id"],
+            SUBSCRIPTION_FIXTURE_ID: test_ids["subscription_id"],
         },
     )
     subscription_handler = SubscriptionWebhookHandler(db_session)
@@ -242,8 +248,8 @@ async def test_terminal_failed_event_is_not_drainable(
     conflicting_subscription_payload = load_stripe_payload(
         "customer.subscription.created.json",
         replacements={
-            "cus_UUDE8Rr8Qy9ZZe": test_ids["customer_id"],
-            "sub_1TVTwYAMWKJyocPOpydP2qtC": test_ids["other_subscription_id"],
+            STRIPE_CUSTOMER_FIXTURE_ID: test_ids["customer_id"],
+            SUBSCRIPTION_FIXTURE_ID: test_ids["other_subscription_id"],
         },
     )
     conflicting_subscription_payload["id"] = test_ids["event_id"]

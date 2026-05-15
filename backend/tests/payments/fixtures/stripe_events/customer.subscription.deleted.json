@@ -1,0 +1,188 @@
+{
+  "id": "evt_1TWsr5AMWKJyocPOky2dNQPM",
+  "data": {
+    "object": {
+      "id": "sub_1TWsUPAMWKJyocPOpT1OEeJe",
+      "plan": {
+        "id": "price_1TVTbWAMWKJyocPO4ayR6keZ",
+        "meter": null,
+        "active": true,
+        "amount": 30000,
+        "object": "plan",
+        "created": 1778405094,
+        "product": "prod_USGM0xWzbrF6nO",
+        "currency": "usd",
+        "interval": "day",
+        "livemode": false,
+        "metadata": {},
+        "nickname": null,
+        "tiers_mode": null,
+        "usage_type": "licensed",
+        "amount_decimal": "30000",
+        "billing_scheme": "per_unit",
+        "interval_count": 1,
+        "transform_usage": null,
+        "trial_period_days": null
+      },
+      "items": {
+        "url": "/v1/subscription_items?subscription=sub_1TWsUPAMWKJyocPOpT1OEeJe",
+        "data": [
+          {
+            "id": "si_UVuJYqwhSXRWDz",
+            "plan": {
+              "id": "price_1TVTbWAMWKJyocPO4ayR6keZ",
+              "meter": null,
+              "active": true,
+              "amount": 30000,
+              "object": "plan",
+              "created": 1778405094,
+              "product": "prod_USGM0xWzbrF6nO",
+              "currency": "usd",
+              "interval": "day",
+              "livemode": false,
+              "metadata": {},
+              "nickname": null,
+              "tiers_mode": null,
+              "usage_type": "licensed",
+              "amount_decimal": "30000",
+              "billing_scheme": "per_unit",
+              "interval_count": 1,
+              "transform_usage": null,
+              "trial_period_days": null
+            },
+            "price": {
+              "id": "price_1TVTbWAMWKJyocPO4ayR6keZ",
+              "type": "recurring",
+              "active": true,
+              "object": "price",
+              "created": 1778405094,
+              "product": "prod_USGM0xWzbrF6nO",
+              "currency": "usd",
+              "livemode": false,
+              "metadata": {},
+              "nickname": null,
+              "recurring": {
+                "meter": null,
+                "interval": "day",
+                "usage_type": "licensed",
+                "interval_count": 1,
+                "trial_period_days": null
+              },
+              "lookup_key": null,
+              "tiers_mode": null,
+              "unit_amount": 30000,
+              "tax_behavior": "unspecified",
+              "billing_scheme": "per_unit",
+              "custom_unit_amount": null,
+              "transform_quantity": null,
+              "unit_amount_decimal": "30000"
+            },
+            "object": "subscription_item",
+            "created": 1778579168,
+            "metadata": {},
+            "quantity": 1,
+            "discounts": [],
+            "tax_rates": [],
+            "billed_until": null,
+            "subscription": "sub_1TWsUPAMWKJyocPOpT1OEeJe",
+            "billing_thresholds": null,
+            "current_period_end": 1778665568,
+            "current_period_start": 1778579168
+          }
+        ],
+        "object": "list",
+        "has_more": false,
+        "total_count": 1
+      },
+      "object": "subscription",
+      "status": "canceled",
+      "created": 1778579168,
+      "currency": "usd",
+      "customer": "cus_UUDE8Rr8Qy9ZZe",
+      "ended_at": 1778579168,
+      "livemode": false,
+      "metadata": {},
+      "quantity": 1,
+      "schedule": null,
+      "cancel_at": null,
+      "discounts": [],
+      "trial_end": null,
+      "start_date": 1778579168,
+      "test_clock": "clock_1TVT09AMWKJyocPOIE1MyD9j",
+      "application": null,
+      "canceled_at": 1778579168,
+      "description": null,
+      "trial_start": null,
+      "billing_mode": {
+        "type": "flexible",
+        "flexible": { "proration_discounts": "included" },
+        "updated_at": 1778739060
+      },
+      "on_behalf_of": null,
+      "automatic_tax": {
+        "enabled": false,
+        "liability": null,
+        "disabled_reason": null
+      },
+      "transfer_data": null,
+      "days_until_due": null,
+      "default_source": null,
+      "latest_invoice": "in_1TWsUNAMWKJyocPOp0QQoBc0",
+      "pending_update": null,
+      "trial_settings": {
+        "end_behavior": { "missing_payment_method": "create_invoice" }
+      },
+      "customer_account": null,
+      "invoice_settings": {
+        "issuer": { "type": "self" },
+        "account_tax_ids": null
+      },
+      "managed_payments": { "enabled": false },
+      "pause_collection": null,
+      "payment_settings": {
+        "payment_method_types": null,
+        "payment_method_options": {
+          "pix": null,
+          "upi": null,
+          "card": {
+            "network": null,
+            "request_three_d_secure": "automatic"
+          },
+          "payto": null,
+          "konbini": null,
+          "acss_debit": null,
+          "bancontact": null,
+          "sepa_debit": null,
+          "us_bank_account": null,
+          "customer_balance": null
+        },
+        "save_default_payment_method": "off"
+      },
+      "billing_schedules": [],
+      "collection_method": "charge_automatically",
+      "default_tax_rates": [],
+      "billing_thresholds": null,
+      "presentment_details": { "presentment_currency": "gbp" },
+      "billing_cycle_anchor": 1778579168,
+      "cancel_at_period_end": false,
+      "cancellation_details": {
+        "reason": "cancellation_requested",
+        "comment": null,
+        "feedback": null
+      },
+      "pending_setup_intent": null,
+      "default_payment_method": "pm_1TWsUMAMWKJyocPOAeMGWrM7",
+      "application_fee_percent": null,
+      "billing_cycle_anchor_config": null,
+      "pending_invoice_item_interval": null,
+      "next_pending_invoice_item_invoice": null
+    }
+  },
+  "type": "customer.subscription.deleted",
+  "object": "event",
+  "created": 1778740487,
+  "request": { "id": "req_A2kUx1KRpDIDmw", "idempotency_key": null },
+  "livemode": false,
+  "api_version": "2026-04-22.dahlia",
+  "pending_webhooks": 2
+}
