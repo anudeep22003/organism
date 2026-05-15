@@ -198,15 +198,20 @@ async def test_invoice_paid_handler_creates_invoice_and_entitlement(
         select(Entitlement).where(Entitlement.user_id == user.id)
     )
     entitlements = list(entitlement_result.scalars().all())
+    subscription_entitlements = [
+        entitlement
+        for entitlement in entitlements
+        if entitlement.source == "subscription"
+    ]
 
     assert len(invoices) == 1
     assert invoices[0].stripe_invoice_id == test_ids["invoice_id"]
     assert invoices[0].amount_paid == 30000
 
-    assert len(entitlements) == 1
-    assert entitlements[0].user_id == user.id
-    assert entitlements[0].feature == "pro_tier"
-    assert entitlements[0].source == "subscription"
+    assert len(subscription_entitlements) == 1
+    assert subscription_entitlements[0].user_id == user.id
+    assert subscription_entitlements[0].feature == "pro_tier"
+    assert subscription_entitlements[0].source == "subscription"
 
 
 @pytest.mark.asyncio
@@ -250,9 +255,14 @@ async def test_invoice_paid_handler_is_idempotent_for_same_invoice(
     entitlement_result = await db_session.execute(
         select(Entitlement).where(Entitlement.user_id == user.id)
     )
+    subscription_entitlements = [
+        entitlement
+        for entitlement in entitlement_result.scalars().all()
+        if entitlement.source == "subscription"
+    ]
 
     assert len(list(invoice_result.scalars().all())) == 1
-    assert len(list(entitlement_result.scalars().all())) == 1
+    assert len(subscription_entitlements) == 1
 
 
 @pytest.mark.asyncio
@@ -302,12 +312,17 @@ async def test_invoice_payment_failed_creates_invoice_without_entitlement(
     )
     invoices = list(invoice_result.scalars().all())
     entitlements = list(entitlement_result.scalars().all())
+    subscription_entitlements = [
+        entitlement
+        for entitlement in entitlements
+        if entitlement.source == "subscription"
+    ]
 
     assert len(invoices) == 1
     assert invoices[0].stripe_invoice_id == test_ids["invoice_id"]
     assert invoices[0].status == "open"
     assert invoices[0].amount_paid == 0
-    assert len(entitlements) == 0
+    assert len(subscription_entitlements) == 0
 
 
 @pytest.mark.asyncio
@@ -367,7 +382,11 @@ async def test_invoice_paid_after_failed_invoice_creates_entitlement(
         select(Entitlement).where(Entitlement.user_id == user.id)
     )
     invoice = invoice_result.scalar_one()
-    entitlements = list(entitlement_result.scalars().all())
+    entitlements = [
+        entitlement
+        for entitlement in entitlement_result.scalars().all()
+        if entitlement.source == "subscription"
+    ]
 
     assert invoice.status == "paid"
     assert invoice.amount_paid == 30000

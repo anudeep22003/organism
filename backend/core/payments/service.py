@@ -16,7 +16,7 @@ from core.payments.models.checkout_session import FulfillmentStatus
 from core.payments.webhooks import (
     NonRetryableStripeWebhookError,
     RetryableStripeWebhookError,
-    StripeWebhookDispatcher,
+    StripeEventProcessor,
 )
 
 from .models import (
@@ -275,11 +275,12 @@ class PaymentsService:
         )
         if (
             existing_stripe_event is not None
-            and existing_stripe_event.processed_at is not None
+            and existing_stripe_event.processing_status == "processed"
         ):
             logger.info("Stripe event already processed: {}", stripe_event_id)
             return
 
+        stripe_event_model = existing_stripe_event
         if existing_stripe_event is None:
             stripe_event_model = StripeEvent.create(
                 stripe_event=stripe_event,
@@ -288,30 +289,25 @@ class PaymentsService:
             await self.db.commit()
             logger.info("Stripe event committed to db: type: {}", stripe_event.type)
 
-        dispatcher = StripeWebhookDispatcher(self.db)
+        if stripe_event_model is None:
+            raise UnhandledException(
+                f"Stripe event {stripe_event_id} was not available for processing"
+            )
+
+        processor = StripeEventProcessor(self.db)
         try:
-            await dispatcher.dispatch(stripe_event)
+            await processor.process(stripe_event=stripe_event_model)
         except RetryableStripeWebhookError as exc:
-            await self.db.rollback()
-            await self._mark_stripe_event_failed(stripe_event_id, str(exc))
             raise UnhandledException(
                 f"Retryable stripe webhook handling error: {exc}"
             ) from exc
         except NonRetryableStripeWebhookError as exc:
-            await self.db.rollback()
-            await self._mark_stripe_event_failed(stripe_event_id, str(exc))
             logger.warning("Non-retryable stripe webhook error: {}", exc)
             return
         except Exception as exc:
-            await self.db.rollback()
-            await self._mark_stripe_event_failed(
-                stripe_event_id, f"Unexpected webhook handling error: {exc}"
-            )
             raise UnhandledException(
                 f"Unexpected stripe webhook handling error: {exc}"
             ) from exc
-
-        await self._mark_stripe_event_processed(stripe_event_id)
 
     def _validate_stripe_webhook_body(
         self, body: bytes, sig_header: str
@@ -336,25 +332,3 @@ class PaymentsService:
             raise UnhandledException(
                 f"Unknown error validating stripe webhook body: {e}"
             ) from e
-
-    async def _mark_stripe_event_processed(self, stripe_event_id: str) -> None:
-        stripe_event = await self.repository.get_stripe_event_by_stripe_event_id(
-            stripe_event_id
-        )
-        if stripe_event is None:
-            raise UnhandledException(
-                f"Stripe event {stripe_event_id} was not found for processed marking"
-            )
-        stripe_event.mark_processed()
-        await self.db.commit()
-
-    async def _mark_stripe_event_failed(self, stripe_event_id: str, error: str) -> None:
-        stripe_event = await self.repository.get_stripe_event_by_stripe_event_id(
-            stripe_event_id
-        )
-        if stripe_event is None:
-            raise UnhandledException(
-                f"Stripe event {stripe_event_id} was not found for failure marking"
-            )
-        stripe_event.mark_failed(error=error)
-        await self.db.commit()
