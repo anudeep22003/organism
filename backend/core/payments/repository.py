@@ -53,6 +53,23 @@ class PaymentsRepository:
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
+    async def get_stripe_event_by_id(
+        self, stripe_event_id: uuid.UUID
+    ) -> StripeEvent | None:
+        query = select(StripeEvent).where(StripeEvent.id == stripe_event_id)
+        result = await self.db.execute(query)
+        return result.scalar_one_or_none()
+
+    async def list_drainable_stripe_events(self, *, limit: int) -> list[StripeEvent]:
+        query = (
+            select(StripeEvent)
+            .where(StripeEvent.processing_status.in_(["pending", "retryable_failed"]))
+            .order_by(StripeEvent.received_at.asc())
+            .limit(limit)
+        )
+        result = await self.db.execute(query)
+        return list(result.scalars().all())
+
     def add_stripe_event(self, stripe_event: StripeEvent) -> None:
         self.db.add(stripe_event)
 
