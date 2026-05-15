@@ -119,6 +119,10 @@ async def user(db_session: AsyncSession) -> AsyncGenerator[User, None]:
     db_session.add(entitlement)
     await db_session.commit()
 
+    # Snapshot the scalar id before yielding. Some tests expunge ORM state or
+    # leave the session rolled back, and teardown must not depend on reading
+    # attributes from a detached/expired User instance.
+    user_id = u.id
     yield u
 
     # Teardown uses a fresh engine + session, never the test's db_session.
@@ -130,7 +134,7 @@ async def user(db_session: AsyncSession) -> AsyncGenerator[User, None]:
     try:
         async with async_sessionmaker(teardown_engine)() as teardown_session:
             await teardown_session.execute(
-                text('DELETE FROM "user" WHERE id = :id'), {"id": u.id}
+                text('DELETE FROM "user" WHERE id = :id'), {"id": user_id}
             )
             await teardown_session.commit()
     finally:
