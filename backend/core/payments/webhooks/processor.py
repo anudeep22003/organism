@@ -54,7 +54,9 @@ class StripeEventProcessor:
 
     @staticmethod
     def _reconstruct_event(*, stripe_event: StripeEvent) -> stripe.Event:
-        return stripe.Event.construct_from(stripe_event.payload, key="sk_test")
+        # if you set the key to actual stripe key, the events become live, you can do api calls from the event
+        # however, we are not using this, hence key is None
+        return stripe.Event.construct_from(stripe_event.payload, key=None)
 
     async def _mark_retryable_failed(
         self, *, stripe_event_id: uuid.UUID, error: str
