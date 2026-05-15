@@ -19,11 +19,17 @@ from core.payments.webhooks.handlers import (
 
 configure_psycopg_json_dumps()
 
+FIXTURE_DIR = Path(__file__).parent / "fixtures" / "stripe_events"
+SUBSCRIPTION_FIXTURE_ID = "sub_1TWsUPAMWKJyocPOpT1OEeJe"
+INVOICE_FIXTURE_SUBSCRIPTION_ID = "sub_1TVTwYAMWKJyocPOpydP2qtC"
+STRIPE_CUSTOMER_FIXTURE_ID = "cus_UUDE8Rr8Qy9ZZe"
+INVOICE_FIXTURE_ID = "in_1TVTwWAMWKJyocPOIWrUSKfg"
+
 
 def load_stripe_payload(
     fixture_name: str, *, replacements: dict[str, str] | None = None
 ) -> dict[str, Any]:
-    payload_text = Path("stripe_events", fixture_name).read_text()
+    payload_text = (FIXTURE_DIR / fixture_name).read_text()
     for old_value, new_value in (replacements or {}).items():
         payload_text = payload_text.replace(old_value, new_value)
     return cast(dict[str, Any], json.loads(payload_text))
@@ -80,8 +86,8 @@ async def test_customer_subscription_created_handler_creates_subscription(
     stripe_event = load_stripe_event(
         "customer.subscription.created.json",
         replacements={
-            "cus_UUDE8Rr8Qy9ZZe": test_ids["customer_id"],
-            "sub_1TVTwYAMWKJyocPOpydP2qtC": test_ids["created_subscription_id"],
+            STRIPE_CUSTOMER_FIXTURE_ID: test_ids["customer_id"],
+            SUBSCRIPTION_FIXTURE_ID: test_ids["created_subscription_id"],
         },
     )
 
@@ -117,8 +123,8 @@ async def test_customer_subscription_updated_handler_updates_subscription(
     created_event = load_stripe_event(
         "customer.subscription.created.json",
         replacements={
-            "cus_UUDE8Rr8Qy9ZZe": test_ids["customer_id"],
-            "sub_1TVTwYAMWKJyocPOpydP2qtC": test_ids["created_subscription_id"],
+            STRIPE_CUSTOMER_FIXTURE_ID: test_ids["customer_id"],
+            SUBSCRIPTION_FIXTURE_ID: test_ids["created_subscription_id"],
         },
     )
     handler = SubscriptionWebhookHandler(db_session)
@@ -128,8 +134,8 @@ async def test_customer_subscription_updated_handler_updates_subscription(
     updated_payload = load_stripe_payload(
         "customer.subscription.created.json",
         replacements={
-            "cus_UUDE8Rr8Qy9ZZe": test_ids["customer_id"],
-            "sub_1TVTwYAMWKJyocPOpydP2qtC": test_ids["created_subscription_id"],
+            STRIPE_CUSTOMER_FIXTURE_ID: test_ids["customer_id"],
+            SUBSCRIPTION_FIXTURE_ID: test_ids["created_subscription_id"],
         },
     )
     updated_payload["type"] = "customer.subscription.updated"
@@ -170,8 +176,8 @@ async def test_invoice_paid_handler_creates_invoice_and_entitlement(
     subscription_event = load_stripe_event(
         "customer.subscription.created.json",
         replacements={
-            "cus_UUDE8Rr8Qy9ZZe": test_ids["customer_id"],
-            "sub_1TVTwYAMWKJyocPOpydP2qtC": test_ids["created_subscription_id"],
+            STRIPE_CUSTOMER_FIXTURE_ID: test_ids["customer_id"],
+            SUBSCRIPTION_FIXTURE_ID: test_ids["created_subscription_id"],
         },
     )
     subscription_handler = SubscriptionWebhookHandler(db_session)
@@ -181,9 +187,9 @@ async def test_invoice_paid_handler_creates_invoice_and_entitlement(
     invoice_event = load_stripe_event(
         "invoice.paid.json",
         replacements={
-            "cus_UUDE8Rr8Qy9ZZe": test_ids["customer_id"],
-            "sub_1TVTwYAMWKJyocPOpydP2qtC": test_ids["created_subscription_id"],
-            "in_1TVTwWAMWKJyocPOIWrUSKfg": test_ids["invoice_id"],
+            STRIPE_CUSTOMER_FIXTURE_ID: test_ids["customer_id"],
+            INVOICE_FIXTURE_SUBSCRIPTION_ID: test_ids["created_subscription_id"],
+            INVOICE_FIXTURE_ID: test_ids["invoice_id"],
         },
     )
     invoice_handler = InvoiceWebhookHandler(db_session)
@@ -227,8 +233,8 @@ async def test_invoice_paid_handler_is_idempotent_for_same_invoice(
     subscription_event = load_stripe_event(
         "customer.subscription.created.json",
         replacements={
-            "cus_UUDE8Rr8Qy9ZZe": test_ids["customer_id"],
-            "sub_1TVTwYAMWKJyocPOpydP2qtC": test_ids["created_subscription_id"],
+            STRIPE_CUSTOMER_FIXTURE_ID: test_ids["customer_id"],
+            SUBSCRIPTION_FIXTURE_ID: test_ids["created_subscription_id"],
         },
     )
     subscription_handler = SubscriptionWebhookHandler(db_session)
@@ -238,9 +244,9 @@ async def test_invoice_paid_handler_is_idempotent_for_same_invoice(
     invoice_event = load_stripe_event(
         "invoice.paid.json",
         replacements={
-            "cus_UUDE8Rr8Qy9ZZe": test_ids["customer_id"],
-            "sub_1TVTwYAMWKJyocPOpydP2qtC": test_ids["created_subscription_id"],
-            "in_1TVTwWAMWKJyocPOIWrUSKfg": test_ids["invoice_id"],
+            STRIPE_CUSTOMER_FIXTURE_ID: test_ids["customer_id"],
+            INVOICE_FIXTURE_SUBSCRIPTION_ID: test_ids["created_subscription_id"],
+            INVOICE_FIXTURE_ID: test_ids["invoice_id"],
         },
     )
     invoice_handler = InvoiceWebhookHandler(db_session)
@@ -278,8 +284,8 @@ async def test_invoice_payment_failed_creates_invoice_without_entitlement(
     subscription_event = load_stripe_event(
         "customer.subscription.created.json",
         replacements={
-            "cus_UUDE8Rr8Qy9ZZe": test_ids["customer_id"],
-            "sub_1TVTwYAMWKJyocPOpydP2qtC": test_ids["created_subscription_id"],
+            STRIPE_CUSTOMER_FIXTURE_ID: test_ids["customer_id"],
+            SUBSCRIPTION_FIXTURE_ID: test_ids["created_subscription_id"],
         },
     )
     subscription_handler = SubscriptionWebhookHandler(db_session)
@@ -289,9 +295,9 @@ async def test_invoice_payment_failed_creates_invoice_without_entitlement(
     failed_payload = load_stripe_payload(
         "invoice.paid.json",
         replacements={
-            "cus_UUDE8Rr8Qy9ZZe": test_ids["customer_id"],
-            "sub_1TVTwYAMWKJyocPOpydP2qtC": test_ids["created_subscription_id"],
-            "in_1TVTwWAMWKJyocPOIWrUSKfg": test_ids["invoice_id"],
+            STRIPE_CUSTOMER_FIXTURE_ID: test_ids["customer_id"],
+            INVOICE_FIXTURE_SUBSCRIPTION_ID: test_ids["created_subscription_id"],
+            INVOICE_FIXTURE_ID: test_ids["invoice_id"],
         },
     )
     failed_payload["type"] = "invoice.payment_failed"
@@ -338,8 +344,8 @@ async def test_invoice_paid_after_failed_invoice_creates_entitlement(
     subscription_event = load_stripe_event(
         "customer.subscription.created.json",
         replacements={
-            "cus_UUDE8Rr8Qy9ZZe": test_ids["customer_id"],
-            "sub_1TVTwYAMWKJyocPOpydP2qtC": test_ids["created_subscription_id"],
+            STRIPE_CUSTOMER_FIXTURE_ID: test_ids["customer_id"],
+            SUBSCRIPTION_FIXTURE_ID: test_ids["created_subscription_id"],
         },
     )
     subscription_handler = SubscriptionWebhookHandler(db_session)
@@ -349,9 +355,9 @@ async def test_invoice_paid_after_failed_invoice_creates_entitlement(
     failed_payload = load_stripe_payload(
         "invoice.paid.json",
         replacements={
-            "cus_UUDE8Rr8Qy9ZZe": test_ids["customer_id"],
-            "sub_1TVTwYAMWKJyocPOpydP2qtC": test_ids["created_subscription_id"],
-            "in_1TVTwWAMWKJyocPOIWrUSKfg": test_ids["invoice_id"],
+            STRIPE_CUSTOMER_FIXTURE_ID: test_ids["customer_id"],
+            INVOICE_FIXTURE_SUBSCRIPTION_ID: test_ids["created_subscription_id"],
+            INVOICE_FIXTURE_ID: test_ids["invoice_id"],
         },
     )
     failed_payload["type"] = "invoice.payment_failed"
