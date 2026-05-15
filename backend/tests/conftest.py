@@ -20,6 +20,7 @@ import os
 import uuid
 from collections.abc import AsyncGenerator
 from datetime import datetime, timezone
+from typing import Awaitable, Callable
 
 import pytest_asyncio
 from dotenv import load_dotenv
@@ -137,6 +138,61 @@ async def user(db_session: AsyncSession) -> AsyncGenerator[User, None]:
                 text('DELETE FROM "user" WHERE id = :id'), {"id": user_id}
             )
             await teardown_session.commit()
+    finally:
+        await teardown_engine.dispose()
+
+
+@pytest_asyncio.fixture
+async def user_factory(
+    db_session: AsyncSession,
+) -> AsyncGenerator[Callable[..., Awaitable[User]], None]:
+    """Create additional test users that clean up reliably after the test.
+
+    Use this when a test needs a second or third actor instead of hand-rolling
+    inline user creation and remembering to delete it at the end of the test.
+    """
+
+    created_user_ids: list[uuid.UUID] = []
+
+    async def _create_user(
+        *,
+        email: str | None = None,
+        password_hash: str = "not-a-real-hash",
+    ) -> User:
+        created_user = User(
+            email=email or f"test-{uuid.uuid4()}@example.com",
+            password_hash=password_hash,
+        )
+        db_session.add(created_user)
+        await db_session.commit()
+        await db_session.refresh(created_user)
+
+        db_session.add(
+            Entitlement(
+                user_id=created_user.id,
+                feature="pro_tier",
+                source="test_fixture",
+                source_id=None,
+                valid_from=datetime.now(timezone.utc),
+                valid_until=None,
+            )
+        )
+        await db_session.commit()
+
+        created_user_ids.append(created_user.id)
+        return created_user
+
+    yield _create_user
+
+    teardown_engine = create_async_engine(settings.database_url, echo=False)
+    try:
+        async with async_sessionmaker(teardown_engine)() as teardown_session:
+            if created_user_ids:
+                await teardown_session.execute(
+                    text('DELETE FROM "user" WHERE id = ANY(:ids)'),
+                    {"ids": created_user_ids},
+                )
+                await teardown_session.commit()
     finally:
         await teardown_engine.dispose()
 

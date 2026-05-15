@@ -18,6 +18,7 @@ No mocking. Real FastAPI app, real Postgres.
 """
 
 import uuid
+from collections.abc import Awaitable, Callable
 from unittest.mock import AsyncMock, patch
 
 from httpx import AsyncClient
@@ -26,7 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.auth.models.user import User
 from core.story_engine.models import Project, Story
-from tests.auth_helpers import auth_cookie_header, grant_pro_tier_entitlement
+from tests.auth_helpers import auth_cookie_header
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -111,27 +112,13 @@ async def test_list_projects_story_count_reflects_stories(
 
 async def test_list_projects_empty_for_new_user(
     api_client: AsyncClient,
-    db_session: AsyncSession,
+    user: User,
 ) -> None:
     """A brand new user with no projects gets an empty list."""
-    unique_email = f"empty-list-{uuid.uuid4()}@example.com"
-    from core.auth.models.user import User as UserModel
-
-    new_user = UserModel(email=unique_email, password_hash="not-a-hash")
-    db_session.add(new_user)
-    await db_session.commit()
-    await db_session.refresh(new_user)
-    await grant_pro_tier_entitlement(db_session, user_id=new_user.id)
-
-    response = await api_client.get(_projects_url(), headers=_auth_headers(new_user.id))
+    response = await api_client.get(_projects_url(), headers=_auth_headers(user.id))
 
     assert response.status_code == 200
     assert response.json() == []
-
-    await db_session.execute(
-        text('DELETE FROM "user" WHERE id = :id'), {"id": new_user.id}
-    )
-    await db_session.commit()
 
 
 async def test_list_projects_requires_auth(
@@ -144,19 +131,15 @@ async def test_list_projects_requires_auth(
 
 async def test_list_projects_does_not_return_other_users_projects(
     api_client: AsyncClient,
-    db_session: AsyncSession,
     user: User,
     project: Project,
+    user_factory: Callable[..., Awaitable[User]],
 ) -> None:
     """A second user cannot see the first user's projects."""
-    other_email = f"other-{uuid.uuid4()}@example.com"
-    from core.auth.models.user import User as UserModel
-
-    other_user = UserModel(email=other_email, password_hash="not-a-hash")
-    db_session.add(other_user)
-    await db_session.commit()
-    await db_session.refresh(other_user)
-    await grant_pro_tier_entitlement(db_session, user_id=other_user.id)
+    other_user = await user_factory(
+        email=f"other-{uuid.uuid4()}@example.com",
+        password_hash="not-a-hash",
+    )
 
     response = await api_client.get(
         _projects_url(), headers=_auth_headers(other_user.id)
@@ -165,11 +148,6 @@ async def test_list_projects_does_not_return_other_users_projects(
     assert response.status_code == 200
     ids = [item["id"] for item in response.json()]
     assert str(project.id) not in ids
-
-    await db_session.execute(
-        text('DELETE FROM "user" WHERE id = :id'), {"id": other_user.id}
-    )
-    await db_session.commit()
 
 
 # ---------------------------------------------------------------------------
@@ -365,29 +343,18 @@ async def test_get_project_404_for_unknown_id(
 
 async def test_get_project_404_for_other_users_project(
     api_client: AsyncClient,
-    db_session: AsyncSession,
     project: Project,
+    user_factory: Callable[..., Awaitable[User]],
 ) -> None:
     """A different user cannot fetch another user's project by ID."""
-    from core.auth.models.user import User as UserModel
-
-    other_user = UserModel(
+    other_user = await user_factory(
         email=f"isolation-{uuid.uuid4()}@example.com", password_hash="x"
     )
-    db_session.add(other_user)
-    await db_session.commit()
-    await db_session.refresh(other_user)
-    await grant_pro_tier_entitlement(db_session, user_id=other_user.id)
 
     response = await api_client.get(
         _project_url(project.id), headers=_auth_headers(other_user.id)
     )
     assert response.status_code == 404
-
-    await db_session.execute(
-        text('DELETE FROM "user" WHERE id = :id'), {"id": other_user.id}
-    )
-    await db_session.commit()
 
 
 async def test_get_project_requires_auth(
@@ -779,22 +746,10 @@ def _my_project_url() -> str:
 
 async def test_my_project_creates_on_first_call(
     api_client: AsyncClient,
-    db_session: AsyncSession,
+    user: User,
 ) -> None:
     """A brand new user gets a project created automatically on first call."""
-    from core.auth.models.user import User as UserModel
-
-    new_user = UserModel(
-        email=f"my-project-new-{uuid.uuid4()}@example.com", password_hash="x"
-    )
-    db_session.add(new_user)
-    await db_session.commit()
-    await db_session.refresh(new_user)
-    await grant_pro_tier_entitlement(db_session, user_id=new_user.id)
-
-    response = await api_client.get(
-        _my_project_url(), headers=_auth_headers(new_user.id)
-    )
+    response = await api_client.get(_my_project_url(), headers=_auth_headers(user.id))
 
     assert response.status_code == 200
     body = response.json()
@@ -802,29 +757,15 @@ async def test_my_project_creates_on_first_call(
     uuid.UUID(body["id"])  # must be a valid UUID
     assert body["stories"] == []
 
-    await db_session.execute(
-        text('DELETE FROM "user" WHERE id = :id'), {"id": new_user.id}
-    )
-    await db_session.commit()
-
 
 async def test_my_project_is_idempotent(
     api_client: AsyncClient,
     db_session: AsyncSession,
+    user: User,
 ) -> None:
     """Calling /projects/me twice returns the same project ID both times."""
-    from core.auth.models.user import User as UserModel
-
-    new_user = UserModel(
-        email=f"my-project-idempotent-{uuid.uuid4()}@example.com", password_hash="x"
-    )
-    db_session.add(new_user)
-    await db_session.commit()
-    await db_session.refresh(new_user)
-    await grant_pro_tier_entitlement(db_session, user_id=new_user.id)
-
-    first = await api_client.get(_my_project_url(), headers=_auth_headers(new_user.id))
-    second = await api_client.get(_my_project_url(), headers=_auth_headers(new_user.id))
+    first = await api_client.get(_my_project_url(), headers=_auth_headers(user.id))
+    second = await api_client.get(_my_project_url(), headers=_auth_headers(user.id))
 
     assert first.status_code == 200
     assert second.status_code == 200
@@ -833,14 +774,9 @@ async def test_my_project_is_idempotent(
     # Only one project row should exist for this user
     result = await db_session.execute(
         text("SELECT COUNT(*) FROM project WHERE user_id = :uid"),
-        {"uid": new_user.id},
+        {"uid": user.id},
     )
     assert result.scalar() == 1
-
-    await db_session.execute(
-        text('DELETE FROM "user" WHERE id = :id'), {"id": new_user.id}
-    )
-    await db_session.commit()
 
 
 async def test_my_project_returns_existing_project(
@@ -881,23 +817,15 @@ async def test_my_project_401_no_token(
 
 async def test_my_project_user_isolation(
     api_client: AsyncClient,
-    db_session: AsyncSession,
+    user_factory: Callable[..., Awaitable[User]],
 ) -> None:
     """Two different users each get their own distinct project."""
-    from core.auth.models.user import User as UserModel
-
-    user_a = UserModel(
+    user_a = await user_factory(
         email=f"isolation-a-{uuid.uuid4()}@example.com", password_hash="x"
     )
-    user_b = UserModel(
+    user_b = await user_factory(
         email=f"isolation-b-{uuid.uuid4()}@example.com", password_hash="x"
     )
-    db_session.add_all([user_a, user_b])
-    await db_session.commit()
-    await db_session.refresh(user_a)
-    await db_session.refresh(user_b)
-    await grant_pro_tier_entitlement(db_session, user_id=user_a.id)
-    await grant_pro_tier_entitlement(db_session, user_id=user_b.id)
 
     resp_a = await api_client.get(_my_project_url(), headers=_auth_headers(user_a.id))
     resp_b = await api_client.get(_my_project_url(), headers=_auth_headers(user_b.id))
@@ -905,11 +833,3 @@ async def test_my_project_user_isolation(
     assert resp_a.status_code == 200
     assert resp_b.status_code == 200
     assert resp_a.json()["id"] != resp_b.json()["id"]
-
-    await db_session.execute(
-        text('DELETE FROM "user" WHERE id = :id'), {"id": user_a.id}
-    )
-    await db_session.execute(
-        text('DELETE FROM "user" WHERE id = :id'), {"id": user_b.id}
-    )
-    await db_session.commit()

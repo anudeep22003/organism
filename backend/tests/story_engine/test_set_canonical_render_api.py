@@ -215,6 +215,7 @@ async def test_canonical_render_prefers_set_over_most_recent(
     # GET character — canonical render should be the older one, not the newer
     get_response = await api_client.get(
         f"/api/comic-builder/v2/project/{project.id}/story/{story.id}/character/{character.id}",
+        headers=_auth_headers(user.id),
     )
     assert get_response.status_code == 200
     assert get_response.json()["canonicalRender"]["id"] == str(older_render.id)

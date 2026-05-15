@@ -9,13 +9,14 @@ Test invariants:
 """
 
 import uuid
+from collections.abc import Awaitable, Callable
 
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.auth.models.user import User
 from core.story_engine.models import Project
-from tests.auth_helpers import auth_cookie_header, grant_pro_tier_entitlement
+from tests.auth_helpers import auth_cookie_header
 
 
 def _auth_headers(user_id: uuid.UUID) -> dict[str, str]:
@@ -97,19 +98,13 @@ async def test_rename_project_404_for_nonexistent_project(
 
 async def test_rename_project_404_for_other_users_project(
     api_client: AsyncClient,
-    db_session: AsyncSession,
     project: Project,
+    user_factory: Callable[..., Awaitable[User]],
 ) -> None:
     """PATCH returns 404 when the project belongs to a different user (ownership boundary)."""
-    from core.auth.models.user import User as UserModel
-
-    other_user = UserModel(
+    other_user = await user_factory(
         email=f"other-rename-{uuid.uuid4()}@example.com", password_hash="x"
     )
-    db_session.add(other_user)
-    await db_session.commit()
-    await db_session.refresh(other_user)
-    await grant_pro_tier_entitlement(db_session, user_id=other_user.id)
 
     response = await api_client.patch(
         _rename_url(project.id),
@@ -117,13 +112,6 @@ async def test_rename_project_404_for_other_users_project(
         json={"name": "Stolen Name"},
     )
     assert response.status_code == 404
-
-    from sqlalchemy import text
-
-    await db_session.execute(
-        text('DELETE FROM "user" WHERE id = :id'), {"id": other_user.id}
-    )
-    await db_session.commit()
 
 
 async def test_rename_project_requires_auth(

@@ -1,3 +1,4 @@
+import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -264,26 +265,32 @@ async def test_google_auth_callback_failure_redirects_to_frontend_failure(
 
 async def test_google_auth_callback_rate_limit_returns_429(
     api_client: AsyncClient,
+    db_session: AsyncSession,
 ) -> None:
     headers = {"x-forwarded-for": "198.51.100.20"}
+    callback_limit_email = f"callback-limit-{uuid.uuid4()}@example.com"
 
-    for _ in range(CALLBACK_RATE_LIMIT_POLICY.max_requests):
+    try:
+        for _ in range(CALLBACK_RATE_LIMIT_POLICY.max_requests):
+            response = await _login_via_callback(
+                api_client,
+                email=callback_limit_email,
+                sub="google-sub-limit",
+                headers=headers,
+            )
+            assert response.status_code in {302, 307}
+
         response = await _login_via_callback(
             api_client,
-            email="callback-limit@example.com",
+            email=callback_limit_email,
             sub="google-sub-limit",
             headers=headers,
         )
-        assert response.status_code in {302, 307}
 
-    response = await _login_via_callback(
-        api_client,
-        email="callback-limit@example.com",
-        sub="google-sub-limit",
-        headers=headers,
-    )
-
-    assert response.status_code == 429
+        assert response.status_code == 429
+    finally:
+        await db_session.execute(delete(User).where(User.email == callback_limit_email))
+        await db_session.commit()
 
 
 async def test_google_auth_callback_missing_userinfo_redirects_to_frontend_failure(
