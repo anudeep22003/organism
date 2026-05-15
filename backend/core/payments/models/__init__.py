@@ -8,7 +8,7 @@ from .checkout_session import (
 from .entitlement import Entitlement
 from .invoice import Invoice
 from .stripe_customer import StripeCustomer
-from .stripe_event import StripeEvent
+from .stripe_event import StripeEvent, StripeEventProcessingStatus
 from .subscription import Subscription
 
 __all__ = [
@@ -18,6 +18,7 @@ __all__ = [
     "StripeStatus",
     "StripeCustomer",
     "StripeEvent",
+    "StripeEventProcessingStatus",
     "CheckoutSessionMode",
     "Subscription",
     "Invoice",

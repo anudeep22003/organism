@@ -3,9 +3,10 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
+from enum import StrEnum
 
 import stripe
-from sqlalchemy import DateTime, Index, String, Text
+from sqlalchemy import DateTime, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -17,6 +18,13 @@ class StripeEventHotFields:
     customer_id: str | None
     subscription_id: str | None
     invoice_id: str | None
+
+
+class StripeEventProcessingStatus(StrEnum):
+    PENDING = "pending"
+    PROCESSED = "processed"
+    RETRYABLE_FAILED = "retryable_failed"
+    TERMINAL_FAILED = "terminal_failed"
 
 
 class StripeEvent(ORMBase):
@@ -45,6 +53,15 @@ class StripeEvent(ORMBase):
 
     received_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=get_current_datetime_utc, nullable=False
+    )
+    processing_status: Mapped[str] = mapped_column(
+        String(32),
+        default=StripeEventProcessingStatus.PENDING.value,
+        nullable=False,
+    )
+    attempt_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    last_attempted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
     )
     processed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
@@ -106,13 +123,28 @@ class StripeEvent(ORMBase):
             subscription_id=hot_fields.subscription_id,
             invoice_id=hot_fields.invoice_id,
             payload=stripe_event.to_dict(),
+            processing_status=StripeEventProcessingStatus.PENDING.value,
+            attempt_count=0,
         )
 
+    def mark_processing_attempt(self) -> "StripeEvent":
+        self.attempt_count += 1
+        self.last_attempted_at = get_current_datetime_utc()
+        self.processing_error = None
+        return self
+
     def mark_processed(self) -> "StripeEvent":
+        self.processing_status = StripeEventProcessingStatus.PROCESSED.value
         self.processed_at = get_current_datetime_utc()
         self.processing_error = None
         return self
 
-    def mark_failed(self, *, error: str) -> "StripeEvent":
+    def mark_retryable_failed(self, *, error: str) -> "StripeEvent":
+        self.processing_status = StripeEventProcessingStatus.RETRYABLE_FAILED.value
+        self.processing_error = error
+        return self
+
+    def mark_terminal_failed(self, *, error: str) -> "StripeEvent":
+        self.processing_status = StripeEventProcessingStatus.TERMINAL_FAILED.value
         self.processing_error = error
         return self
