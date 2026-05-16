@@ -11,7 +11,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.auth.models import User
 from core.infrastructure.database import configure_psycopg_json_dumps
-from core.payments.models import Entitlement, Invoice, StripeCustomer, Subscription
+from core.payments.models import (
+    Entitlement,
+    Invoice,
+    StripeCustomer,
+    StripeEvent,
+    Subscription,
+)
 from core.payments.webhooks.handlers import (
     InvoiceWebhookHandler,
     SubscriptionWebhookHandler,
@@ -72,6 +78,43 @@ async def seed_stripe_customer(
     await db_session.commit()
     await db_session.refresh(stripe_customer)
     return stripe_customer
+
+
+@pytest.mark.asyncio
+async def test_stripe_event_hot_fields_extract_customer_subscription_ids() -> None:
+    test_ids = make_test_stripe_ids()
+    stripe_event = load_stripe_event(
+        "customer.subscription.created.json",
+        replacements={
+            STRIPE_CUSTOMER_FIXTURE_ID: test_ids["customer_id"],
+            SUBSCRIPTION_FIXTURE_ID: test_ids["created_subscription_id"],
+        },
+    )
+
+    persisted_event = StripeEvent.create(stripe_event=stripe_event)
+
+    assert persisted_event.customer_id == test_ids["customer_id"]
+    assert persisted_event.subscription_id == test_ids["created_subscription_id"]
+    assert persisted_event.invoice_id == "in_1TWsUNAMWKJyocPOp0QQoBc0"
+
+
+@pytest.mark.asyncio
+async def test_stripe_event_hot_fields_extract_invoice_subscription_id() -> None:
+    test_ids = make_test_stripe_ids()
+    stripe_event = load_stripe_event(
+        "invoice.paid.json",
+        replacements={
+            STRIPE_CUSTOMER_FIXTURE_ID: test_ids["customer_id"],
+            INVOICE_FIXTURE_SUBSCRIPTION_ID: test_ids["created_subscription_id"],
+            INVOICE_FIXTURE_ID: test_ids["invoice_id"],
+        },
+    )
+
+    persisted_event = StripeEvent.create(stripe_event=stripe_event)
+
+    assert persisted_event.customer_id == test_ids["customer_id"]
+    assert persisted_event.subscription_id == test_ids["created_subscription_id"]
+    assert persisted_event.invoice_id == test_ids["invoice_id"]
 
 
 @pytest.mark.asyncio
