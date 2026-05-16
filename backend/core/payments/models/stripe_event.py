@@ -80,22 +80,59 @@ class StripeEvent(ORMBase):
     @staticmethod
     def _extract_hot_fields(*, event: stripe.Event) -> StripeEventHotFields:
         obj = event.data.object  # whatever resource the event is about
+        if event.type.startswith("customer.subscription."):
+            return StripeEventHotFields(
+                customer_id=StripeEvent._extract_stripe_id(
+                    getattr(obj, "customer", None)
+                ),
+                subscription_id=StripeEvent._extract_stripe_id(getattr(obj, "id", None)),
+                invoice_id=StripeEvent._extract_stripe_id(
+                    getattr(obj, "latest_invoice", None)
+                ),
+            )
+
+        if event.type.startswith("customer."):
+            return StripeEventHotFields(
+                customer_id=StripeEvent._extract_stripe_id(getattr(obj, "id", None)),
+                subscription_id=None,
+                invoice_id=None,
+            )
+
+        if event.type.startswith("invoice."):
+            return StripeEventHotFields(
+                customer_id=StripeEvent._extract_stripe_id(
+                    getattr(obj, "customer", None)
+                ),
+                subscription_id=StripeEvent._extract_invoice_subscription_id(obj),
+                invoice_id=StripeEvent._extract_stripe_id(getattr(obj, "id", None)),
+            )
+
         return StripeEventHotFields(
-            customer_id=(
-                obj.id
-                if event.type.startswith("customer.")
-                else StripeEvent._extract_stripe_id(getattr(obj, "customer", None))
+            customer_id=StripeEvent._extract_stripe_id(getattr(obj, "customer", None)),
+            subscription_id=StripeEvent._extract_stripe_id(
+                getattr(obj, "subscription", None)
             ),
-            subscription_id=(
-                obj.id
-                if event.type.startswith("customer.subscription.")
-                else StripeEvent._extract_stripe_id(getattr(obj, "subscription", None))
-            ),
-            invoice_id=(
-                obj.id
-                if event.type.startswith("invoice.")
-                else StripeEvent._extract_stripe_id(getattr(obj, "invoice", None))
-            ),
+            invoice_id=StripeEvent._extract_stripe_id(getattr(obj, "invoice", None)),
+        )
+
+    @staticmethod
+    def _extract_invoice_subscription_id(invoice: object) -> str | None:
+        top_level_subscription = StripeEvent._extract_stripe_id(
+            getattr(invoice, "subscription", None)
+        )
+        if top_level_subscription is not None:
+            return top_level_subscription
+
+        lines = getattr(invoice, "lines", None)
+        data = getattr(lines, "data", None)
+        if not isinstance(data, list) or len(data) == 0:
+            return None
+
+        first_line = data[0]
+        parent = getattr(first_line, "parent", None)
+        subscription_item_details = getattr(parent, "subscription_item_details", None)
+        return StripeEvent._extract_stripe_id(
+            getattr(subscription_item_details, "subscription", None)
         )
 
     @staticmethod
