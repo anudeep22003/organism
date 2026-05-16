@@ -7,7 +7,12 @@ from dotenv import load_dotenv
 
 load_dotenv(override=False, dotenv_path=".env.local")
 
+import core.auth.models  # noqa: E402, I001
+import core.payments.models  # noqa: E402, I001, F401
+from core.infrastructure.database import configure_psycopg_json_dumps  # noqa: E402
 from core.payments.webhooks import StripeEventDrainer  # noqa: E402
+
+configure_psycopg_json_dumps()
 
 
 def parse_args() -> argparse.Namespace:
