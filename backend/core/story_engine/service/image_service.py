@@ -4,11 +4,13 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from functools import lru_cache
 from io import BytesIO
+from pathlib import Path
 from typing import BinaryIO
 
 import google.auth
 from google.auth.transport.requests import Request
 from google.cloud.storage import Client  # type: ignore[import-untyped]
+from google.oauth2 import service_account
 from loguru import logger
 from PIL import Image as PILImage
 from PIL import ImageOps
@@ -275,19 +277,23 @@ class ImageProcessor:
 
 class GCSUploadService:
     def __init__(self) -> None:
-        # google.auth.default() resolves credentials from the environment:
-        #   - Locally: picks up the JSON key file via GOOGLE_APPLICATION_CREDENTIALS.
-        #              These are ServiceAccountCredentials — they hold a private key
-        #              and implement google.auth.credentials.Signing directly.
-        #   - Cloud Run: picks up the attached service account via the metadata server.
-        #              These are ComputeEngine.Credentials — they hold only a token,
-        #              NOT a private key. generate_signed_url() must therefore use
-        #              the IAM signBlob API path (access_token + service_account_email).
+        # Local dev is configured via settings.google_application_credentials, which
+        # points at a service-account key file. Load that explicitly so local signed
+        # URL generation does not depend on ambient ADC state or gcloud user creds.
         #
-        # On Cloud Run, ADC provides tokens, not a local private key. Signed URL
-        # generation therefore uses IAM-based signing (signBlob) — the SA needs
-        # roles/iam.serviceAccountTokenCreator on itself (set in infra/iam.py).
-        self.credentials, project_id = google.auth.default()
+        # Production leaves that setting empty. In that case we fall back to ADC so
+        # Cloud Run uses the attached service account from the metadata server.
+        if settings.google_application_credentials:
+            credentials_path = Path(settings.google_application_credentials)
+            self.credentials = service_account.Credentials.from_service_account_file(
+                filename=str(credentials_path)
+            )
+            project_id = self.credentials.project_id
+        else:
+            # Cloud Run ADC provides tokens, not a local private key. Signed URL
+            # generation therefore uses IAM-based signing (signBlob) — the SA needs
+            # roles/iam.serviceAccountTokenCreator on itself (set in infra/iam.py).
+            self.credentials, project_id = google.auth.default()
         self.client = Client(
             project=settings.gcp_project_id or project_id,
             credentials=self.credentials,
