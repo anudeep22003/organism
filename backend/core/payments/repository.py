@@ -70,6 +70,21 @@ class PaymentsRepository:
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
+    async def list_retryable_stripe_events_by_customer_id(
+        self, *, stripe_customer_id: str, limit: int
+    ) -> list[StripeEvent]:
+        query = (
+            select(StripeEvent)
+            .where(
+                StripeEvent.customer_id == stripe_customer_id,
+                StripeEvent.processing_status == "retryable_failed",
+            )
+            .order_by(StripeEvent.received_at.asc())
+            .limit(limit)
+        )
+        result = await self.db.execute(query)
+        return list(result.scalars().all())
+
     def add_stripe_event(self, stripe_event: StripeEvent) -> None:
         self.db.add(stripe_event)
 

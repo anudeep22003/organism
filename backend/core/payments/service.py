@@ -16,6 +16,7 @@ from core.payments.models.checkout_session import FulfillmentStatus
 from core.payments.webhooks import (
     NonRetryableStripeWebhookError,
     RetryableStripeWebhookError,
+    StripeEventDrainer,
     StripeEventProcessor,
 )
 
@@ -296,7 +297,11 @@ class PaymentsService:
 
         processor = StripeEventProcessor(self.db)
         try:
+            stripe_customer_id = stripe_event_model.customer_id
             await processor.process(stripe_event=stripe_event_model)
+            await self._drain_retryable_events_for_customer(
+                stripe_customer_id=stripe_customer_id
+            )
         except RetryableStripeWebhookError as exc:
             raise UnhandledException(
                 f"Retryable stripe webhook handling error: {exc}"
@@ -308,6 +313,25 @@ class PaymentsService:
             raise UnhandledException(
                 f"Unexpected stripe webhook handling error: {exc}"
             ) from exc
+
+    async def _drain_retryable_events_for_customer(
+        self, *, stripe_customer_id: str | None
+    ) -> None:
+        if stripe_customer_id is None:
+            return
+
+        summary = await StripeEventDrainer().drain_retryable_for_customer(
+            external_stripe_customer_id=stripe_customer_id
+        )
+        if summary.scanned > 0:
+            logger.info(
+                "Drained retryable stripe events for customer {}: scanned={} processed={} retryable_failed={} terminal_failed={}",
+                stripe_customer_id,
+                summary.scanned,
+                summary.processed,
+                summary.retryable_failed,
+                summary.terminal_failed,
+            )
 
     def _validate_stripe_webhook_body(
         self, body: bytes, sig_header: str

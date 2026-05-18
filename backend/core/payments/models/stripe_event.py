@@ -85,7 +85,9 @@ class StripeEvent(ORMBase):
                 customer_id=StripeEvent._extract_stripe_id(
                     getattr(obj, "customer", None)
                 ),
-                subscription_id=StripeEvent._extract_stripe_id(getattr(obj, "id", None)),
+                subscription_id=StripeEvent._extract_stripe_id(
+                    getattr(obj, "id", None)
+                ),
                 invoice_id=StripeEvent._extract_stripe_id(
                     getattr(obj, "latest_invoice", None)
                 ),
