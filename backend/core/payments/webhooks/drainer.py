@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 
+from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from core.infrastructure.database import get_async_session_maker
@@ -54,6 +55,38 @@ class StripeEventDrainer:
             else:
                 summary.already_processed += 1
 
+        return summary
+
+    async def drain_retryable_for_customer(
+        self, *, external_stripe_customer_id: str, limit: int = 50
+    ) -> StripeEventDrainSummary:
+        summary = StripeEventDrainSummary()
+        logger.info(
+            f"Draining retryable events for customer {external_stripe_customer_id}"
+        )
+        async with self.session_maker() as db:
+            repository = PaymentsRepository(db)
+            drainable_events = (
+                await repository.list_retryable_stripe_events_by_customer_id(
+                    stripe_customer_id=external_stripe_customer_id,
+                    limit=limit,
+                )
+            )
+            logger.info(f"Found {len(drainable_events)} retryable events")
+            event_ids = [event.id for event in drainable_events]
+
+        summary.scanned = len(event_ids)
+        for event_id in event_ids:
+            outcome = await self._drain_one(stripe_event_id=event_id)
+            if outcome == StripeEventProcessingStatus.PROCESSED.value:
+                summary.processed += 1
+            elif outcome == StripeEventProcessingStatus.RETRYABLE_FAILED.value:
+                summary.retryable_failed += 1
+            elif outcome == StripeEventProcessingStatus.TERMINAL_FAILED.value:
+                summary.terminal_failed += 1
+            else:
+                summary.already_processed += 1
+        logger.info("Drain summary: {}", summary)
         return summary
 
     async def _drain_one(self, *, stripe_event_id: uuid.UUID) -> str:
