@@ -8,7 +8,7 @@ import pulumi_gcp as gcp
 
 from components.ci import CiResources
 from components.cloudrun import CloudRunService
-from components.config import MEDIA_BUCKET_NAME
+from components.config import CSRF_COOKIE_DOMAIN, MEDIA_BUCKET_NAME
 from components.database import Database
 from components.frontend import Frontend
 from components.iam import CloudRunServiceAccount, LocalhostServiceAccount
@@ -135,6 +135,7 @@ pulumi.export("frontend_bucket", frontend.bucket.name)
 pulumi.export("frontend_ip", frontend.ip_address)
 pulumi.export("frontend_url", frontend.url)
 pulumi.export("api_url", frontend.api_url)
+pulumi.export("csrf_cookie_domain", CSRF_COOKIE_DOMAIN)
 pulumi.export("migration_job_name", migrations.name)
 pulumi.export("workload_identity_provider", ci.provider_name)
 pulumi.export("github_actions_sa_email", ci.sa_email)

@@ -108,6 +108,7 @@ init-project:
 		'  $(PULUMI_PROJECT):app: <your-app-name>        # lowercase, no spaces — drives all GCP resource names' \
 		'  $(PULUMI_PROJECT):domain: <app.yourdomain.com>' \
 		'  $(PULUMI_PROJECT):api_domain: <api.yourdomain.com>' \
+		'  $(PULUMI_PROJECT):csrf_cookie_domain: <yourdomain.com>' \
 		'  $(PULUMI_PROJECT):google_oauth_client_id: <google-oauth-client-id>  # plain config, not a secret' \
 		'  $(PULUMI_PROJECT):github_repo: <owner/repo>   # SECURITY: only this repo authenticates via WIF' \
 		"  $(PULUMI_PROJECT):media_bucket_suffix: $$SUFFIX  # auto-generated — set once, NEVER change after first deploy" \
@@ -185,10 +186,12 @@ change-domain:
 	@echo "Current domains:"
 	@echo "  frontend : $$(PULUMI_CONFIG_PASSPHRASE="" pulumi config get $(PULUMI_PROJECT):domain --stack $(STACK) 2>/dev/null)"
 	@echo "  api      : $$(PULUMI_CONFIG_PASSPHRASE="" pulumi config get $(PULUMI_PROJECT):api_domain --stack $(STACK) 2>/dev/null)"
+	@echo "  csrf     : $$(PULUMI_CONFIG_PASSPHRASE="" pulumi config get $(PULUMI_PROJECT):csrf_cookie_domain --stack $(STACK) 2>/dev/null)"
 	@echo ""
-	@echo "Step 1 — Update both domains in Pulumi.$(STACK).yaml:"
+	@echo "Step 1 — Update domains in Pulumi.$(STACK).yaml:"
 	@echo "  $(PULUMI_PROJECT):domain: app.newdomain.com"
 	@echo "  $(PULUMI_PROJECT):api_domain: api.newdomain.com"
+	@echo "  $(PULUMI_PROJECT):csrf_cookie_domain: newdomain.com"
 	@echo ""
 	@echo "Step 2 — Apply infra:"
 	@echo "  make up"
@@ -196,7 +199,7 @@ change-domain:
 	@echo "  What this does:"
 	@echo "    - Recreates the GCS bucket (must match domain — old bucket deleted)"
 	@echo "    - Replaces the SSL cert to cover the new domains"
-	@echo "    - Updates the frontend-origin env var on Cloud Run to the new frontend domain"
+	@echo "    - Updates FRONTEND_URL, API_URL, and CSRF_COOKIE_DOMAIN on Cloud Run"
 	@echo "    - Updates URL map host rules"
 	@echo "  Expect brief HTTPS disruption while the new cert provisions."
 	@echo "  Frontend will be down until step 5 (bucket recreated but empty)."

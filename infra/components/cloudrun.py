@@ -52,6 +52,7 @@ import pulumi_gcp as gcp
 from components.config import (
     APP,
     API_URL,
+    CSRF_COOKIE_DOMAIN,
     FRONTEND_URL,
     GOOGLE_OAUTH_CLIENT_ID,
     IMAGE_TAG,
@@ -110,6 +111,8 @@ class CloudRunService(pulumi.ComponentResource):
                 "FRONTEND_URL": FRONTEND_URL,
                 # Canonical external backend origin used for absolute callback URLs.
                 "API_URL": API_URL,
+                # Parent domain for the frontend-readable CSRF double-submit cookie.
+                "CSRF_COOKIE_DOMAIN": CSRF_COOKIE_DOMAIN,
                 # Public OAuth client identifier used to start the Google auth flow.
                 "GOOGLE_OAUTH_CLIENT_ID": GOOGLE_OAUTH_CLIENT_ID,
                 # Disables FastAPI's /docs, /redoc, and /openapi.json in Cloud Run.
