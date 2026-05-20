@@ -53,6 +53,7 @@ def set_auth_cookies(
         samesite=CSRF_TOKEN_COOKIE_SAMESITE,
         max_age=REFRESH_TOKEN_TTL_SECONDS,
         path=CSRF_TOKEN_COOKIE_PATH,
+        domain=".dekatha.com",
     )
 
 
