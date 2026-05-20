@@ -30,6 +30,7 @@ config:
 
   storyengine-infra:domain: <app.yourdomain.com> # frontend domain — GCS bucket + SSL cert + LB host rule
   storyengine-infra:api_domain: <api.yourdomain.com> # API domain — Cloud Run via same LB
+  storyengine-infra:csrf_cookie_domain: <yourdomain.com> # Parent domain for CSRF cookie sharing across app/api subdomains
   storyengine-infra:google_oauth_client_id: <google-oauth-client-id>
                                                  # Plain config, not a secret. Used by the backend
                                                  # to start the Google OAuth browser flow.
