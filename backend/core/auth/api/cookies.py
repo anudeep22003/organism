@@ -1,5 +1,7 @@
 from fastapi import Response
 
+from core.config import settings
+
 from ..config import (
     ACCESS_TOKEN_COOKIE_HTTPONLY,
     ACCESS_TOKEN_COOKIE_NAME,
@@ -45,6 +47,15 @@ def set_auth_cookies(
         max_age=REFRESH_TOKEN_TTL_SECONDS,
         path=REFRESH_TOKEN_COOKIE_PATH,
     )
+    if settings.csrf_cookie_domain is not None:
+        # Remove the previous host-only CSRF cookie during the domain-cookie rollout.
+        response.delete_cookie(
+            key=CSRF_TOKEN_COOKIE_NAME,
+            path=CSRF_TOKEN_COOKIE_PATH,
+            httponly=CSRF_TOKEN_COOKIE_HTTPONLY,
+            secure=CSRF_TOKEN_COOKIE_SECURE,
+            samesite=CSRF_TOKEN_COOKIE_SAMESITE,
+        )
     response.set_cookie(
         key=CSRF_TOKEN_COOKIE_NAME,
         value=csrf_token,
@@ -53,7 +64,7 @@ def set_auth_cookies(
         samesite=CSRF_TOKEN_COOKIE_SAMESITE,
         max_age=REFRESH_TOKEN_TTL_SECONDS,
         path=CSRF_TOKEN_COOKIE_PATH,
-        domain=".dekatha.com",
+        domain=settings.csrf_cookie_domain,
     )
 
 
@@ -78,4 +89,14 @@ def clear_auth_cookies(response: Response) -> None:
         httponly=CSRF_TOKEN_COOKIE_HTTPONLY,
         secure=CSRF_TOKEN_COOKIE_SECURE,
         samesite=CSRF_TOKEN_COOKIE_SAMESITE,
+        domain=settings.csrf_cookie_domain,
     )
+    if settings.csrf_cookie_domain is not None:
+        # Also clear any legacy host-only CSRF cookie.
+        response.delete_cookie(
+            key=CSRF_TOKEN_COOKIE_NAME,
+            path=CSRF_TOKEN_COOKIE_PATH,
+            httponly=CSRF_TOKEN_COOKIE_HTTPONLY,
+            secure=CSRF_TOKEN_COOKIE_SECURE,
+            samesite=CSRF_TOKEN_COOKIE_SAMESITE,
+        )
