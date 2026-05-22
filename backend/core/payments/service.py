@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime, timezone
-from typing import cast
+from typing import Any, cast
+from urllib.parse import urlencode, urljoin
 
 import stripe
 from loguru import logger
@@ -24,11 +25,18 @@ from .models import (
     CheckoutSession,
     CheckoutSessionMode,
     PaymentIntent,
+    Plan,
     StripeCustomer,
     StripeEvent,
     StripeStatus,
 )
 from .repository import PaymentsRepository
+from .schemas import (
+    ListPlansResponse,
+    PlanFeatureSchema,
+    PlanPriceSchema,
+    PlanSchemaCustomerFacing,
+)
 
 
 class StripeWebhookValidationError(Exception):
@@ -51,6 +59,18 @@ class UnhandledException(Exception):
 
 class SubscriptionAlreadyExistsError(Exception):
     """Error raised when a user already has a blocking subscription."""
+
+    pass
+
+
+class PlanNotFoundError(Exception):
+    """Error raised when a requested public plan is not active or does not exist."""
+
+    pass
+
+
+class PlanConfigurationError(Exception):
+    """Error raised when an active plan is missing data required for checkout/display."""
 
     pass
 
@@ -139,9 +159,14 @@ class PaymentsService:
         self,
         *,
         user_id: uuid.UUID,
-        price_id: str,
+        plan_id: str,
+        return_path: str | None = None,
     ) -> str:
         await self._ensure_no_blocking_subscription(user_id=user_id)
+        plan = await self.repository.get_active_plan_by_plan_id(plan_id)
+        if plan is None:
+            raise PlanNotFoundError(f"Plan {plan_id} not found")
+        price_id = plan.stripe_price_id
 
         stripe_customer = await self.repository.get_stripe_customer_by_user_id(user_id)
         if stripe_customer is None:
@@ -161,7 +186,7 @@ class PaymentsService:
             stripe_customer_id=stripe_customer_id,
             price_id=price_id,
             intent=PaymentIntent.SUBSCRIPTION_PURCHASE,
-            mode=CheckoutSessionMode.PAYMENT,
+            mode=CheckoutSessionMode.SUBSCRIPTION,
             stripe_status=StripeStatus.OPEN,
             fulfillment_status=FulfillmentStatus.PENDING,
         )
@@ -179,7 +204,7 @@ class PaymentsService:
             line_items=[{"price": price_id, "quantity": 1}],
             mode=CheckoutSessionMode.SUBSCRIPTION.value,
             # mode=CheckoutSessionMode.PAYMENT.value,
-            success_url="http://localhost:5173/payments/success",
+            success_url=self._checkout_success_url(return_path=return_path),
         )
         options = RequestOptions(
             idempotency_key=idempotency_key,
@@ -201,6 +226,14 @@ class PaymentsService:
         checkout_session.update_session_entry_with_stripe_session(stripe_session)
         await self.db.commit()
         return stripe_session.url
+
+    def _checkout_success_url(self, *, return_path: str | None) -> str:
+        success_path = "/payments/success"
+        if return_path is not None:
+            if not return_path.startswith("/") or return_path.startswith("//"):
+                raise ValueError("return_path must be an app-relative path")
+            success_path = f"{success_path}?{urlencode({'returnPath': return_path})}"
+        return urljoin(settings.frontend_url, success_path)
 
     async def _ensure_no_blocking_subscription(self, *, user_id: uuid.UUID) -> None:
         local_subscription = (
@@ -356,3 +389,46 @@ class PaymentsService:
             raise UnhandledException(
                 f"Unknown error validating stripe webhook body: {e}"
             ) from e
+
+    async def list_public_plans(self) -> ListPlansResponse:
+        plans = await self.repository.list_active_plans()
+        return ListPlansResponse(
+            plans=[self._to_public_plan_schema(plan=plan) for plan in plans]
+        )
+
+    def _to_public_plan_schema(self, *, plan: Plan) -> PlanSchemaCustomerFacing:
+        if plan.amount_minor is None or plan.currency is None or plan.interval is None:
+            raise PlanConfigurationError(
+                f"Active plan {plan.plan_id} is missing public price fields"
+            )
+        return PlanSchemaCustomerFacing(
+            plan_id=plan.plan_id,
+            display_name=plan.display_name,
+            description=plan.description,
+            features=self._to_plan_feature_schemas(features=plan.features),
+            price=PlanPriceSchema(
+                amount_minor=plan.amount_minor,
+                currency=plan.currency,
+                interval=plan.interval,
+            ),
+        )
+
+    def _to_plan_feature_schemas(
+        self, *, features: list[dict[str, Any]]
+    ) -> list[PlanFeatureSchema]:
+        feature_schemas: list[PlanFeatureSchema] = []
+        for feature in features:
+            label = feature.get("label")
+            if not isinstance(label, str):
+                raise PlanConfigurationError(
+                    "Plan feature entries must include a string label"
+                )
+            description = feature.get("description")
+            if description is not None and not isinstance(description, str):
+                raise PlanConfigurationError(
+                    "Plan feature description must be a string when provided"
+                )
+            feature_schemas.append(
+                PlanFeatureSchema(label=label, description=description)
+            )
+        return feature_schemas
