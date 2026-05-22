@@ -7,6 +7,7 @@ from .checkout_session import (
 )
 from .entitlement import Entitlement
 from .invoice import Invoice
+from .plan import Plan
 from .stripe_customer import StripeCustomer
 from .stripe_event import StripeEvent, StripeEventProcessingStatus
 from .subscription import Subscription
@@ -23,4 +24,5 @@ __all__ = [
     "Subscription",
     "Invoice",
     "Entitlement",
+    "Plan",
 ]
