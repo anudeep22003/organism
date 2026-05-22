@@ -9,6 +9,7 @@ from .models import (
     CheckoutSession,
     Entitlement,
     Invoice,
+    Plan,
     StripeCustomer,
     StripeEvent,
     Subscription,
@@ -34,6 +35,23 @@ class PaymentsRepository:
 
     def add_checkout_session(self, checkout_session: CheckoutSession) -> None:
         self.db.add(checkout_session)
+
+    async def list_active_plans(self) -> list[Plan]:
+        query = (
+            select(Plan)
+            .where(Plan.is_active.is_(True))
+            .order_by(Plan.sort_order.asc(), Plan.display_name.asc())
+        )
+        result = await self.db.execute(query)
+        return list(result.scalars().all())
+
+    async def get_active_plan_by_plan_id(self, plan_id: str) -> Plan | None:
+        query = select(Plan).where(
+            Plan.plan_id == plan_id,
+            Plan.is_active.is_(True),
+        )
+        result = await self.db.execute(query)
+        return result.scalar_one_or_none()
 
     async def get_stripe_customer_by_stripe_customer_id(
         self, stripe_customer_id: str
