@@ -4,6 +4,7 @@ import type {
   BillingMeResponse,
   CreateCheckoutSessionRequest,
   CreateCheckoutSessionResponse,
+  ListPlansResponse,
 } from "../payments.types";
 import { BILLING_SERVICE_ENDPOINTS } from "./payments.constants";
 
@@ -31,6 +32,12 @@ export const paymentsApi = {
   fetchBillingMe: async () => {
     return await httpClient.get<BillingMeResponse>(
       BILLING_SERVICE_ENDPOINTS.BILLING_ME
+    );
+  },
+
+  fetchPlans: async () => {
+    return await httpClient.get<ListPlansResponse>(
+      BILLING_SERVICE_ENDPOINTS.PLANS
     );
   },
 };

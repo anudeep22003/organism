@@ -41,6 +41,29 @@ export type BillingMeResponse = {
   recommendedAction: BillingRecommendedAction;
 };
 
+export type PlanFeature = {
+  label: string;
+  description: string | null;
+};
+
+export type PlanPrice = {
+  amountMinor: number;
+  currency: string;
+  interval: string;
+};
+
+export type Plan = {
+  planId: string;
+  displayName: string;
+  description: string | null;
+  features: PlanFeature[];
+  price: PlanPrice;
+};
+
+export type ListPlansResponse = {
+  plans: Plan[];
+};
+
 export type CreateCheckoutSessionRequest = {
   planId: string;
   returnPath?: string | null;

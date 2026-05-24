@@ -1,4 +1,4 @@
-import type { BillingMeResponse } from "./payments.types";
+import type { BillingMeResponse, PlanPrice } from "./payments.types";
 
 export type BillingAccountCtaKind = "plans" | "portal";
 
@@ -69,4 +69,15 @@ export const formatBillingDate = (value: string | null) => {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
+};
+
+export const formatPlanPrice = (price: PlanPrice) => {
+  return new Intl.NumberFormat(undefined, {
+    style: "currency",
+    currency: price.currency.toUpperCase(),
+  }).format(price.amountMinor / 100);
+};
+
+export const formatPlanInterval = (interval: string) => {
+  return `/${interval}`;
 };

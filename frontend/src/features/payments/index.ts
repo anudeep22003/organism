@@ -1,6 +1,6 @@
 export { paymentsApi } from "./api/payments.api";
 export { BILLING_SERVICE_ENDPOINTS } from "./api/payments.constants";
-export { billingMeOptions } from "./api/payments.queries";
+export { billingMeOptions, plansOptions } from "./api/payments.queries";
 export {
   BILLING_PORTAL_URL,
   PAYMENTS_QUERY_ROOT,
