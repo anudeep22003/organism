@@ -29,6 +29,8 @@ class StripeSubscriptionFields:
 
 
 class StripeSubscriptionStatus(StrEnum):
+    INCOMPLETE = "incomplete"
+    INCOMPLETE_EXPIRED = "incomplete_expired"
     ACTIVE = "active"
     TRIALING = "trialing"
     PAST_DUE = "past_due"
