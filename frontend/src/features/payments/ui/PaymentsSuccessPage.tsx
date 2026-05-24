@@ -1,8 +1,22 @@
-import { useNavigate } from "react-router";
+import { useEffect } from "react";
+import { useLocation, useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
+import {
+  consumeCheckoutReturnPath,
+  getReturnPathFromSearchParams,
+} from "../routing/payments-redirect";
 
 export default function PaymentsSuccessPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnPath =
+    getReturnPathFromSearchParams(location.search) ??
+    consumeCheckoutReturnPath() ??
+    "/stories";
+
+  useEffect(() => {
+    void navigate(returnPath, { replace: true });
+  }, [navigate, returnPath]);
 
   return (
     <div className="flex min-h-0 flex-1 items-center justify-center p-6">
@@ -13,15 +27,16 @@ export default function PaymentsSuccessPage() {
             Payment complete
           </h1>
           <p className="text-sm text-muted-foreground">
-            Your checkout flow finished successfully.
+            Your checkout flow finished successfully. Redirecting you back
+            into the app.
           </p>
         </div>
 
         <Button
           type="button"
-          onClick={() => void navigate("/stories")}
+          onClick={() => void navigate(returnPath, { replace: true })}
         >
-          Back to stories
+          Continue
         </Button>
       </div>
     </div>
