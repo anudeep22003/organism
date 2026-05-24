@@ -109,21 +109,32 @@ class BillingStatusService:
         subscription: Subscription | None,
         has_active_entitlement: bool,
     ) -> BillingRecommendedAction:
-        """Recommend billing UI action from separate billing and access truth.
+        """Recommend the billing CTA from billing state and access state.
 
-        Billing truth:
-        none -> checkout -> incomplete -> active/trialing
-        incomplete -> incomplete_expired
-        trialing -> active | past_due | canceled
-        active -> active | past_due | active(cancel_at_period_end=true)
-        active(cancel_at_period_end=true) -> canceled after period end
-        past_due -> active | unpaid | canceled
-        unpaid/paused -> portal recovery or no access
-        canceled -> checkout -> active/trialing
+        Billing state is our local mirror of Stripe's subscription lifecycle. A
+        typical customer starts with no subscription, enters checkout, and may
+        move through Stripe states such as incomplete, trialing, active,
+        past_due, unpaid, paused, or canceled. Those states explain what is
+        happening with billing and what recovery path the UI should offer.
 
-        Access truth:
-        local active entitlement at request time is the source of app access.
-        Subscription status explains billing state, not whether paid actions are allowed.
+        Common billing-state flow:
+        - No local subscription yet: user can start checkout.
+        - Checkout created: Stripe may report the subscription as incomplete
+          until the first payment succeeds or the checkout attempt expires.
+        - Incomplete: can become active/trialing, or incomplete_expired.
+        - Trialing: can become active, past_due, or canceled.
+        - Active: can stay active, become past_due, or be marked to cancel at
+          period end.
+        - Active with cancel_at_period_end: keeps access through the entitlement
+          window, then becomes canceled after the paid period ends.
+        - Past due: can recover to active, or degrade to unpaid/canceled.
+        - Unpaid/paused: needs billing-portal recovery and may not imply access.
+        - Canceled: user can start checkout again to create a new subscription.
+
+        App access is separate. A user can use paid features only when they
+        have an active local entitlement at request time. Subscription status
+        can explain why we might show "manage subscription" or "payment failed",
+        but it is not the source of truth for allowing paid actions.
         """
         if subscription is None:
             if has_active_entitlement:
