@@ -1,4 +1,5 @@
 import AuthAccountSection from "@/features/auth/ui/AuthAccountSection";
+import BillingAccountSection from "@/features/payments/ui/BillingAccountSection";
 
 export default function AccountPage() {
   return (
@@ -15,6 +16,7 @@ export default function AccountPage() {
 
       <div className="flex flex-col gap-6">
         <AuthAccountSection />
+        <BillingAccountSection />
       </div>
     </div>
   );

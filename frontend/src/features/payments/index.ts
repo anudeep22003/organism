@@ -8,3 +8,4 @@ export {
 export { paymentsRoutes } from "./routes";
 export { default as PaymentsPage } from "./ui/PaymentsPage";
 export { default as PaymentsSuccessPage } from "./ui/PaymentsSuccessPage";
+export { default as BillingAccountSection } from "./ui/BillingAccountSection";
