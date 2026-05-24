@@ -9,6 +9,7 @@ from core.auth.api import get_current_user_id
 from core.infrastructure.database import get_async_db_session
 
 from .schemas import (
+    BillingMeResponse,
     CreateCheckoutSessionRequest,
     CreateCheckoutSessionResponse,
     ListPlansResponse,
@@ -75,6 +76,14 @@ async def webhook(
             status_code=500, detail=f"Unhandled error handling stripe webhook: {e}"
         )
     return {"message": "Webhook received"}
+
+
+@router.get("/me")
+async def get_my_billing_status(
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    service: Annotated[PaymentsService, Depends(get_payments_service)],
+) -> BillingMeResponse:
+    return await service.get_billing_status(user_id=user_id)
 
 
 @router.get("/plans")
