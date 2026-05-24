@@ -1,3 +1,10 @@
+export type BillingErrorCode = "billing_entitlement_required";
+
+export type BillingEntitlementRequiredError = {
+  code: BillingErrorCode;
+  requiredFeature: string;
+};
+
 export type BillingRecommendedAction =
   | "subscribe"
   | "resubscribe"

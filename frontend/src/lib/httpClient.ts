@@ -22,6 +22,16 @@ type RetryableRequestConfig = InternalAxiosRequestConfig & {
   _retry?: boolean;
 };
 
+export type HttpErrorDetails = {
+  data?: unknown;
+  detail?: unknown;
+  status: number | undefined;
+};
+
+type HttpErrorListener = (details: HttpErrorDetails) => void;
+
+const httpErrorListeners = new Set<HttpErrorListener>();
+
 /*
 HttpClient is the auth transport boundary.
 
@@ -321,6 +331,7 @@ class HttpClient {
           }
         }
 
+        notifyHttpErrorListeners(getAxiosErrorDetails(error));
         return Promise.reject(error);
       }
     );
@@ -340,11 +351,26 @@ class HttpClient {
 export const getAxiosErrorDetails = (err: unknown) => {
   if (err instanceof AxiosError) {
     return {
+      data: err.response?.data,
       detail: err.response?.data?.detail,
       status: err.response?.status,
     };
   }
   return { detail: "Unknown error", status: 500 };
+};
+
+export const subscribeToHttpErrors = (listener: HttpErrorListener) => {
+  httpErrorListeners.add(listener);
+
+  return () => {
+    httpErrorListeners.delete(listener);
+  };
+};
+
+const notifyHttpErrorListeners = (details: HttpErrorDetails) => {
+  for (const listener of httpErrorListeners) {
+    listener(details);
+  }
 };
 
 export const httpClient = HttpClient.getInstance();

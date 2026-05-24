@@ -28,6 +28,16 @@ export const getReturnPathFromSearchParams = (
   return getSafeReturnPath(params.get(RETURN_PATH_QUERY_PARAM));
 };
 
+export const getCurrentReturnPath = (): string | null => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return getSafeReturnPath(
+    `${window.location.pathname}${window.location.search}${window.location.hash}`
+  );
+};
+
 const canUseSessionStorage = () => {
   return typeof window !== "undefined";
 };
