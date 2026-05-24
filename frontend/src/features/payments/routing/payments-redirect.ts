@@ -13,17 +13,29 @@ const isSafeInternalRedirect = (
 
 export const getSafeReturnPath = (
   returnPath: string | null | undefined
-) => {
+): string | null => {
   if (!isSafeInternalRedirect(returnPath)) {
     return null;
   }
 
-  return returnPath;
+  return returnPath ?? null;
 };
 
-export const getReturnPathFromSearchParams = (search: string) => {
+export const getReturnPathFromSearchParams = (
+  search: string
+): string | null => {
   const params = new URLSearchParams(search);
   return getSafeReturnPath(params.get(RETURN_PATH_QUERY_PARAM));
+};
+
+export const getCurrentReturnPath = (): string | null => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return getSafeReturnPath(
+    `${window.location.pathname}${window.location.search}${window.location.hash}`
+  );
 };
 
 const canUseSessionStorage = () => {
@@ -52,7 +64,7 @@ export const persistCheckoutReturnPath = (
   );
 };
 
-export const consumeCheckoutReturnPath = () => {
+export const consumeCheckoutReturnPath = (): string | null => {
   if (!canUseSessionStorage()) {
     return null;
   }

@@ -7,6 +7,7 @@ export {
 } from "./payments.constants";
 export { paymentsRoutes } from "./routes";
 export { billingMeOptions, plansOptions } from "./api/payments.queries";
+export { PaymentsUpgradeFlowProvider } from "./model/PaymentsUpgradeFlowProvider";
 export { default as PaymentsPage } from "./ui/PaymentsPage";
 export { default as PaymentsSuccessPage } from "./ui/PaymentsSuccessPage";
 export { default as BillingAccountSection } from "./ui/BillingAccountSection";

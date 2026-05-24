@@ -1,6 +1,8 @@
 import { useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
+import { PAYMENTS_QUERY_ROOT } from "../payments.constants";
 import {
   consumeCheckoutReturnPath,
   getReturnPathFromSearchParams,
@@ -8,6 +10,7 @@ import {
 
 export default function PaymentsSuccessPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const location = useLocation();
   const returnPath =
     getReturnPathFromSearchParams(location.search) ??
@@ -15,8 +18,9 @@ export default function PaymentsSuccessPage() {
     "/stories";
 
   useEffect(() => {
+    void queryClient.invalidateQueries({ queryKey: PAYMENTS_QUERY_ROOT });
     void navigate(returnPath, { replace: true });
-  }, [navigate, returnPath]);
+  }, [navigate, queryClient, returnPath]);
 
   return (
     <div className="flex min-h-0 flex-1 items-center justify-center p-6">
