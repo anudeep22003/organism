@@ -44,7 +44,10 @@ async def test_story_engine_route_returns_403_without_entitlement(
             headers=auth_cookie_header(user.id),
         )
         assert response.status_code == 403
-        assert response.json() == {"detail": "Missing required entitlement: pro_tier"}
+        assert response.json() == {
+            "code": "billing_entitlement_required",
+            "requiredFeature": "pro_tier",
+        }
     finally:
         await _delete_user(db_session, user.id)
 
@@ -71,7 +74,10 @@ async def test_story_engine_route_returns_403_for_expired_entitlement(
             headers=auth_cookie_header(user.id),
         )
         assert response.status_code == 403
-        assert response.json() == {"detail": "Missing required entitlement: pro_tier"}
+        assert response.json() == {
+            "code": "billing_entitlement_required",
+            "requiredFeature": "pro_tier",
+        }
     finally:
         await _delete_user(db_session, user.id)
 
@@ -98,6 +104,9 @@ async def test_story_engine_route_returns_403_for_future_entitlement(
             headers=auth_cookie_header(user.id),
         )
         assert response.status_code == 403
-        assert response.json() == {"detail": "Missing required entitlement: pro_tier"}
+        assert response.json() == {
+            "code": "billing_entitlement_required",
+            "requiredFeature": "pro_tier",
+        }
     finally:
         await _delete_user(db_session, user.id)
