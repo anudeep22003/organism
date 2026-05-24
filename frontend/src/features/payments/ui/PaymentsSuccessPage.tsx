@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
@@ -12,15 +12,24 @@ export default function PaymentsSuccessPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const location = useLocation();
-  const returnPath =
-    getReturnPathFromSearchParams(location.search) ??
-    consumeCheckoutReturnPath() ??
-    "/stories";
+  const [returnPath, setReturnPath] = useState<string | null>(null);
+  const didResolveReturnPath = useRef(false);
 
   useEffect(() => {
+    if (didResolveReturnPath.current) {
+      return;
+    }
+
+    didResolveReturnPath.current = true;
+    const nextReturnPath =
+      getReturnPathFromSearchParams(location.search) ??
+      consumeCheckoutReturnPath() ??
+      "/stories";
+
+    setReturnPath(nextReturnPath);
     void queryClient.invalidateQueries({ queryKey: PAYMENTS_QUERY_ROOT });
-    void navigate(returnPath, { replace: true });
-  }, [navigate, queryClient, returnPath]);
+    void navigate(nextReturnPath, { replace: true });
+  }, [location.search, navigate, queryClient]);
 
   return (
     <div className="flex min-h-0 flex-1 items-center justify-center p-6">
@@ -38,7 +47,10 @@ export default function PaymentsSuccessPage() {
 
         <Button
           type="button"
-          onClick={() => void navigate(returnPath, { replace: true })}
+          disabled={!returnPath}
+          onClick={() =>
+            void navigate(returnPath ?? "/stories", { replace: true })
+          }
         >
           Continue
         </Button>
