@@ -32,6 +32,28 @@ type HttpErrorListener = (details: HttpErrorDetails) => void;
 
 const httpErrorListeners = new Set<HttpErrorListener>();
 
+class HttpClientError extends Error {
+  public readonly status: number;
+  public readonly detail: unknown;
+  public readonly data: unknown;
+
+  constructor({
+    status,
+    detail,
+    data,
+  }: {
+    status: number;
+    detail?: unknown;
+    data?: unknown;
+  }) {
+    super(`HTTP error! status: ${status}`);
+    this.name = "HttpClientError";
+    this.status = status;
+    this.detail = detail;
+    this.data = data;
+  }
+}
+
 /*
 HttpClient is the auth transport boundary.
 
@@ -188,7 +210,19 @@ class HttpClient {
     }
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorPayload = await this.readErrorPayload(response);
+      const error = new HttpClientError({
+        status: response.status,
+        detail:
+          typeof errorPayload === "object" &&
+          errorPayload !== null &&
+          "detail" in errorPayload
+            ? errorPayload.detail
+            : undefined,
+        data: errorPayload,
+      });
+      notifyHttpErrorListeners(getAxiosErrorDetails(error));
+      throw error;
     }
 
     const reader = response.body?.getReader();
@@ -285,6 +319,18 @@ class HttpClient {
     return headers;
   }
 
+  private async readErrorPayload(response: Response) {
+    try {
+      return await response.clone().json();
+    } catch {
+      try {
+        return await response.clone().text();
+      } catch {
+        return null;
+      }
+    }
+  }
+
   private setupInterceptors(): void {
     /*
     Request interceptor:
@@ -354,6 +400,13 @@ export const getAxiosErrorDetails = (err: unknown) => {
       data: err.response?.data,
       detail: err.response?.data?.detail,
       status: err.response?.status,
+    };
+  }
+  if (err instanceof HttpClientError) {
+    return {
+      data: err.data,
+      detail: err.detail,
+      status: err.status,
     };
   }
   return { detail: "Unknown error", status: 500 };
