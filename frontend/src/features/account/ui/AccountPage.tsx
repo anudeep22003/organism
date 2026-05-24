@@ -1,3 +1,5 @@
+import AuthAccountSection from "@/features/auth/ui/AuthAccountSection";
+
 export default function AccountPage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-6 p-6">
@@ -9,6 +11,10 @@ export default function AccountPage() {
         <p className="max-w-2xl text-sm text-muted-foreground">
           Manage profile details and billing controls for your workspace.
         </p>
+      </div>
+
+      <div className="flex flex-col gap-6">
+        <AuthAccountSection />
       </div>
     </div>
   );
