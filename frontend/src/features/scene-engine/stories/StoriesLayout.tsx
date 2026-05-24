@@ -8,6 +8,7 @@ export default function StoriesLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const isDark = theme === "dark";
+  const isAccountRoute = location.pathname.startsWith("/account");
   const isStoriesRoute = location.pathname.startsWith("/stories");
   const isPaymentsRoute = location.pathname.startsWith("/payments");
 
@@ -26,6 +27,16 @@ export default function StoriesLayout() {
             }`}
           >
             Stories
+          </button>
+          <button
+            onClick={() => void navigate("/account")}
+            className={`text-[10px] ${
+              isAccountRoute
+                ? "text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Account
           </button>
           <button
             onClick={() => void navigate("/payments")}
