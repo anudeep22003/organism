@@ -7,7 +7,7 @@ export interface AuthUser {
   id: string;
   email: string;
   updatedAt: string;
-  fullName?: string | null;
+  name?: string | null;
   [key: string]: unknown;
 }
 

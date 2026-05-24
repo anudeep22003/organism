@@ -21,7 +21,7 @@ export default function AuthAccountSection() {
             Full name
           </span>
           <p className="text-sm text-foreground">
-            {user?.fullName ?? "No name on file"}
+            {user?.name ?? "No name on file"}
           </p>
         </div>
 
