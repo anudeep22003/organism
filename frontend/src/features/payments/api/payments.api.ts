@@ -5,6 +5,7 @@ import type {
   CreateCheckoutSessionResponse,
   ListPlansResponse,
 } from "../payments.types";
+import { persistCheckoutReturnPath } from "../routing/payments-redirect";
 import { BILLING_SERVICE_ENDPOINTS } from "./payments.constants";
 
 export const paymentsApi = {
@@ -18,6 +19,7 @@ export const paymentsApi = {
   },
 
   startCheckout: async (payload: CreateCheckoutSessionRequest) => {
+    persistCheckoutReturnPath(payload.returnPath);
     const { checkoutUrl } = await paymentsApi.createCheckoutSession(
       payload
     );
