@@ -1,6 +1,7 @@
 import { httpClient } from "@/lib/httpClient";
 import { TEST_CHECKOUT_PLAN_ID } from "../payments.constants";
 import type {
+  BillingMeResponse,
   CreateCheckoutSessionRequest,
   CreateCheckoutSessionResponse,
 } from "../payments.types";
@@ -25,5 +26,11 @@ export const paymentsApi = {
       payload
     );
     window.location.assign(checkoutUrl);
+  },
+
+  fetchBillingMe: async () => {
+    return await httpClient.get<BillingMeResponse>(
+      BILLING_SERVICE_ENDPOINTS.BILLING_ME
+    );
   },
 };
