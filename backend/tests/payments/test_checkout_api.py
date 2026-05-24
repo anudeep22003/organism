@@ -228,7 +228,10 @@ async def test_create_checkout_session_uses_plan_id_to_resolve_stripe_price(
     checkout_url = "https://checkout.stripe.test/session"
     stripe_client = make_stripe_client_mock(checkout_url=checkout_url)
 
-    with patch("core.payments.service.get_stripe_client", return_value=stripe_client):
+    with patch(
+        "core.payments.services.payments.get_stripe_client",
+        return_value=stripe_client,
+    ):
         response = await api_client.post(
             "/api/billing/create-checkout-session",
             headers=make_auth_cookie_header(user.id),

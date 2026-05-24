@@ -14,7 +14,8 @@ from .schemas import (
     CreateCheckoutSessionResponse,
     ListPlansResponse,
 )
-from .service import (
+from .services import (
+    BillingStatusService,
     PaymentsService,
     PlanConfigurationError,
     PlanNotFoundError,
@@ -31,6 +32,12 @@ def get_payments_service(
     db: Annotated[AsyncSession, Depends(get_async_db_session)],
 ) -> PaymentsService:
     return PaymentsService(db)
+
+
+def get_billing_status_service(
+    db: Annotated[AsyncSession, Depends(get_async_db_session)],
+) -> BillingStatusService:
+    return BillingStatusService(db)
 
 
 @router.post("/create-checkout-session")
@@ -81,7 +88,7 @@ async def webhook(
 @router.get("/me")
 async def get_my_billing_status(
     user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
-    service: Annotated[PaymentsService, Depends(get_payments_service)],
+    service: Annotated[BillingStatusService, Depends(get_billing_status_service)],
 ) -> BillingMeResponse:
     return await service.get_billing_status(user_id=user_id)
 

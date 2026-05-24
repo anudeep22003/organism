@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.common.utils import get_current_datetime_utc
 from core.infrastructure.database import get_async_session_maker
-from core.payments.service import PaymentsService
+from core.payments.services import PaymentsService
 
 from .models import Event, EventType
 from .repository import EventRepository
