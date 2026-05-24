@@ -7,6 +7,7 @@ import {
   formatBillingDate,
   getBillingAccountCopy,
 } from "../payments.utils";
+import { buildPaymentsRoute } from "../routing/payments-redirect";
 
 const Field = ({
   label,
@@ -110,7 +111,7 @@ export default function BillingAccountSection() {
           type="button"
           disabled={!data.canStartCheckout}
           onClick={() =>
-            void navigate("/payments?returnPath=%2Faccount")
+            void navigate(buildPaymentsRoute({ returnPath: "/account" }))
           }
         >
           {copy.ctaLabel}

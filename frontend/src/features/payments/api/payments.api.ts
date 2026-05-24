@@ -1,5 +1,4 @@
 import { httpClient } from "@/lib/httpClient";
-import { TEST_CHECKOUT_PLAN_ID } from "../payments.constants";
 import type {
   BillingMeResponse,
   CreateCheckoutSessionRequest,
@@ -18,11 +17,7 @@ export const paymentsApi = {
     );
   },
 
-  startCheckout: async (
-    payload: CreateCheckoutSessionRequest = {
-      planId: TEST_CHECKOUT_PLAN_ID,
-    }
-  ) => {
+  startCheckout: async (payload: CreateCheckoutSessionRequest) => {
     const { checkoutUrl } = await paymentsApi.createCheckoutSession(
       payload
     );
