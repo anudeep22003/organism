@@ -24,7 +24,7 @@ from core.payments.models import (
     StripeEvent,
     StripeEventProcessingStatus,
 )
-from core.payments.service import PaymentsService
+from core.payments.services import PaymentsService
 from core.payments.webhooks import (
     StripeEventDrainer,
     StripeEventProcessor,
