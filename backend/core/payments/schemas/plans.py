@@ -1,12 +1,5 @@
 from core.common import AliasedBaseModel
 
-from .exceptions import BillingErrorCode
-
-
-class BillingEntitlementRequiredResponse(AliasedBaseModel):
-    code: BillingErrorCode = BillingErrorCode.ENTITLEMENT_REQUIRED
-    required_feature: str
-
 
 class PlanFeatureSchema(AliasedBaseModel):
     label: str
@@ -30,15 +23,6 @@ class PlanSchemaCustomerFacing(AliasedBaseModel):
 
 class ListPlansResponse(AliasedBaseModel):
     plans: list[PlanSchemaCustomerFacing]
-
-
-class CreateCheckoutSessionRequest(AliasedBaseModel):
-    plan_id: str
-    return_path: str | None = None
-
-
-class CreateCheckoutSessionResponse(AliasedBaseModel):
-    checkout_url: str
 
 
 class PlanSchemaAdmin(PlanSchemaCustomerFacing):
