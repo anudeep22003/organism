@@ -8,6 +8,7 @@ export default function StoriesLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const isDark = theme === "dark";
+  const isAccountRoute = location.pathname.startsWith("/account");
   const isStoriesRoute = location.pathname.startsWith("/stories");
   const isPaymentsRoute = location.pathname.startsWith("/payments");
 
@@ -37,6 +38,16 @@ export default function StoriesLayout() {
           >
             Payments
           </button>
+          <button
+            onClick={() => void navigate("/account")}
+            className={`text-[10px] ${
+              isAccountRoute
+                ? "text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Account
+          </button>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -47,14 +58,12 @@ export default function StoriesLayout() {
           </button>
           <div className="h-2.5 w-px bg-border" />
           <button
-            onClick={() => { void logout(); }}
+            onClick={() => {
+              void logout();
+            }}
             className="text-[10px] text-muted-foreground hover:text-foreground"
           >
             Sign out
-          </button>
-          <div className="h-2.5 w-px bg-border" />
-          <button className="flex h-5 w-5 items-center justify-center border border-border text-[10px] text-muted-foreground hover:bg-muted/40">
-            A
           </button>
         </div>
       </div>

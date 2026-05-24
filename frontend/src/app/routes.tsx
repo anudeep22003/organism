@@ -1,4 +1,5 @@
 import { Navigate } from "react-router";
+import { accountRoutes } from "../features/account";
 import {
   AuthFailurePage,
   AuthPage,
@@ -18,6 +19,7 @@ export const routes = [
         path: "/",
         element: <Navigate to="/stories" replace />,
       },
+      ...accountRoutes,
       ...storiesRoutes,
       ...paymentsRoutes,
       ...sceneEngineRoutes,
