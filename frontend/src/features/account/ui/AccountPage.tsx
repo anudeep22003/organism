@@ -1,4 +1,5 @@
 import AuthAccountSection from "@/features/auth/ui/AuthAccountSection";
+import BillingAccountSection from "@/features/payments/ui/BillingAccountSection";
 
 export default function AccountPage() {
   return (
@@ -16,6 +17,7 @@ export default function AccountPage() {
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <AuthAccountSection />
+        <BillingAccountSection />
       </div>
     </div>
   );

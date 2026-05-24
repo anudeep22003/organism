@@ -10,3 +10,14 @@ export const formatPlanPrice = (price: PlanPrice) => {
 export const formatPlanInterval = (interval: string) => {
   return `/${interval}`;
 };
+
+export const formatBillingDate = (value: string | null) => {
+  if (!value) {
+    return null;
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+};
