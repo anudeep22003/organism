@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Final
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, case, desc, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .models import (
@@ -146,6 +146,54 @@ class PaymentsRepository:
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
+    async def get_most_relevant_subscription_by_user_id(
+        self, user_id: uuid.UUID
+    ) -> Subscription | None:
+        status_rank = case(
+            (
+                Subscription.status.in_(
+                    [
+                        StripeSubscriptionStatus.ACTIVE.value,
+                        StripeSubscriptionStatus.TRIALING.value,
+                    ]
+                ),
+                0,
+            ),
+            (
+                Subscription.status.in_(
+                    [
+                        StripeSubscriptionStatus.PAST_DUE.value,
+                        StripeSubscriptionStatus.UNPAID.value,
+                        StripeSubscriptionStatus.PAUSED.value,
+                    ]
+                ),
+                1,
+            ),
+            (Subscription.status == StripeSubscriptionStatus.INCOMPLETE.value, 2),
+            (
+                Subscription.status.in_(
+                    [
+                        StripeSubscriptionStatus.CANCELED.value,
+                        StripeSubscriptionStatus.INCOMPLETE_EXPIRED.value,
+                    ]
+                ),
+                3,
+            ),
+            else_=4,
+        )
+        query = (
+            select(Subscription)
+            .where(Subscription.user_id == user_id)
+            .order_by(
+                status_rank.asc(),
+                desc(Subscription.current_period_end),
+                desc(Subscription.updated_at),
+            )
+            .limit(1)
+        )
+        result = await self.db.execute(query)
+        return result.scalar_one_or_none()
+
     async def get_subscription_by_stripe_subscription_id(
         self, stripe_subscription_id: str
     ) -> Subscription | None:
@@ -213,6 +261,34 @@ class PaymentsRepository:
 
     def add_entitlement(self, entitlement: Entitlement) -> None:
         self.db.add(entitlement)
+
+    async def list_current_entitlements(
+        self,
+        *,
+        user_id: uuid.UUID,
+        now: datetime,
+    ) -> list[Entitlement]:
+        query = (
+            select(Entitlement)
+            .where(
+                and_(
+                    Entitlement.user_id == user_id,
+                    Entitlement.valid_from <= now,
+                    or_(
+                        Entitlement.valid_until.is_(None),
+                        Entitlement.valid_until > now,
+                    ),
+                )
+            )
+            .order_by(Entitlement.feature.asc(), Entitlement.valid_until.asc())
+        )
+        result = await self.db.execute(query)
+        return list(result.scalars().all())
+
+    async def get_plan_by_stripe_price_id(self, price_id: str) -> Plan | None:
+        query = select(Plan).where(Plan.stripe_price_id == price_id)
+        result = await self.db.execute(query)
+        return result.scalar_one_or_none()
 
     async def has_current_entitlement(
         self,
