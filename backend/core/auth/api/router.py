@@ -6,6 +6,7 @@ from fastapi.responses import RedirectResponse
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.api.errors import AppErrorCode, app_error_detail
 from core.config import settings
 from core.infrastructure.database import get_async_db_session
 
@@ -182,7 +183,10 @@ async def refresh(
         )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="No refresh token provided",
+            detail=app_error_detail(
+                code=AppErrorCode.AUTH_REFRESH_REQUIRED,
+                message="Refresh token is required.",
+            ),
         )
     try:
         tokens = await service.refresh_session(refresh_token)
@@ -197,7 +201,10 @@ async def refresh(
         )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(exc),
+            detail=app_error_detail(
+                code=AppErrorCode.AUTH_REFRESH_INVALID,
+                message=str(exc) or "Refresh token is invalid.",
+            ),
         )
     log_auth_event(
         "auth.refresh.succeeded",

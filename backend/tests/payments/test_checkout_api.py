@@ -180,6 +180,22 @@ async def test_list_plans_is_public_and_hides_internal_billing_fields(
 
 
 @pytest.mark.asyncio
+async def test_create_checkout_session_without_auth_returns_auth_required(
+    api_client: AsyncClient,
+) -> None:
+    response = await api_client.post(
+        "/api/billing/create-checkout-session",
+        json={"planId": f"pro_monthly_{uuid.uuid4().hex[:8]}"},
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == {
+        "code": "auth_required",
+        "message": "Sign in to continue.",
+    }
+
+
+@pytest.mark.asyncio
 async def test_create_checkout_session_blocks_when_user_has_active_subscription(
     api_client: AsyncClient,
     db_session: AsyncSession,

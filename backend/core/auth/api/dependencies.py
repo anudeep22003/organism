@@ -5,6 +5,7 @@ from typing import Annotated
 from fastapi import Cookie, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.api.errors import AppErrorCode, app_error_detail
 from core.infrastructure.database import get_async_db_session
 
 from ..config import ACCESS_TOKEN_COOKIE_NAME
@@ -71,7 +72,10 @@ async def get_current_user_id(
     if not access_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="No access token provided",
+            detail=app_error_detail(
+                code=AppErrorCode.AUTH_REQUIRED,
+                message="Sign in to continue.",
+            ),
         )
 
     try:
@@ -79,12 +83,18 @@ async def get_current_user_id(
     except ExpiredAccessTokenError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Access token expired",
+            detail=app_error_detail(
+                code=AppErrorCode.AUTH_TOKEN_EXPIRED,
+                message="Your session expired. Sign in again.",
+            ),
         )
-    except InvalidAccessTokenError as exc:
+    except InvalidAccessTokenError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(exc) or "Invalid access token",
+            detail=app_error_detail(
+                code=AppErrorCode.AUTH_TOKEN_INVALID,
+                message="Your session is invalid. Sign in again.",
+            ),
         )
 
 
