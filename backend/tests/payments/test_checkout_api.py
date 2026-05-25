@@ -71,6 +71,7 @@ async def seed_plan(
     stripe_price_id: str | None = None,
     is_active: bool = True,
     sort_order: int = 0,
+    amount_minor: int | None = 1200,
 ) -> Plan:
     plan = Plan(
         plan_id=plan_id or f"pro_monthly_{uuid.uuid4().hex[:8]}",
@@ -82,7 +83,7 @@ async def seed_plan(
             {"label": "Story generation"},
             {"label": "Character rendering", "description": "Render story characters."},
         ],
-        amount_minor=1200,
+        amount_minor=amount_minor,
         currency="usd",
         interval="month",
         is_active=is_active,
@@ -180,6 +181,26 @@ async def test_list_plans_is_public_and_hides_internal_billing_fields(
 
 
 @pytest.mark.asyncio
+async def test_list_plans_returns_typed_error_for_misconfigured_active_plan(
+    api_client: AsyncClient,
+    plan_factory: Callable[..., Awaitable[Plan]],
+) -> None:
+    await plan_factory(
+        plan_id=f"misconfigured_{uuid.uuid4().hex[:8]}",
+        stripe_price_id=f"price_misconfigured_{uuid.uuid4().hex[:14]}",
+        amount_minor=None,
+    )
+
+    response = await api_client.get("/api/billing/plans")
+
+    assert response.status_code == 500
+    assert response.json()["detail"] == {
+        "code": "billing_plan_configuration_error",
+        "message": "Payment plans are misconfigured.",
+    }
+
+
+@pytest.mark.asyncio
 async def test_create_checkout_session_without_auth_returns_auth_required(
     api_client: AsyncClient,
 ) -> None:
@@ -221,7 +242,10 @@ async def test_create_checkout_session_blocks_when_user_has_active_subscription(
     )
 
     assert response.status_code == 409
-    assert response.json() == {"detail": "User already has an active subscription"}
+    assert response.json()["detail"] == {
+        "code": "billing_subscription_already_exists",
+        "message": "User already has an active subscription",
+    }
     assert list(checkout_sessions.scalars().all()) == []
 
 
@@ -266,14 +290,53 @@ async def test_create_checkout_session_uses_plan_id_to_resolve_stripe_price(
 
 
 @pytest.mark.asyncio
+async def test_create_checkout_session_rejects_invalid_return_path(
+    api_client: AsyncClient,
+    db_session: AsyncSession,
+    user: User,
+    plan_factory: Callable[..., Awaitable[Plan]],
+) -> None:
+    await seed_stripe_customer(
+        db_session,
+        user,
+        stripe_customer_id=f"cus_test_{uuid.uuid4().hex[:14]}",
+    )
+    plan = await plan_factory()
+    stripe_client = make_stripe_client_mock(
+        checkout_url="https://checkout.stripe.test/session"
+    )
+
+    with patch(
+        "core.payments.services.payments.get_stripe_client",
+        return_value=stripe_client,
+    ):
+        response = await api_client.post(
+            "/api/billing/create-checkout-session",
+            headers=make_auth_cookie_header(user.id),
+            json={"planId": plan.plan_id, "returnPath": "https://evil.example"},
+        )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == {
+        "code": "billing_invalid_checkout_request",
+        "message": "return_path must be an app-relative path",
+    }
+
+
+@pytest.mark.asyncio
 async def test_create_checkout_session_rejects_missing_plan_id(
     api_client: AsyncClient,
     user: User,
 ) -> None:
+    missing_plan_id = f"missing_{uuid.uuid4().hex[:8]}"
     response = await api_client.post(
         "/api/billing/create-checkout-session",
         headers=make_auth_cookie_header(user.id),
-        json={"planId": f"missing_{uuid.uuid4().hex[:8]}"},
+        json={"planId": missing_plan_id},
     )
 
     assert response.status_code == 404
+    assert response.json()["detail"] == {
+        "code": "billing_plan_not_found",
+        "message": f"Plan {missing_plan_id} not found",
+    }

@@ -6,7 +6,7 @@ from .billing_status import (
     BillingSubscriptionSummary,
 )
 from .checkout import CreateCheckoutSessionRequest, CreateCheckoutSessionResponse
-from .errors import BillingEntitlementRequiredResponse
+from .errors import BillingEntitlementRequiredResponse, BillingErrorDetail
 from .plans import (
     ListPlansResponse,
     PlanFeatureSchema,
@@ -17,6 +17,7 @@ from .plans import (
 
 __all__ = [
     "BillingEntitlementRequiredResponse",
+    "BillingErrorDetail",
     "BillingEntitlementSummary",
     "BillingMeResponse",
     "BillingRecommendedAction",

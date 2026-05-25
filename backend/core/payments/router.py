@@ -8,7 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.auth.api import get_current_user_id
 from core.infrastructure.database import get_async_db_session
 
+from .exceptions import BillingErrorCode
 from .schemas import (
+    BillingErrorDetail,
     BillingMeResponse,
     CreateCheckoutSessionRequest,
     CreateCheckoutSessionResponse,
@@ -53,11 +55,29 @@ async def create_checkout_session(
             return_path=request.return_path,
         )
     except PlanNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(
+            status_code=404,
+            detail=BillingErrorDetail(
+                code=BillingErrorCode.PLAN_NOT_FOUND,
+                message=str(e),
+            ).model_dump(),
+        )
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(
+            status_code=400,
+            detail=BillingErrorDetail(
+                code=BillingErrorCode.INVALID_CHECKOUT_REQUEST,
+                message=str(e),
+            ).model_dump(),
+        )
     except SubscriptionAlreadyExistsError as e:
-        raise HTTPException(status_code=409, detail=str(e))
+        raise HTTPException(
+            status_code=409,
+            detail=BillingErrorDetail(
+                code=BillingErrorCode.SUBSCRIPTION_ALREADY_EXISTS,
+                message=str(e),
+            ).model_dump(),
+        )
     return CreateCheckoutSessionResponse(checkout_url=url)
 
 
@@ -76,11 +96,21 @@ async def webhook(
         )
     except StripeWebhookValidationError as e:
         logger.warning("Stripe webhook validation error: {}", e)
-        raise HTTPException(status_code=400, detail="invalid stripe webhook signature")
+        raise HTTPException(
+            status_code=400,
+            detail=BillingErrorDetail(
+                code=BillingErrorCode.STRIPE_WEBHOOK_INVALID,
+                message="Invalid Stripe webhook signature.",
+            ).model_dump(),
+        )
     except UnhandledException as e:
         logger.error("Unhandled error handling stripe webhook: {}", e)
         raise HTTPException(
-            status_code=500, detail=f"Unhandled error handling stripe webhook: {e}"
+            status_code=500,
+            detail=BillingErrorDetail(
+                code=BillingErrorCode.STRIPE_WEBHOOK_FAILED,
+                message=f"Unhandled error handling Stripe webhook: {e}",
+            ).model_dump(),
         )
     return {"message": "Webhook received"}
 
@@ -101,4 +131,10 @@ async def list_plans(
         return await service.list_public_plans()
     except PlanConfigurationError as e:
         logger.error("Payment plan configuration error: {}", e)
-        raise HTTPException(status_code=500, detail="Payment plans are misconfigured")
+        raise HTTPException(
+            status_code=500,
+            detail=BillingErrorDetail(
+                code=BillingErrorCode.PLAN_CONFIGURATION_ERROR,
+                message="Payment plans are misconfigured.",
+            ).model_dump(),
+        )
