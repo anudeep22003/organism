@@ -157,6 +157,10 @@ async def test_google_auth_login_rate_limit_returns_429(
         )
 
     assert response.status_code == 429
+    assert response.json()["detail"] == {
+        "code": "auth_rate_limited",
+        "message": "Too many requests.",
+    }
 
 
 async def test_google_auth_callback_creates_user_google_account_and_session(
@@ -306,6 +310,10 @@ async def test_google_auth_callback_rate_limit_returns_429(
         )
 
         assert response.status_code == 429
+        assert response.json()["detail"] == {
+            "code": "auth_rate_limited",
+            "message": "Too many requests.",
+        }
     finally:
         await db_session.execute(delete(User).where(User.email == callback_limit_email))
         await db_session.commit()
@@ -568,6 +576,10 @@ async def test_refresh_rate_limit_returns_429(api_client: AsyncClient) -> None:
     response = await api_client.post("/api/auth/refresh", headers=headers)
 
     assert response.status_code == 429
+    assert response.json()["detail"] == {
+        "code": "auth_rate_limited",
+        "message": "Too many requests.",
+    }
 
 
 async def test_logout_revokes_session_and_clears_cookies(

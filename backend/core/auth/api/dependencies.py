@@ -5,7 +5,6 @@ from typing import Annotated
 from fastapi import Cookie, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.api.errors import AppErrorCode, app_error_detail
 from core.infrastructure.database import get_async_db_session
 
 from ..config import ACCESS_TOKEN_COOKIE_NAME
@@ -29,6 +28,7 @@ from ..security import (
     get_encryptor,
 )
 from ..services import AuthService
+from .errors import AuthErrorCode, AuthErrorDetail
 
 
 def get_access_token_manager() -> AccessTokenManager:
@@ -72,10 +72,10 @@ async def get_current_user_id(
     if not access_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=app_error_detail(
-                code=AppErrorCode.AUTH_REQUIRED,
+            detail=AuthErrorDetail(
+                code=AuthErrorCode.AUTH_REQUIRED,
                 message="Sign in to continue.",
-            ),
+            ).model_dump(),
         )
 
     try:
@@ -83,18 +83,18 @@ async def get_current_user_id(
     except ExpiredAccessTokenError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=app_error_detail(
-                code=AppErrorCode.AUTH_TOKEN_EXPIRED,
+            detail=AuthErrorDetail(
+                code=AuthErrorCode.AUTH_TOKEN_EXPIRED,
                 message="Your session expired. Sign in again.",
-            ),
+            ).model_dump(),
         )
     except InvalidAccessTokenError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=app_error_detail(
-                code=AppErrorCode.AUTH_TOKEN_INVALID,
+            detail=AuthErrorDetail(
+                code=AuthErrorCode.AUTH_TOKEN_INVALID,
                 message="Your session is invalid. Sign in again.",
-            ),
+            ).model_dump(),
         )
 
 
@@ -148,7 +148,10 @@ def _enforce_rate_limit(
             )
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Too many requests",
+                detail=AuthErrorDetail(
+                    code=AuthErrorCode.AUTH_RATE_LIMITED,
+                    message="Too many requests.",
+                ).model_dump(),
                 headers=headers,
             )
 
