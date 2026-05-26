@@ -97,37 +97,44 @@ export function PaymentsUpgradeFlowProvider({
 
   const openUpgradeFlow = useCallback(
     (options: OpenUpgradeFlowOptions = {}) => {
+      const returnPath = options.returnPath ?? getCurrentReturnPath();
+
       setState({
         isOpen: true,
         requiredFeature: options.requiredFeature ?? null,
-        returnPath: options.returnPath ?? getCurrentReturnPath(),
+        returnPath,
       });
     },
     []
   );
 
   useEffect(() => {
-    return subscribeToHttpErrors((details: HttpErrorDetails) => {
-      const entitlementError =
-        getBillingEntitlementRequiredError(details);
+    const unsubscribeFromHttpErrors = subscribeToHttpErrors(
+      (details: HttpErrorDetails) => {
+        const entitlementError =
+          getBillingEntitlementRequiredError(details);
 
-      if (!entitlementError) {
-        return;
+        if (!entitlementError) {
+          return;
+        }
+
+        const upgradeFlowOptions = {
+          requiredFeature: entitlementError.requiredFeature,
+        };
+
+        openUpgradeFlow(upgradeFlowOptions);
       }
+    );
 
-      openUpgradeFlow({
-        requiredFeature: entitlementError.requiredFeature,
-      });
-    });
+    return unsubscribeFromHttpErrors;
   }, [openUpgradeFlow]);
 
-  const contextValue = useMemo(
-    () => ({
+  const contextValue = useMemo(() => {
+    return {
       closeUpgradeFlow,
       openUpgradeFlow,
-    }),
-    [closeUpgradeFlow, openUpgradeFlow]
-  );
+    };
+  }, [closeUpgradeFlow, openUpgradeFlow]);
 
   return (
     <PaymentsUpgradeFlowContext.Provider value={contextValue}>

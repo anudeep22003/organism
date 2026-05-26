@@ -50,10 +50,11 @@ export const paymentsApi = {
         isCheckoutAuthRequiredError(details.data) ||
         isCheckoutAuthRequiredError(details.detail)
       ) {
+        const safePayloadReturnPath = getSafeReturnPath(
+          payload.returnPath
+        );
         const redirectTo =
-          getSafeReturnPath(payload.returnPath) ??
-          getCurrentReturnPath() ??
-          "/";
+          safePayloadReturnPath ?? getCurrentReturnPath() ?? "/";
 
         window.location.assign(buildAuthRoute({ redirectTo }));
         return;

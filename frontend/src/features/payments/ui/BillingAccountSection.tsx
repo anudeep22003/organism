@@ -49,6 +49,11 @@ export default function BillingAccountSection() {
 
   const copy = getBillingAccountCopy(data);
   const subscription = data.subscription;
+  const handleOpenUpgradeFlow = () => {
+    const upgradeFlowOptions = { returnPath: "/account" };
+
+    openUpgradeFlow(upgradeFlowOptions);
+  };
 
   return (
     <section className="flex flex-col gap-6 border border-border bg-background p-6 shadow-sm">
@@ -109,7 +114,7 @@ export default function BillingAccountSection() {
         <Button
           type="button"
           disabled={!data.canStartCheckout}
-          onClick={() => openUpgradeFlow({ returnPath: "/account" })}
+          onClick={handleOpenUpgradeFlow}
         >
           {copy.ctaLabel}
         </Button>
