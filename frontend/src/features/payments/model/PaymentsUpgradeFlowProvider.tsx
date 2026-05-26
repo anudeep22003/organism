@@ -1,4 +1,12 @@
-import { type ReactNode, useEffect, useState } from "react";
+import {
+  createContext,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   type HttpErrorDetails,
   subscribeToHttpErrors,
@@ -29,6 +37,31 @@ type UpgradeFlowState = {
   returnPath: string | null;
 };
 
+type OpenUpgradeFlowOptions = {
+  requiredFeature?: string | null;
+  returnPath?: string | null;
+};
+
+type PaymentsUpgradeFlowContextValue = {
+  closeUpgradeFlow: () => void;
+  openUpgradeFlow: (options?: OpenUpgradeFlowOptions) => void;
+};
+
+const PaymentsUpgradeFlowContext =
+  createContext<PaymentsUpgradeFlowContextValue | null>(null);
+
+export const usePaymentsUpgradeFlow = () => {
+  const context = useContext(PaymentsUpgradeFlowContext);
+
+  if (!context) {
+    throw new Error(
+      "usePaymentsUpgradeFlow must be used inside PaymentsUpgradeFlowProvider"
+    );
+  }
+
+  return context;
+};
+
 export function PaymentsUpgradeFlowProvider({
   children,
 }: {
@@ -40,37 +73,54 @@ export function PaymentsUpgradeFlowProvider({
     returnPath: null,
   });
 
+  const closeUpgradeFlow = useCallback(() => {
+    setState({
+      isOpen: false,
+      requiredFeature: null,
+      returnPath: null,
+    });
+  }, []);
+
+  const openUpgradeFlow = useCallback(
+    (options: OpenUpgradeFlowOptions = {}) => {
+      setState({
+        isOpen: true,
+        requiredFeature: options.requiredFeature ?? null,
+        returnPath: options.returnPath ?? getCurrentReturnPath(),
+      });
+    },
+    []
+  );
+
   useEffect(() => {
     return subscribeToHttpErrors((details: HttpErrorDetails) => {
       if (!isBillingEntitlementRequiredError(details.data)) {
         return;
       }
 
-      setState({
-        isOpen: true,
+      openUpgradeFlow({
         requiredFeature: details.data.requiredFeature,
-        returnPath: getCurrentReturnPath(),
       });
     });
-  }, []);
+  }, [openUpgradeFlow]);
 
-  const handleDismiss = () => {
-    setState({
-      isOpen: false,
-      requiredFeature: null,
-      returnPath: null,
-    });
-  };
+  const contextValue = useMemo(
+    () => ({
+      closeUpgradeFlow,
+      openUpgradeFlow,
+    }),
+    [closeUpgradeFlow, openUpgradeFlow]
+  );
 
   return (
-    <>
+    <PaymentsUpgradeFlowContext.Provider value={contextValue}>
       {children}
       <UpgradePlansModal
         open={state.isOpen}
-        onDismiss={handleDismiss}
+        onDismiss={closeUpgradeFlow}
         requiredFeature={state.requiredFeature}
         returnPath={state.returnPath}
       />
-    </>
+    </PaymentsUpgradeFlowContext.Provider>
   );
 }
