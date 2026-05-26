@@ -1,13 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
 import { billingMeOptions } from "../api/payments.queries";
+import { usePaymentsUpgradeFlow } from "../model/PaymentsUpgradeFlowProvider";
 import { BILLING_PORTAL_URL } from "../payments.constants";
 import {
   formatBillingDate,
   getBillingAccountCopy,
 } from "../payments.utils";
-import { buildPaymentsRoute } from "../routing/payments-redirect";
 
 const Field = ({
   label,
@@ -23,7 +22,7 @@ const Field = ({
 );
 
 export default function BillingAccountSection() {
-  const navigate = useNavigate();
+  const { openUpgradeFlow } = usePaymentsUpgradeFlow();
   const { data, isLoading, isError } = useQuery(billingMeOptions());
 
   if (isLoading) {
@@ -110,9 +109,7 @@ export default function BillingAccountSection() {
         <Button
           type="button"
           disabled={!data.canStartCheckout}
-          onClick={() =>
-            void navigate(buildPaymentsRoute({ returnPath: "/account" }))
-          }
+          onClick={() => openUpgradeFlow({ returnPath: "/account" })}
         >
           {copy.ctaLabel}
         </Button>
