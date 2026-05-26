@@ -1,9 +1,42 @@
+import { useState } from "react";
+import { buildAuthRoute, useAuth } from "@/features/auth";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router";
+import { paymentsApi } from "../api/payments.api";
 import { plansOptions } from "../api/payments.queries";
+import type { Plan } from "../payments.types";
 import PlansCatalog from "./PlansCatalog";
 
 export default function PublicPlansPage() {
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const navigate = useNavigate();
+  const [activePlanId, setActivePlanId] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { data, isLoading, isError } = useQuery(plansOptions());
+
+  const handleSelectPlan = async (plan: Plan) => {
+    if (isAuthLoading) {
+      return;
+    }
+
+    if (!isAuthenticated) {
+      void navigate(buildAuthRoute({ redirectTo: "/plans" }));
+      return;
+    }
+
+    setActivePlanId(plan.planId);
+    setErrorMessage(null);
+
+    try {
+      await paymentsApi.startCheckout({
+        planId: plan.planId,
+        returnPath: "/plans",
+      });
+    } catch {
+      setActivePlanId(null);
+      setErrorMessage("Unable to start checkout. Try again.");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -34,8 +67,16 @@ export default function PublicPlansPage() {
         {data ? (
           <PlansCatalog
             plans={data.plans}
-            onSelectPlan={() => undefined}
+            onSelectPlan={handleSelectPlan}
+            activePlanId={activePlanId}
+            isSubmitting={Boolean(activePlanId) || isAuthLoading}
           />
+        ) : null}
+
+        {errorMessage ? (
+          <div className="border border-destructive/20 bg-background p-4 text-sm text-destructive shadow-sm">
+            {errorMessage}
+          </div>
         ) : null}
       </div>
     </div>
