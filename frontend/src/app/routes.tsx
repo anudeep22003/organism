@@ -7,7 +7,7 @@ import {
   RequireGuest,
 } from "../features/auth";
 import { accountRoutes } from "../features/account";
-import { paymentsRoutes, PublicPlansPage } from "../features/payments";
+import { paymentsRoutes } from "../features/payments";
 import { sceneEngineRoutes } from "../features/scene-engine/routes";
 import { storiesRoutes } from "../features/scene-engine/stories/stories.routes";
 
@@ -41,9 +41,5 @@ export const routes = [
   {
     path: "/auth/failure",
     element: <AuthFailurePage />,
-  },
-  {
-    path: "/plans",
-    element: <PublicPlansPage />,
   },
 ];
