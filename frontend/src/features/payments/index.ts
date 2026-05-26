@@ -12,4 +12,5 @@ export { default as PaymentsPage } from "./ui/PaymentsPage";
 export { default as PaymentsSuccessPage } from "./ui/PaymentsSuccessPage";
 export { default as BillingAccountSection } from "./ui/BillingAccountSection";
 export { default as PlansCatalog } from "./ui/PlansCatalog";
+export { default as PublicPlansPage } from "./ui/PublicPlansPage";
 export { default as UpgradePlansModal } from "./ui/UpgradePlansModal";
