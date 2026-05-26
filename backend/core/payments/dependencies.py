@@ -2,7 +2,7 @@ import uuid
 from collections.abc import Awaitable, Callable
 from typing import Annotated
 
-from fastapi import Depends
+from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.auth.api import get_current_user_id
@@ -16,15 +16,20 @@ from .repository import PaymentsRepository
 def require_entitlement(feature: str) -> Callable[..., Awaitable[None]]:
     """Require a current billing entitlement for a gated route.
 
+    Fires on non-GET/HEAD/OPTIONS requests only.
+
     Raises `BillingEntitlementRequiredError` instead of `HTTPException` so the
     global handler in `main.py` can serialize one stable frontend contract:
     `403 {"code": "billing_entitlement_required", "requiredFeature": feature}`.
     """
 
     async def dependency(
+        request: Request,
         user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
         db: Annotated[AsyncSession, Depends(get_async_db_session)],
     ) -> None:
+        if request.method in ["GET", "HEAD", "OPTIONS"]:
+            return
         has_entitlement = await PaymentsRepository(db).has_current_entitlement(
             user_id=user_id,
             feature=feature,
