@@ -31,6 +31,20 @@ const isBillingEntitlementRequiredError = (
   );
 };
 
+const getBillingEntitlementRequiredError = (
+  details: HttpErrorDetails
+) => {
+  if (isBillingEntitlementRequiredError(details.data)) {
+    return details.data;
+  }
+
+  if (isBillingEntitlementRequiredError(details.detail)) {
+    return details.detail;
+  }
+
+  return null;
+};
+
 type UpgradeFlowState = {
   isOpen: boolean;
   requiredFeature: string | null;
@@ -94,12 +108,15 @@ export function PaymentsUpgradeFlowProvider({
 
   useEffect(() => {
     return subscribeToHttpErrors((details: HttpErrorDetails) => {
-      if (!isBillingEntitlementRequiredError(details.data)) {
+      const entitlementError =
+        getBillingEntitlementRequiredError(details);
+
+      if (!entitlementError) {
         return;
       }
 
       openUpgradeFlow({
-        requiredFeature: details.data.requiredFeature,
+        requiredFeature: entitlementError.requiredFeature,
       });
     });
   }, [openUpgradeFlow]);
