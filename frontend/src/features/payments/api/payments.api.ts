@@ -1,12 +1,30 @@
 import { httpClient } from "@/lib/httpClient";
+import { getAxiosErrorDetails } from "@/lib/httpClient";
+import { buildAuthRoute } from "@/features/auth/routing/auth-redirect";
 import type {
   BillingMeResponse,
   CreateCheckoutSessionRequest,
   CreateCheckoutSessionResponse,
   ListPlansResponse,
 } from "../payments.types";
-import { persistCheckoutReturnPath } from "../routing/payments-redirect";
+import {
+  getCurrentReturnPath,
+  getSafeReturnPath,
+  persistCheckoutReturnPath,
+} from "../routing/payments-redirect";
 import { BILLING_SERVICE_ENDPOINTS } from "./payments.constants";
+
+const CHECKOUT_AUTH_REQUIRED_ERROR_CODE = "auth_required";
+
+const isCheckoutAuthRequiredError = (data: unknown) => {
+  if (!data || typeof data !== "object") {
+    return false;
+  }
+
+  return (
+    "code" in data && data.code === CHECKOUT_AUTH_REQUIRED_ERROR_CODE
+  );
+};
 
 export const paymentsApi = {
   createCheckoutSession: async (
@@ -19,11 +37,30 @@ export const paymentsApi = {
   },
 
   startCheckout: async (payload: CreateCheckoutSessionRequest) => {
-    persistCheckoutReturnPath(payload.returnPath);
-    const { checkoutUrl } = await paymentsApi.createCheckoutSession(
-      payload
-    );
-    window.location.assign(checkoutUrl);
+    try {
+      const { checkoutUrl } = await paymentsApi.createCheckoutSession(
+        payload
+      );
+      persistCheckoutReturnPath(payload.returnPath);
+      window.location.assign(checkoutUrl);
+    } catch (error) {
+      const details = getAxiosErrorDetails(error);
+
+      if (
+        isCheckoutAuthRequiredError(details.data) ||
+        isCheckoutAuthRequiredError(details.detail)
+      ) {
+        const redirectTo =
+          getSafeReturnPath(payload.returnPath) ??
+          getCurrentReturnPath() ??
+          "/";
+
+        window.location.assign(buildAuthRoute({ redirectTo }));
+        return;
+      }
+
+      throw error;
+    }
   },
 
   fetchBillingMe: async () => {
