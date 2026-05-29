@@ -141,6 +141,10 @@ class PaymentsService:
             params=params,
             options=options,
         )
+        self._ensure_expected_livemode(
+            livemode=stripe_customer.livemode,
+            object_name="Stripe customer",
+        )
         logger.info("Stripe customer created: {}", stripe_customer.id)
         return stripe_customer
 
@@ -224,6 +228,10 @@ class PaymentsService:
         stripe_session = await self.stripe_client.v1.checkout.sessions.create_async(
             params=params,
             options=options,
+        )
+        self._ensure_expected_livemode(
+            livemode=stripe_session.livemode,
+            object_name="Stripe checkout session",
         )
         logger.info("Stripe session created: {}", stripe_session.id)
         logger.info("[STRIPE_SESSION]: {}", stripe_session.to_dict())
@@ -389,6 +397,10 @@ class PaymentsService:
                 sig_header=sig_header,
                 secret=settings.stripe_webhook_secret,
             )
+            self._ensure_expected_livemode(
+                livemode=event.livemode,
+                object_name="Stripe webhook event",
+            )
             logger.info("Stripe validation passed")
             try:
                 # this is in case the event.to_dict fails and takes the entire webhook handling down
@@ -399,10 +411,20 @@ class PaymentsService:
             return cast(stripe.Event, event)
         except stripe.error.SignatureVerificationError:
             raise StripeWebhookValidationError("Invalid stripe webhook signature")
+        except ValueError as e:
+            raise StripeWebhookValidationError(str(e)) from e
         except Exception as e:
             raise UnhandledException(
                 f"Unknown error validating stripe webhook body: {e}"
             ) from e
+
+    @staticmethod
+    def _ensure_expected_livemode(*, livemode: bool, object_name: str) -> None:
+        if livemode != settings.stripe_livemode:
+            raise ValueError(
+                f"{object_name} livemode={livemode} did not match expected "
+                f"livemode={settings.stripe_livemode}"
+            )
 
     async def list_public_plans(self) -> ListPlansResponse:
         plans = await self.repository.list_active_plans(
