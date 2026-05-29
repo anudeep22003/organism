@@ -89,7 +89,8 @@ class PaymentsService:
         # Local lookup is the fast path; Stripe idempotency and metadata are the
         # backup guardrails if a prior external create succeeded but DB persistence did not.
         stripe_customer_model = await self.repository.get_stripe_customer_by_user_id(
-            user_id
+            user_id,
+            livemode=settings.stripe_livemode,
         )
         if stripe_customer_model is not None:
             logger.info("Stripe customer already exists for user_id: {}", user_id)
@@ -110,7 +111,10 @@ class PaymentsService:
         return new_stripe_customer
 
     async def user_stripe_customer_id(self, user_id: uuid.UUID) -> str | None:
-        stripe_customer = await self.repository.get_stripe_customer_by_user_id(user_id)
+        stripe_customer = await self.repository.get_stripe_customer_by_user_id(
+            user_id,
+            livemode=settings.stripe_livemode,
+        )
         if stripe_customer is None:
             return None
         return stripe_customer.stripe_customer_id
@@ -168,7 +172,10 @@ class PaymentsService:
             raise PlanNotFoundError(f"Plan {plan_id} not found")
         price_id = plan.stripe_price_id
 
-        stripe_customer = await self.repository.get_stripe_customer_by_user_id(user_id)
+        stripe_customer = await self.repository.get_stripe_customer_by_user_id(
+            user_id,
+            livemode=settings.stripe_livemode,
+        )
         if stripe_customer is None:
             # should we create a customer if one is not found as a failsafe
             logger.warning("Stripe customer not found for user_id: {}", user_id)
@@ -251,7 +258,10 @@ class PaymentsService:
                 "User already has an active subscription"
             )
 
-        stripe_customer = await self.repository.get_stripe_customer_by_user_id(user_id)
+        stripe_customer = await self.repository.get_stripe_customer_by_user_id(
+            user_id,
+            livemode=settings.stripe_livemode,
+        )
         if stripe_customer is None:
             return
 

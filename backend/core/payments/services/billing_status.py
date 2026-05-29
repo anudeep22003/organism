@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.config import settings
 from core.payments.models import Entitlement, Plan, Subscription
 from core.payments.models.subscription import StripeSubscriptionStatus
 from core.payments.repository import PaymentsRepository
@@ -21,7 +22,10 @@ class BillingStatusService:
 
     async def get_billing_status(self, *, user_id: uuid.UUID) -> BillingMeResponse:
         now = datetime.now(timezone.utc)
-        stripe_customer = await self.repository.get_stripe_customer_by_user_id(user_id)
+        stripe_customer = await self.repository.get_stripe_customer_by_user_id(
+            user_id,
+            livemode=settings.stripe_livemode,
+        )
         active_entitlements = await self.repository.list_current_entitlements(
             user_id=user_id,
             now=now,

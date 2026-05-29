@@ -24,9 +24,12 @@ class PaymentsRepository:
         self.db = db
 
     async def get_stripe_customer_by_user_id(
-        self, user_id: uuid.UUID
+        self, user_id: uuid.UUID, *, livemode: bool
     ) -> StripeCustomer | None:
-        query = select(StripeCustomer).where(StripeCustomer.user_id == user_id)
+        query = select(StripeCustomer).where(
+            StripeCustomer.user_id == user_id,
+            StripeCustomer.livemode.is_(livemode),
+        )
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
 

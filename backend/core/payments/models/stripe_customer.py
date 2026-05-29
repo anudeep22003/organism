@@ -14,8 +14,9 @@ class StripeCustomer(ORMBase):
     __tablename__ = "customer"
     __table_args__: object = (
         Index(
-            "ix_customer_user_id",
+            "ix_customer_user_livemode",
             "user_id",
+            "livemode",
             unique=True,
         ),
         Index(
