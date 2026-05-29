@@ -42,6 +42,7 @@ class SubscriptionWebhookHandler(BaseStripeWebhookHandler):
         await self._ensure_no_conflicting_active_subscription(
             user_id=stripe_customer.user_id,
             stripe_subscription_id=stripe_subscription_id,
+            livemode=stripe_event.livemode,
         )
         subscription = Subscription.create(
             user_id=stripe_customer.user_id,
@@ -95,9 +96,13 @@ class SubscriptionWebhookHandler(BaseStripeWebhookHandler):
         *,
         user_id: uuid.UUID,
         stripe_subscription_id: str,
+        livemode: bool,
     ) -> None:
         active_subscriptions = (
-            await self.repository.get_active_subscriptions_by_user_id(user_id)
+            await self.repository.get_active_subscriptions_by_user_id(
+                user_id,
+                livemode=livemode,
+            )
         )
         conflicting_subscriptions = [
             subscription

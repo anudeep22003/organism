@@ -123,10 +123,11 @@ class PaymentsRepository:
         return list(result.scalars().all())
 
     async def get_active_subscriptions_by_user_id(
-        self, user_id: uuid.UUID
+        self, user_id: uuid.UUID, *, livemode: bool
     ) -> list[Subscription]:
         query = select(Subscription).where(
             Subscription.user_id == user_id,
+            Subscription.livemode.is_(livemode),
             Subscription.status.in_(
                 [
                     StripeSubscriptionStatus.ACTIVE.value,
@@ -138,10 +139,11 @@ class PaymentsRepository:
         return list(result.scalars().all())
 
     async def get_blocking_checkout_subscription_by_user_id(
-        self, user_id: uuid.UUID
+        self, user_id: uuid.UUID, *, livemode: bool
     ) -> Subscription | None:
         query = select(Subscription).where(
             Subscription.user_id == user_id,
+            Subscription.livemode.is_(livemode),
             Subscription.status.in_(
                 [
                     StripeSubscriptionStatus.ACTIVE.value,
@@ -156,7 +158,7 @@ class PaymentsRepository:
         return result.scalar_one_or_none()
 
     async def get_most_relevant_subscription_by_user_id(
-        self, user_id: uuid.UUID
+        self, user_id: uuid.UUID, *, livemode: bool
     ) -> Subscription | None:
         status_rank = case(
             (
@@ -192,7 +194,10 @@ class PaymentsRepository:
         )
         query = (
             select(Subscription)
-            .where(Subscription.user_id == user_id)
+            .where(
+                Subscription.user_id == user_id,
+                Subscription.livemode.is_(livemode),
+            )
             .order_by(
                 status_rank.asc(),
                 desc(Subscription.current_period_end),

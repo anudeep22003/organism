@@ -256,7 +256,10 @@ class PaymentsService:
 
     async def _ensure_no_blocking_subscription(self, *, user_id: uuid.UUID) -> None:
         local_subscription = (
-            await self.repository.get_blocking_checkout_subscription_by_user_id(user_id)
+            await self.repository.get_blocking_checkout_subscription_by_user_id(
+                user_id,
+                livemode=settings.stripe_livemode,
+            )
         )
         if local_subscription is not None:
             logger.info(

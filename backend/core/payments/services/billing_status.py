@@ -31,7 +31,8 @@ class BillingStatusService:
             now=now,
         )
         subscription = await self.repository.get_most_relevant_subscription_by_user_id(
-            user_id
+            user_id,
+            livemode=settings.stripe_livemode,
         )
         plan = None
         if subscription is not None:
