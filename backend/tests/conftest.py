@@ -33,6 +33,10 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 load_dotenv(
     dotenv_path=os.path.join(os.path.dirname(__file__), "../.env.local"), override=True
 )
+os.environ.setdefault(
+    "STRIPE_CUSTOMER_PORTAL_URL",
+    "https://billing.stripe.com/p/login/test_customer_portal",
+)
 
 # These imports must come after load_dotenv — pydantic-settings reads .env.local
 # but load_dotenv with override=True above ensures test values take precedence.

@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.auth.config import ACCESS_TOKEN_COOKIE_NAME
 from core.auth.models import User
 from core.auth.security import AccessTokenManager
+from core.config import settings
 from core.payments.models import Entitlement, Plan, StripeCustomer, Subscription
 
 
@@ -336,3 +337,30 @@ async def test_billing_me_allows_missing_plan_mapping(
     subscription = response.json()["subscription"]
     assert subscription["planId"] is None
     assert subscription["planName"] is None
+
+
+@pytest.mark.asyncio
+async def test_customer_portal_returns_configured_url(
+    api_client: AsyncClient,
+    user: User,
+) -> None:
+    response = await api_client.get(
+        "/api/billing/customer-portal",
+        headers=make_auth_cookie_header(user.id),
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"portalUrl": settings.stripe_customer_portal_url}
+
+
+@pytest.mark.asyncio
+async def test_customer_portal_without_auth_returns_auth_required(
+    api_client: AsyncClient,
+) -> None:
+    response = await api_client.get("/api/billing/customer-portal")
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == {
+        "code": "auth_required",
+        "message": "Sign in to continue.",
+    }
