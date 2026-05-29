@@ -37,6 +37,7 @@ class AppSettings(BaseSettings):
     stripe_secret_key: str
     stripe_webhook_secret: str
     stripe_customer_portal_url: str
+    stripe_livemode: bool = False
     # Optional — only needed locally for GCS access outside Cloud Run.
     # Cloud Run services authenticate via the attached service account (no key file).
     google_application_credentials: str = ""
