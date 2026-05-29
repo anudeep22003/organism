@@ -229,6 +229,24 @@ class CloudRunService(pulumi.ComponentResource):
                     ),
                 ),
             ),
+            gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                name="STRIPE_SECRET_KEY",
+                value_source=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceArgs(
+                    secret_key_ref=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceSecretKeyRefArgs(
+                        secret=secrets.stripe_secret_key.secret_id,
+                        version="latest",
+                    ),
+                ),
+            ),
+            gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                name="STRIPE_WEBHOOK_SECRET",
+                value_source=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceArgs(
+                    secret_key_ref=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceSecretKeyRefArgs(
+                        secret=secrets.stripe_webhook_secret.secret_id,
+                        version="latest",
+                    ),
+                ),
+            ),
         ]
 
         self.service = gcp.cloudrunv2.Service(

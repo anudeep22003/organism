@@ -124,6 +124,8 @@ pulumi.export(
 )
 pulumi.export("secret_openai_api_key", secrets.openai_api_key.secret_id)
 pulumi.export("secret_fal_api_key", secrets.fal_api_key.secret_id)
+pulumi.export("secret_stripe_secret_key", secrets.stripe_secret_key.secret_id)
+pulumi.export("secret_stripe_webhook_secret", secrets.stripe_webhook_secret.secret_id)
 pulumi.export("secret_database_url", secrets.database_url.secret_id)
 pulumi.export("cloudrun_sa_email", cloudrun_sa.email)
 pulumi.export("service_url", service.url)
