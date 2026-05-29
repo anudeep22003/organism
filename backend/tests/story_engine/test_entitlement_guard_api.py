@@ -14,6 +14,10 @@ def _projects_url() -> str:
     return "/api/comic-builder/v2/projects"
 
 
+def _project_create_body() -> dict[str, str]:
+    return {"name": f"entitlement-test-{uuid.uuid4().hex[:8]}"}
+
+
 async def _create_user_without_entitlement(
     db_session: AsyncSession,
 ) -> User:
@@ -39,9 +43,10 @@ async def test_story_engine_route_returns_403_without_entitlement(
     user = await _create_user_without_entitlement(db_session)
 
     try:
-        response = await api_client.get(
+        response = await api_client.post(
             _projects_url(),
             headers=auth_cookie_header(user.id),
+            json=_project_create_body(),
         )
         assert response.status_code == 403
         assert response.json() == {
@@ -69,9 +74,10 @@ async def test_story_engine_route_returns_403_for_expired_entitlement(
     await db_session.commit()
 
     try:
-        response = await api_client.get(
+        response = await api_client.post(
             _projects_url(),
             headers=auth_cookie_header(user.id),
+            json=_project_create_body(),
         )
         assert response.status_code == 403
         assert response.json() == {
@@ -99,9 +105,10 @@ async def test_story_engine_route_returns_403_for_future_entitlement(
     await db_session.commit()
 
     try:
-        response = await api_client.get(
+        response = await api_client.post(
             _projects_url(),
             headers=auth_cookie_header(user.id),
+            json=_project_create_body(),
         )
         assert response.status_code == 403
         assert response.json() == {

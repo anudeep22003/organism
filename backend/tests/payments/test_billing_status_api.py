@@ -29,13 +29,15 @@ async def clear_entitlements(db_session: AsyncSession, user: User) -> None:
 async def seed_stripe_customer(
     db_session: AsyncSession,
     user: User,
+    *,
+    livemode: bool = False,
 ) -> StripeCustomer:
     stripe_customer_id = f"cus_test_{uuid.uuid4().hex[:14]}"
     stripe_customer = StripeCustomer.create(
         user_id=user.id,
         stripe_customer_id=stripe_customer_id,
         stripe_created_at=datetime.now(timezone.utc),
-        livemode=False,
+        livemode=livemode,
         raw_stripe_object={"id": stripe_customer_id, "object": "customer"},
         stripe_object="customer",
     )
@@ -52,10 +54,12 @@ async def seed_entitlement(
     feature: str = "pro_tier",
     source: str = "manual",
     valid_until: datetime | None = None,
+    livemode: bool = False,
 ) -> Entitlement:
     entitlement = Entitlement(
         user_id=user.id,
         feature=feature,
+        livemode=livemode,
         source=source,
         source_id=None,
         valid_from=datetime.now(timezone.utc) - timedelta(minutes=1),
@@ -75,6 +79,7 @@ async def seed_subscription(
     status: str,
     price_id: str | None = None,
     cancel_at_period_end: bool = False,
+    livemode: bool = False,
 ) -> Subscription:
     now = datetime.now(timezone.utc)
     subscription = Subscription(
@@ -82,6 +87,7 @@ async def seed_subscription(
         stripe_customer_record_id=stripe_customer.id,
         stripe_subscription_id=f"sub_test_{uuid.uuid4().hex[:14]}",
         stripe_customer_id=stripe_customer.stripe_customer_id,
+        livemode=livemode,
         status=status,
         price_id=price_id or f"price_test_{uuid.uuid4().hex[:14]}",
         current_period_start=now - timedelta(days=1),
@@ -102,12 +108,14 @@ async def seed_plan(
     *,
     stripe_price_id: str,
     plan_id: str | None = None,
+    livemode: bool = False,
 ) -> Plan:
     plan = Plan(
         plan_id=plan_id or f"pro_monthly_{uuid.uuid4().hex[:8]}",
         display_name="Pro",
         description="For building stories.",
         stripe_price_id=stripe_price_id,
+        livemode=livemode,
         entitlement_feature="pro_tier",
         features=[{"label": "Story generation"}],
         amount_minor=1200,
@@ -279,6 +287,41 @@ async def test_billing_me_none_for_manual_entitlement_without_subscription(
     assert body["subscription"] is None
     assert body["canStartCheckout"] is False
     assert body["recommendedAction"] == "none"
+
+
+@pytest.mark.asyncio
+async def test_billing_me_ignores_opposite_stripe_mode_state(
+    api_client: AsyncClient,
+    db_session: AsyncSession,
+    user: User,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    await clear_entitlements(db_session, user)
+    test_customer = await seed_stripe_customer(db_session, user, livemode=False)
+    await seed_entitlement(db_session, user, source="manual", livemode=False)
+    await seed_subscription(
+        db_session,
+        user,
+        test_customer,
+        status="active",
+        livemode=False,
+    )
+    monkeypatch.setattr(settings, "stripe_livemode", True)
+
+    response = await api_client.get(
+        "/api/billing/me",
+        headers=make_auth_cookie_header(user.id),
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "hasStripeCustomer": False,
+        "hasActiveEntitlement": False,
+        "activeEntitlements": [],
+        "subscription": None,
+        "canStartCheckout": True,
+        "recommendedAction": "subscribe",
+    }
 
 
 @pytest.mark.asyncio

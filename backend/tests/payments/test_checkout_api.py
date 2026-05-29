@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.auth.config import ACCESS_TOKEN_COOKIE_NAME
 from core.auth.models import User
 from core.auth.security import AccessTokenManager
+from core.config import settings
 from core.payments.models import CheckoutSession, Plan, StripeCustomer, Subscription
 
 
@@ -22,13 +23,17 @@ def make_auth_cookie_header(user_id: uuid.UUID) -> dict[str, str]:
 
 
 async def seed_stripe_customer(
-    db_session: AsyncSession, user: User, *, stripe_customer_id: str
+    db_session: AsyncSession,
+    user: User,
+    *,
+    stripe_customer_id: str,
+    livemode: bool = False,
 ) -> StripeCustomer:
     stripe_customer = StripeCustomer.create(
         user_id=user.id,
         stripe_customer_id=stripe_customer_id,
         stripe_created_at=datetime.now(timezone.utc),
-        livemode=False,
+        livemode=livemode,
         raw_stripe_object={"id": stripe_customer_id, "object": "customer"},
         stripe_object="customer",
     )
@@ -72,12 +77,14 @@ async def seed_plan(
     is_active: bool = True,
     sort_order: int = 0,
     amount_minor: int | None = 1200,
+    livemode: bool = False,
 ) -> Plan:
     plan = Plan(
         plan_id=plan_id or f"pro_monthly_{uuid.uuid4().hex[:8]}",
         display_name="Pro",
         description="For building stories.",
         stripe_price_id=stripe_price_id or f"price_test_{uuid.uuid4().hex[:14]}",
+        livemode=livemode,
         entitlement_feature="pro_tier",
         features=[
             {"label": "Story generation"},
@@ -113,7 +120,9 @@ async def plan_factory(
         await db_session.commit()
 
 
-def make_stripe_client_mock(*, checkout_url: str) -> MagicMock:
+def make_stripe_client_mock(
+    *, checkout_url: str, checkout_livemode: bool = False
+) -> MagicMock:
     stripe_session = MagicMock()
     stripe_session.id = f"cs_test_{uuid.uuid4().hex[:14]}"
     stripe_session.status = "open"
@@ -123,6 +132,7 @@ def make_stripe_client_mock(*, checkout_url: str) -> MagicMock:
     stripe_session.payment_intent = None
     stripe_session.subscription = None
     stripe_session.customer = f"cus_test_{uuid.uuid4().hex[:14]}"
+    stripe_session.livemode = checkout_livemode
     stripe_session.expires_at = int(
         (datetime.now(timezone.utc) + timedelta(hours=24)).timestamp()
     )
@@ -178,6 +188,49 @@ async def test_list_plans_is_public_and_hides_internal_billing_fields(
     assert "stripePriceId" not in plan_body
     assert "entitlementFeature" not in plan_body
     assert all(not plan["planId"].startswith("inactive_") for plan in body["plans"])
+
+
+@pytest.mark.asyncio
+async def test_list_plans_filters_by_configured_stripe_mode(
+    api_client: AsyncClient,
+    plan_factory: Callable[..., Awaitable[Plan]],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    plan_id = f"pro_monthly_{uuid.uuid4().hex[:8]}"
+    await plan_factory(
+        plan_id=plan_id,
+        stripe_price_id=f"price_test_{uuid.uuid4().hex[:14]}",
+        livemode=False,
+    )
+    live_plan = await plan_factory(
+        plan_id=plan_id,
+        stripe_price_id=f"price_live_{uuid.uuid4().hex[:14]}",
+        livemode=True,
+    )
+    monkeypatch.setattr(settings, "stripe_livemode", True)
+
+    response = await api_client.get("/api/billing/plans")
+
+    assert response.status_code == 200
+    assert response.json()["plans"] == [
+        {
+            "planId": live_plan.plan_id,
+            "displayName": live_plan.display_name,
+            "description": live_plan.description,
+            "features": [
+                {"label": "Story generation", "description": None},
+                {
+                    "label": "Character rendering",
+                    "description": "Render story characters.",
+                },
+            ],
+            "price": {
+                "amountMinor": live_plan.amount_minor,
+                "currency": live_plan.currency,
+                "interval": live_plan.interval,
+            },
+        }
+    ]
 
 
 @pytest.mark.asyncio
@@ -320,6 +373,44 @@ async def test_create_checkout_session_rejects_invalid_return_path(
     assert response.json()["detail"] == {
         "code": "billing_invalid_checkout_request",
         "message": "return_path must be an app-relative path",
+    }
+
+
+@pytest.mark.asyncio
+async def test_create_checkout_session_rejects_stripe_livemode_mismatch(
+    api_client: AsyncClient,
+    db_session: AsyncSession,
+    user: User,
+    plan_factory: Callable[..., Awaitable[Plan]],
+) -> None:
+    await seed_stripe_customer(
+        db_session,
+        user,
+        stripe_customer_id=f"cus_test_{uuid.uuid4().hex[:14]}",
+    )
+    plan = await plan_factory()
+    stripe_client = make_stripe_client_mock(
+        checkout_url="https://checkout.stripe.test/session",
+        checkout_livemode=True,
+    )
+
+    with patch(
+        "core.payments.services.payments.get_stripe_client",
+        return_value=stripe_client,
+    ):
+        response = await api_client.post(
+            "/api/billing/create-checkout-session",
+            headers=make_auth_cookie_header(user.id),
+            json={"planId": plan.plan_id},
+        )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == {
+        "code": "billing_invalid_checkout_request",
+        "message": (
+            "Stripe checkout session livemode=True did not match expected "
+            "livemode=False"
+        ),
     }
 
 

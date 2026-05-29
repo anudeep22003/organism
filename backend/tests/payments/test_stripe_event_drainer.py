@@ -24,7 +24,7 @@ from core.payments.models import (
     StripeEvent,
     StripeEventProcessingStatus,
 )
-from core.payments.services import PaymentsService
+from core.payments.services import PaymentsService, StripeWebhookValidationError
 from core.payments.webhooks import (
     StripeEventDrainer,
     StripeEventProcessor,
@@ -352,6 +352,22 @@ async def test_webhook_service_drains_retryable_customer_events_after_success(
         entitlement.source == "subscription"
         for entitlement in entitlement_result.scalars().all()
     )
+
+
+@pytest.mark.asyncio
+async def test_webhook_service_rejects_livemode_mismatch(
+    db_session: AsyncSession,
+) -> None:
+    payload = load_stripe_payload("customer.subscription.created.json")
+    payload["livemode"] = True
+    body, signature = build_signed_stripe_webhook_body(payload)
+
+    service = PaymentsService(db_session)
+    with pytest.raises(StripeWebhookValidationError, match="livemode=True"):
+        await service.handle_stripe_webhook_event(
+            body=body,
+            stripe_signature=signature,
+        )
 
 
 @pytest.mark.asyncio
