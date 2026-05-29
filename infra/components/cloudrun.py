@@ -60,6 +60,7 @@ from components.config import (
     MEDIA_BUCKET_NAME,
     PROJECT,
     REGION,
+    STRIPE_CUSTOMER_PORTAL_URL,
     resource_name,
 )
 from components.secrets import AppSecrets
@@ -119,6 +120,8 @@ class CloudRunService(pulumi.ComponentResource):
                 "CSRF_COOKIE_DOMAIN": CSRF_COOKIE_DOMAIN,
                 # Public OAuth client identifier used to start the Google auth flow.
                 "GOOGLE_OAUTH_CLIENT_ID": GOOGLE_OAUTH_CLIENT_ID,
+                # Public Stripe-hosted billing portal URL for subscription management.
+                "STRIPE_CUSTOMER_PORTAL_URL": STRIPE_CUSTOMER_PORTAL_URL,
                 # Disables FastAPI's /docs, /redoc, and /openapi.json in Cloud Run.
                 # Locally defaults to "development" (docs available) via config.py.
                 "ENV": "production",

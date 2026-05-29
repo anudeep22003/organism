@@ -114,6 +114,7 @@ init-project:
 		'  $(PULUMI_PROJECT):api_domain: <api.yourdomain.com>' \
 		'  $(PULUMI_PROJECT):csrf_cookie_domain: <yourdomain.com>' \
 		'  $(PULUMI_PROJECT):google_oauth_client_id: <google-oauth-client-id>  # plain config, not a secret' \
+		'  $(PULUMI_PROJECT):stripe_customer_portal_url: <stripe-customer-portal-url>  # plain config, not a secret' \
 		'  $(PULUMI_PROJECT):github_repo: <owner/repo>   # SECURITY: only this repo authenticates via WIF' \
 		"  $(PULUMI_PROJECT):media_bucket_suffix: $$SUFFIX  # auto-generated — set once, NEVER change after first deploy" \
 		'  $(PULUMI_PROJECT):image_tag: latest            # updated automatically by make deploy-backend' \
