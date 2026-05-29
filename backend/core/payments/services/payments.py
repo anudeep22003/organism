@@ -189,6 +189,7 @@ class PaymentsService:
             mode=CheckoutSessionMode.SUBSCRIPTION,
             stripe_status=StripeStatus.OPEN,
             fulfillment_status=FulfillmentStatus.PENDING,
+            livemode=stripe_customer.livemode,
         )
         self.repository.add_checkout_session(checkout_session)
         await self.db.flush()

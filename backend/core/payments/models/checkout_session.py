@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from enum import StrEnum
 
-from sqlalchemy import DateTime, ForeignKey, Index, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from stripe import Customer
@@ -97,6 +97,7 @@ class CheckoutSession(ORMBase):
     currency: Mapped[str | None] = mapped_column(String(10), nullable=True)
     price_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     intent: Mapped[str] = mapped_column(String(100), nullable=False)
+    livemode: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     stripe_status: Mapped[str] = mapped_column(
         String(20), nullable=False, default=StripeStatus.OPEN.value
@@ -140,6 +141,7 @@ class CheckoutSession(ORMBase):
         mode: CheckoutSessionMode,
         stripe_status: StripeStatus,
         fulfillment_status: FulfillmentStatus,
+        livemode: bool = False,
     ) -> "CheckoutSession":
         expires_at = get_current_datetime_utc() + timedelta(hours=24)
         return cls(
@@ -149,6 +151,7 @@ class CheckoutSession(ORMBase):
             intent=intent.value,
             price_id=price_id,
             mode=mode.value,
+            livemode=livemode,
             stripe_status=stripe_status.value,
             fulfillment_status=fulfillment_status.value,
             expires_at=expires_at,
@@ -161,6 +164,7 @@ class CheckoutSession(ORMBase):
         # we have to do this because stripe can return a customer object or just the id
         self.stripe_customer_id = self._extract_stripe_customer_id(stripe_session)
         self.stripe_session_id = stripe_session.id
+        self.livemode = stripe_session.livemode
         if stripe_session.status is None:
             raise ValueError("Stripe session status not found")
         self.stripe_status = StripeStatus(stripe_session.status).value

@@ -18,6 +18,7 @@ from core.common import ORMBase, get_current_datetime_utc
 class StripeSubscriptionFields:
     stripe_subscription_id: str
     stripe_customer_id: str
+    livemode: bool
     status: str
     price_id: str
     current_period_start: datetime
@@ -71,6 +72,7 @@ class Subscription(ORMBase):
     )
     stripe_subscription_id: Mapped[str] = mapped_column(String(255), nullable=False)
     stripe_customer_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    livemode: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     status: Mapped[str] = mapped_column(String(64), nullable=False)
     price_id: Mapped[str] = mapped_column(String(255), nullable=False)
     current_period_start: Mapped[datetime] = mapped_column(
@@ -113,6 +115,7 @@ class Subscription(ORMBase):
             stripe_customer_record_id=stripe_customer_record_id,
             stripe_subscription_id=fields.stripe_subscription_id,
             stripe_customer_id=fields.stripe_customer_id,
+            livemode=fields.livemode,
             status=fields.status,
             price_id=fields.price_id,
             current_period_start=fields.current_period_start,
@@ -133,6 +136,7 @@ class Subscription(ORMBase):
         fields = self._extract_fields(stripe_event=stripe_event)
         self.stripe_subscription_id = fields.stripe_subscription_id
         self.stripe_customer_id = fields.stripe_customer_id
+        self.livemode = fields.livemode
         self.status = fields.status
         self.price_id = fields.price_id
         self.current_period_start = fields.current_period_start
@@ -163,6 +167,7 @@ class Subscription(ORMBase):
         return StripeSubscriptionFields(
             stripe_subscription_id=stripe_subscription_id,
             stripe_customer_id=stripe_customer_id,
+            livemode=stripe_event.livemode,
             status=cls._require_str(subscription.status, field_name="status"),
             price_id=price_id,
             current_period_start=current_period_start,

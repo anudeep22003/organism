@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 import stripe
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -16,6 +16,7 @@ from core.common import ORMBase, get_current_datetime_utc
 @dataclass(frozen=True, slots=True)
 class StripeInvoiceFields:
     stripe_invoice_id: str
+    livemode: bool
     status: str
     amount_paid: int
     currency: str
@@ -48,6 +49,7 @@ class Invoice(ORMBase):
         nullable=True,
     )
     stripe_invoice_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    livemode: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     status: Mapped[str] = mapped_column(String(64), nullable=False)
     amount_paid: Mapped[int] = mapped_column(Integer, nullable=False)
     currency: Mapped[str] = mapped_column(String(10), nullable=False)
@@ -78,6 +80,7 @@ class Invoice(ORMBase):
             user_id=user_id,
             subscription_id=subscription_id,
             stripe_invoice_id=fields.stripe_invoice_id,
+            livemode=fields.livemode,
             status=fields.status,
             amount_paid=fields.amount_paid,
             currency=fields.currency,
@@ -96,6 +99,7 @@ class Invoice(ORMBase):
         fields = self._extract_fields(stripe_event=stripe_event)
         self.subscription_id = subscription_id
         self.stripe_invoice_id = fields.stripe_invoice_id
+        self.livemode = fields.livemode
         self.status = fields.status
         self.amount_paid = fields.amount_paid
         self.currency = fields.currency
@@ -134,6 +138,7 @@ class Invoice(ORMBase):
 
         return StripeInvoiceFields(
             stripe_invoice_id=cls._require_stripe_id(invoice.id),
+            livemode=stripe_event.livemode,
             status=cls._require_str(invoice.status, field_name="status"),
             amount_paid=cls._require_int(invoice.amount_paid, field_name="amount_paid"),
             currency=cls._require_str(invoice.currency, field_name="currency"),

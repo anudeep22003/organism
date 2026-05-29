@@ -6,7 +6,7 @@ from datetime import datetime
 from enum import StrEnum
 
 import stripe
-from sqlalchemy import DateTime, Index, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -42,6 +42,7 @@ class StripeEvent(ORMBase):
     stripe_event_id: Mapped[str] = mapped_column(String(255), nullable=False)
     event_type: Mapped[str] = mapped_column(String(255), nullable=False)
     api_version: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    livemode: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # These extracted ids are useful for direct filtering, but none are guaranteed
     # across all Stripe event types.
@@ -158,6 +159,7 @@ class StripeEvent(ORMBase):
             stripe_event_id=stripe_event.id,
             event_type=stripe_event.type,
             api_version=stripe_event.api_version,
+            livemode=stripe_event.livemode,
             customer_id=hot_fields.customer_id,
             subscription_id=hot_fields.subscription_id,
             invoice_id=hot_fields.invoice_id,
