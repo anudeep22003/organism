@@ -167,7 +167,10 @@ class PaymentsService:
         return_path: str | None = None,
     ) -> str:
         await self._ensure_no_blocking_subscription(user_id=user_id)
-        plan = await self.repository.get_active_plan_by_plan_id(plan_id)
+        plan = await self.repository.get_active_plan_by_plan_id(
+            plan_id,
+            livemode=settings.stripe_livemode,
+        )
         if plan is None:
             raise PlanNotFoundError(f"Plan {plan_id} not found")
         price_id = plan.stripe_price_id
@@ -402,7 +405,9 @@ class PaymentsService:
             ) from e
 
     async def list_public_plans(self) -> ListPlansResponse:
-        plans = await self.repository.list_active_plans()
+        plans = await self.repository.list_active_plans(
+            livemode=settings.stripe_livemode,
+        )
         return ListPlansResponse(
             plans=[self._to_public_plan_schema(plan=plan) for plan in plans]
         )

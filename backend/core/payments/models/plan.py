@@ -20,6 +20,7 @@ class Plan(ORMBase):
     - `display_name`: customer-facing name, e.g. `Pro`.
     - `description`: nullable marketing copy when a plan needs supporting text.
     - `stripe_price_id`: Stripe Price id mapped server-side, e.g. `price_123`.
+    - `livemode`: whether this plan points at live or test-mode Stripe objects.
     - `entitlement_feature`: app capability granted by the plan, e.g. `story_generation`.
     - `features`: JSON display bullets/cards, e.g. `[{"label": "Unlimited stories"}]`.
     - `amount_minor`, `currency`, `interval`: nullable cached display price fields;
@@ -34,9 +35,9 @@ class Plan(ORMBase):
 
     __tablename__ = "plan"
     __table_args__: object = (
-        Index("ix_plan_plan_id", "plan_id", unique=True),
+        Index("ix_plan_plan_id_livemode", "plan_id", "livemode", unique=True),
         Index("ix_plan_stripe_price_id", "stripe_price_id", unique=True),
-        Index("ix_plan_active_sort_order", "is_active", "sort_order"),
+        Index("ix_plan_active_sort_order", "livemode", "is_active", "sort_order"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -46,6 +47,7 @@ class Plan(ORMBase):
     display_name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     stripe_price_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    livemode: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     entitlement_feature: Mapped[str] = mapped_column(String(255), nullable=False)
     features: Mapped[list[dict[str, Any]]] = mapped_column(
         JSONB, nullable=False, default=list

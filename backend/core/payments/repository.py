@@ -39,18 +39,24 @@ class PaymentsRepository:
     def add_checkout_session(self, checkout_session: CheckoutSession) -> None:
         self.db.add(checkout_session)
 
-    async def list_active_plans(self) -> list[Plan]:
+    async def list_active_plans(self, *, livemode: bool) -> list[Plan]:
         query = (
             select(Plan)
-            .where(Plan.is_active.is_(True))
+            .where(
+                Plan.livemode.is_(livemode),
+                Plan.is_active.is_(True),
+            )
             .order_by(Plan.sort_order.asc(), Plan.display_name.asc())
         )
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
-    async def get_active_plan_by_plan_id(self, plan_id: str) -> Plan | None:
+    async def get_active_plan_by_plan_id(
+        self, plan_id: str, *, livemode: bool
+    ) -> Plan | None:
         query = select(Plan).where(
             Plan.plan_id == plan_id,
+            Plan.livemode.is_(livemode),
             Plan.is_active.is_(True),
         )
         result = await self.db.execute(query)
