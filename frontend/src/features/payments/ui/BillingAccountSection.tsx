@@ -1,8 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { billingMeOptions } from "../api/payments.queries";
+import {
+  billingMeOptions,
+  customerPortalOptions,
+} from "../api/payments.queries";
 import { usePaymentsUpgradeFlow } from "../model/PaymentsUpgradeFlowProvider";
-import { BILLING_PORTAL_URL } from "../payments.constants";
 import {
   formatBillingDate,
   getBillingAccountCopy,
@@ -24,6 +26,12 @@ const Field = ({
 export default function BillingAccountSection() {
   const { openUpgradeFlow } = usePaymentsUpgradeFlow();
   const { data, isLoading, isError } = useQuery(billingMeOptions());
+  const billingCopy = data ? getBillingAccountCopy(data) : null;
+  const shouldLoadCustomerPortal = billingCopy?.ctaKind === "portal";
+  const customerPortalQuery = useQuery({
+    ...customerPortalOptions(),
+    enabled: shouldLoadCustomerPortal,
+  });
 
   if (isLoading) {
     return (
@@ -36,7 +44,7 @@ export default function BillingAccountSection() {
     );
   }
 
-  if (isError || !data) {
+  if (isError || !data || !billingCopy) {
     return (
       <section className="flex flex-col gap-4 border border-destructive/20 bg-background p-6 shadow-sm">
         <span className="text-xs text-muted-foreground">Billing</span>
@@ -47,7 +55,7 @@ export default function BillingAccountSection() {
     );
   }
 
-  const copy = getBillingAccountCopy(data);
+  const copy = billingCopy;
   const subscription = data.subscription;
   const handleOpenUpgradeFlow = () => {
     const upgradeFlowOptions = { returnPath: "/account" };
@@ -121,15 +129,25 @@ export default function BillingAccountSection() {
       ) : null}
 
       {copy.ctaKind === "portal" && copy.ctaLabel ? (
-        <Button asChild>
-          <a
-            href={BILLING_PORTAL_URL}
-            target="_blank"
-            rel="noreferrer"
-          >
-            {copy.ctaLabel}
-          </a>
-        </Button>
+        customerPortalQuery.isError ? (
+          <p className="text-sm text-destructive">
+            Unable to load the billing portal right now.
+          </p>
+        ) : customerPortalQuery.isLoading ? (
+          <Button type="button" disabled>
+            Loading...
+          </Button>
+        ) : (
+          <Button asChild>
+            <a
+              href={customerPortalQuery.data?.portalUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {copy.ctaLabel}
+            </a>
+          </Button>
+        )
       ) : null}
     </section>
   );
