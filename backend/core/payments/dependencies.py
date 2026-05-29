@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.auth.api import get_current_user_id
 from core.common import get_current_datetime_utc
+from core.config import settings
 from core.infrastructure.database import get_async_db_session
 
 from .exceptions import BillingEntitlementRequiredError
@@ -33,6 +34,7 @@ def require_entitlement(feature: str) -> Callable[..., Awaitable[None]]:
         has_entitlement = await PaymentsRepository(db).has_current_entitlement(
             user_id=user_id,
             feature=feature,
+            livemode=settings.stripe_livemode,
             now=get_current_datetime_utc(),
         )
         if not has_entitlement:

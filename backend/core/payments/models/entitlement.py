@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 
 import stripe
-from sqlalchemy import DateTime, ForeignKey, Index, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -18,11 +18,12 @@ class Entitlement(ORMBase):
     # This table intentionally lives in the default public schema because it is
     # app-owned access state, not a Stripe mirror.
     __table_args__: object = (
-        Index("ix_entitlement_user_feature", "user_id", "feature"),
+        Index("ix_entitlement_user_feature", "user_id", "feature", "livemode"),
         Index(
             "ix_entitlement_active_lookup",
             "user_id",
             "feature",
+            "livemode",
             "valid_until",
         ),
     )
@@ -36,6 +37,7 @@ class Entitlement(ORMBase):
         nullable=False,
     )
     feature: Mapped[str] = mapped_column(String(255), nullable=False)
+    livemode: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     source: Mapped[str] = mapped_column(String(64), nullable=False)
     source_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     valid_from: Mapped[datetime] = mapped_column(
@@ -64,6 +66,7 @@ class Entitlement(ORMBase):
         return cls(
             user_id=user_id,
             feature=feature,
+            livemode=stripe_event.livemode,
             source=source,
             source_id=source_id,
             valid_from=period_start,

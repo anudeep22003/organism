@@ -29,6 +29,7 @@ class BillingStatusService:
         active_entitlements = await self.repository.list_current_entitlements(
             user_id=user_id,
             now=now,
+            livemode=settings.stripe_livemode,
         )
         subscription = await self.repository.get_most_relevant_subscription_by_user_id(
             user_id,

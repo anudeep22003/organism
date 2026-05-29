@@ -254,6 +254,7 @@ class PaymentsRepository:
         *,
         user_id: uuid.UUID,
         feature: str,
+        livemode: bool,
         source: str,
         source_id: str | None,
         valid_from: datetime,
@@ -262,6 +263,7 @@ class PaymentsRepository:
         query = select(Entitlement).where(
             Entitlement.user_id == user_id,
             Entitlement.feature == feature,
+            Entitlement.livemode.is_(livemode),
             Entitlement.source == source,
             Entitlement.valid_from == valid_from,
             Entitlement.valid_until == valid_until,
@@ -281,12 +283,14 @@ class PaymentsRepository:
         *,
         user_id: uuid.UUID,
         now: datetime,
+        livemode: bool,
     ) -> list[Entitlement]:
         query = (
             select(Entitlement)
             .where(
                 and_(
                     Entitlement.user_id == user_id,
+                    Entitlement.livemode.is_(livemode),
                     Entitlement.valid_from <= now,
                     or_(
                         Entitlement.valid_until.is_(None),
@@ -309,6 +313,7 @@ class PaymentsRepository:
         *,
         user_id: uuid.UUID,
         feature: str,
+        livemode: bool,
         now: datetime,
     ) -> bool:
         query = (
@@ -317,6 +322,7 @@ class PaymentsRepository:
                 and_(
                     Entitlement.user_id == user_id,
                     Entitlement.feature == feature,
+                    Entitlement.livemode.is_(livemode),
                     Entitlement.valid_from <= now,
                     or_(
                         Entitlement.valid_until.is_(None),

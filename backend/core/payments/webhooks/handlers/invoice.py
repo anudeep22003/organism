@@ -31,6 +31,7 @@ class InvoiceWebhookHandler(BaseStripeWebhookHandler):
         existing_entitlement = await self.repository.get_matching_entitlement(
             user_id=subscription.user_id,
             feature=feature,
+            livemode=stripe_event.livemode,
             source="subscription",
             source_id=str(subscription.id),
             valid_from=invoice.period_start,
