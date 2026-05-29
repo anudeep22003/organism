@@ -14,12 +14,14 @@ from .plans import (
     PlanSchemaAdmin,
     PlanSchemaCustomerFacing,
 )
+from .portal import BillingPortalResponse
 
 __all__ = [
     "BillingEntitlementRequiredResponse",
     "BillingErrorDetail",
     "BillingEntitlementSummary",
     "BillingMeResponse",
+    "BillingPortalResponse",
     "BillingRecommendedAction",
     "BillingSubscriptionStatus",
     "BillingSubscriptionSummary",

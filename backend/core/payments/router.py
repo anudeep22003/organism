@@ -6,12 +6,14 @@ from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.auth.api import get_current_user_id
+from core.config import settings
 from core.infrastructure.database import get_async_db_session
 
 from .exceptions import BillingErrorCode
 from .schemas import (
     BillingErrorDetail,
     BillingMeResponse,
+    BillingPortalResponse,
     CreateCheckoutSessionRequest,
     CreateCheckoutSessionResponse,
     ListPlansResponse,
@@ -121,6 +123,13 @@ async def get_my_billing_status(
     service: Annotated[BillingStatusService, Depends(get_billing_status_service)],
 ) -> BillingMeResponse:
     return await service.get_billing_status(user_id=user_id)
+
+
+@router.get("/customer-portal")
+async def get_customer_portal_url(
+    _user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+) -> BillingPortalResponse:
+    return BillingPortalResponse(portal_url=settings.stripe_customer_portal_url)
 
 
 @router.get("/plans")
