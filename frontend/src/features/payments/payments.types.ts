@@ -48,6 +48,10 @@ export type BillingMeResponse = {
   recommendedAction: BillingRecommendedAction;
 };
 
+export type BillingPortalResponse = {
+  portalUrl: string;
+};
+
 export type PlanFeature = {
   label: string;
   description: string | null;

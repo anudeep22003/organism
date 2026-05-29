@@ -11,6 +11,13 @@ export const billingMeOptions = () =>
     staleTime: 60_000,
   });
 
+export const customerPortalOptions = () =>
+  queryOptions({
+    queryKey: [...PAYMENTS_QUERY_ROOT, "customer-portal"] as const,
+    queryFn: paymentsApi.fetchCustomerPortal,
+    staleTime: ONE_DAY_MS,
+  });
+
 export const plansOptions = () =>
   queryOptions({
     queryKey: [...PAYMENTS_QUERY_ROOT, "plans"] as const,

@@ -3,6 +3,7 @@ import { getAxiosErrorDetails } from "@/lib/httpClient";
 import { buildAuthRoute } from "@/features/auth/routing/auth-redirect";
 import type {
   BillingMeResponse,
+  BillingPortalResponse,
   CreateCheckoutSessionRequest,
   CreateCheckoutSessionResponse,
   ListPlansResponse,
@@ -67,6 +68,12 @@ export const paymentsApi = {
   fetchBillingMe: async () => {
     return await httpClient.get<BillingMeResponse>(
       BILLING_SERVICE_ENDPOINTS.BILLING_ME
+    );
+  },
+
+  fetchCustomerPortal: async () => {
+    return await httpClient.get<BillingPortalResponse>(
+      BILLING_SERVICE_ENDPOINTS.CUSTOMER_PORTAL
     );
   },
 
