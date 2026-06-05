@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { Giraffy } from "./Giraffy"
 
 const ENTRIES = [
   { prefix: "bio", meaning: "the written story of a life" },
@@ -39,8 +40,12 @@ export function Etymology() {
   const entry = ENTRIES[index]
 
   return (
-    <section className="py-12 px-6 border-t border-border">
-      <div className="max-w-4xl mx-auto flex flex-col items-center gap-2">
+    <section className="relative">
+      <div className="absolute right-[30%] top-0 -translate-y-[70%] rotate-[15deg] pointer-events-auto">
+        <Giraffy mood="ohh" size={180} />
+      </div>
+      <div className="relative z-10 bg-background py-12 px-6 border-t border-border">
+        <div className="max-w-4xl mx-auto flex flex-col items-center gap-2">
         <div className="grid grid-cols-[1fr_auto_1fr] items-center text-sm sm:text-base tracking-wide">
           <span
             className={`justify-self-end inline-block px-2 py-0.5 rounded border border-border text-muted-foreground/70 transition-opacity duration-300 ${fading ? "opacity-0" : "opacity-100"}`}
@@ -57,6 +62,7 @@ export function Etymology() {
         >
           {entry.meaning}
         </p>
+        </div>
       </div>
     </section>
   )
