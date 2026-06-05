@@ -41,7 +41,7 @@ export function Etymology() {
 
   return (
     <section className="relative">
-      <div className="absolute right-[30%] top-0 -translate-y-[70%] rotate-[15deg] pointer-events-auto">
+      <div className="absolute right-[30%] top-0 -translate-y-[50%] sm:-translate-y-[70%] rotate-[15deg] pointer-events-auto">
         <Giraffy mood="ohh" size={180} />
       </div>
       <div className="relative z-10 bg-background py-12 px-6 border-t border-border">

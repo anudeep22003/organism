@@ -15,7 +15,7 @@
 }
 
 :root {
-  --background: oklch(0.13 0 0);
+  --background: oklch(0.25 0.005 250);
   --foreground: oklch(0.95 0 0);
   --primary: oklch(0.95 0 0);
   --primary-foreground: oklch(0.13 0 0);

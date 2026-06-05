@@ -15,7 +15,7 @@ export function Hero() {
           We study the art of storytelling and embed it into artificial intelligence
           so that powerful stories are accessible to everybody.
         </p>
-        <div className="flex items-center justify-center gap-4">
+        <div className="relative z-10 flex items-center justify-center gap-4">
           <a
             href={APP_URL}
             className="px-6 py-3 rounded-lg bg-primary text-primary-foreground font-medium text-base hover:opacity-90 transition-opacity"
@@ -24,7 +24,7 @@ export function Hero() {
           </a>
           <a
             href="#how-it-works"
-            className="px-6 py-3 rounded-lg border border-border text-foreground font-medium text-base hover:bg-muted transition-colors"
+            className="px-6 py-3 rounded-lg bg-background border border-border text-foreground font-medium text-base hover:bg-muted transition-colors"
           >
             See How It Works
           </a>
