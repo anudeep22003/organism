@@ -22,6 +22,21 @@ interface Plan {
   price: PlanPrice
 }
 
+const DEFAULT_PLANS: Plan[] = [
+  {
+    planId: "base_monthly",
+    displayName: "Base",
+    description: "Base subscription for monthly story creation.",
+    features: [
+      { label: "5 stories", description: null },
+      { label: "50 story renders", description: null },
+      { label: "1,000 edits", description: null },
+      { label: "Unlimited PDF export", description: null },
+    ],
+    price: { amountMinor: 2500, currency: "usd", interval: "month" },
+  },
+]
+
 function formatPrice(amountMinor: number, currency: string): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -31,9 +46,7 @@ function formatPrice(amountMinor: number, currency: string): string {
 }
 
 export function Pricing() {
-  const [plans, setPlans] = useState<Plan[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
+  const [plans, setPlans] = useState<Plan[]>(DEFAULT_PLANS)
 
   useEffect(() => {
     fetch(`${API_URL}/api/billing/plans`)
@@ -43,11 +56,9 @@ export function Pricing() {
       })
       .then((data) => {
         setPlans(data.plans)
-        setLoading(false)
       })
       .catch(() => {
-        setError(true)
-        setLoading(false)
+        // Keep default plans on failure
       })
   }, [])
 
@@ -61,31 +72,7 @@ export function Pricing() {
           Simple, transparent pricing
         </h3>
 
-        {loading && (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2].map((i) => (
-              <div key={i} className="p-8 rounded-xl border border-border animate-pulse">
-                <div className="h-6 bg-muted rounded w-1/2 mb-4" />
-                <div className="h-10 bg-muted rounded w-1/3 mb-6" />
-                <div className="space-y-3">
-                  <div className="h-4 bg-muted rounded w-3/4" />
-                  <div className="h-4 bg-muted rounded w-2/3" />
-                  <div className="h-4 bg-muted rounded w-3/4" />
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {error && (
-          <p className="text-muted-foreground">
-            Pricing information is currently unavailable. Please check back shortly or{" "}
-            <a href={APP_URL} className="underline hover:text-foreground">sign up</a> to see current plans.
-          </p>
-        )}
-
-        {!loading && !error && (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {plans.map((plan) => (
               <div key={plan.planId} className="p-8 rounded-xl border border-border flex flex-col">
                 <h4 className="text-xl font-semibold mb-1">{plan.displayName}</h4>
@@ -115,7 +102,6 @@ export function Pricing() {
               </div>
             ))}
           </div>
-        )}
       </div>
     </section>
   )
