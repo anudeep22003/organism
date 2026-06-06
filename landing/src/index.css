@@ -12,6 +12,21 @@
   --color-border: var(--border);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  --color-giraffy-body: var(--giraffy-body);
+  --color-giraffy-body-light: var(--giraffy-body-light);
+  --color-giraffy-spots: var(--giraffy-spots);
+  --color-giraffy-spots-alt: var(--giraffy-spots-alt);
+  --color-giraffy-belly: var(--giraffy-belly);
+  --color-giraffy-nose: var(--giraffy-nose);
+  --color-giraffy-eyes: var(--giraffy-eyes);
+  --color-giraffy-eye-white: var(--giraffy-eye-white);
+  --color-giraffy-cheek: var(--giraffy-cheek);
+  --color-giraffy-horn: var(--giraffy-horn);
+  --color-giraffy-horn-tip: var(--giraffy-horn-tip);
+  --color-giraffy-leaf: var(--giraffy-leaf);
+  --color-giraffy-leaf-dark: var(--giraffy-leaf-dark);
+  --color-giraffy-accent: var(--giraffy-accent);
+  --color-giraffy-accent-alt: var(--giraffy-accent-alt);
 }
 
 :root {
@@ -24,6 +39,22 @@
   --border: oklch(1 0 0 / 12%);
   --accent: oklch(0.75 0.15 280);
   --accent-foreground: oklch(0.98 0 0);
+
+  --giraffy-body: #F5A623;
+  --giraffy-body-light: #FFCF6B;
+  --giraffy-spots: #C47A1A;
+  --giraffy-spots-alt: #A85E0A;
+  --giraffy-belly: #FFF0D4;
+  --giraffy-nose: #E8935A;
+  --giraffy-eyes: #2D1B00;
+  --giraffy-eye-white: #FFFDF7;
+  --giraffy-cheek: #FF8FAB;
+  --giraffy-horn: #D4A853;
+  --giraffy-horn-tip: #6B4226;
+  --giraffy-leaf: #7ECE5C;
+  --giraffy-leaf-dark: #4CAF50;
+  --giraffy-accent: #FF6B9D;
+  --giraffy-accent-alt: #845EF7;
 }
 
 @layer base {
