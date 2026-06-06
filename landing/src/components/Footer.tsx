@@ -1,4 +1,5 @@
 import { Link } from "react-router"
+import { Logo } from "./Logo"
 
 export function Footer() {
   return (
@@ -6,7 +7,7 @@ export function Footer() {
       <div className="max-w-4xl mx-auto">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
           <div>
-            <p className="text-lg font-semibold tracking-tight mb-1">ohgraffy</p>
+            <p className="mb-1"><Logo /></p>
             <p className="text-sm text-muted-foreground">
               Stories, reimagined through AI.
             </p>
