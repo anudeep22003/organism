@@ -20,7 +20,7 @@ export function Hero() {
             href={APP_URL}
             className="px-6 py-3 rounded-lg bg-primary text-primary-foreground font-medium text-base hover:opacity-90 transition-opacity"
           >
-            Start Creating
+            Start Free
           </a>
           <a
             href="#how-it-works"
