@@ -2,27 +2,30 @@ import { useEffect, useState } from "react";
 import { Giraffy } from "./Giraffy";
 
 const ENTRIES = [
-  { prefix: "bio", meaning: "the written story of a life" },
-  { prefix: "calli", meaning: "the art of beautiful writing" },
-  { prefix: "cinemato", meaning: "visual storytelling in motion" },
-  { prefix: "choreo", meaning: "the planning of movement" },
-  { prefix: "chrono", meaning: "the mapping of time" },
-  { prefix: "sceno", meaning: "the design of scenes and spaces" },
-  { prefix: "icono", meaning: "the language of visual symbols" },
-  { prefix: "mytho", meaning: "the collection of myths and legends" },
-  { prefix: "topo", meaning: "the mapping of landscapes" },
-  { prefix: "cosmo", meaning: "the mapping of the universe" },
-  { prefix: "carto", meaning: "the art of mapmaking" },
-  { prefix: "crypto", meaning: "the writing of secret codes" },
-  { prefix: "ethno", meaning: "the study of cultures" },
-  { prefix: "ideo", meaning: "representing ideas through symbols" },
+  { prefix: "bio", meaning: "writing a life into story" },
+  { prefix: "calli", meaning: "giving words a visible voice" },
+  { prefix: "cinemato", meaning: "writing in light and motion" },
+  { prefix: "choreo", meaning: "turning movement into meaning" },
+  { prefix: "chrono", meaning: "tracing the arc of time" },
+  { prefix: "sceno", meaning: "building worlds scene by scene" },
+  { prefix: "icono", meaning: "telling stories through symbols" },
+  { prefix: "mytho", meaning: "preserving stories older than memory" },
+  { prefix: "topo", meaning: "reading the story a place tells" },
+  { prefix: "cosmo", meaning: "writing the story of everything" },
+  { prefix: "carto", meaning: "drawing the paths between places" },
+  { prefix: "crypto", meaning: "hiding one story inside another" },
   {
-    prefix: "historio",
-    meaning: "the study of how history is written",
+    prefix: "ethno",
+    meaning: "recording how a people narrate themselves",
   },
-  { prefix: "epi", meaning: "the study of ancient inscriptions" },
-  { prefix: "oceano", meaning: "the exploration of the sea" },
-  { prefix: "psychogeo", meaning: "how places shape human emotion" },
+  { prefix: "ideo", meaning: "giving shape to abstract thought" },
+  { prefix: "historio", meaning: "questioning who tells the story" },
+  { prefix: "epi", meaning: "decoding stories carved in stone" },
+  { prefix: "oceano", meaning: "charting the narratives of the deep" },
+  {
+    prefix: "psychogeo",
+    meaning: "how places write themselves into us",
+  },
 ];
 
 export function Etymology() {
@@ -57,7 +60,8 @@ export function Etymology() {
             </span>
             <span className="mx-2 text-muted-foreground/40">+</span>
             <span className="justify-self-start inline-block px-2 py-0.5 rounded border border-border text-muted-foreground/70">
-              graphy
+              gra
+              <span className="font-extrabold">ff</span>y
             </span>
           </div>
           <p
