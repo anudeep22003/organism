@@ -1,9 +1,5 @@
 import { useEffect, useState } from "react";
-
-const API_URL =
-  import.meta.env.VITE_API_URL ?? "https://api.ohgraffy.com";
-const APP_URL =
-  import.meta.env.VITE_APP_URL ?? "https://app.ohgraffy.com";
+import { API, APP_URL } from "@/constants";
 
 interface PlanFeature {
   label: string;
@@ -62,7 +58,7 @@ export function Pricing() {
   const [plans, setPlans] = useState<Plan[]>(DEFAULT_PLANS);
 
   useEffect(() => {
-    fetch(`${API_URL}/api/billing/plans`)
+    fetch(API.billingPlans)
       .then((res) => {
         if (!res.ok) throw new Error("Failed to fetch plans");
         return res.json();

@@ -1,4 +1,5 @@
 import { Link } from "react-router"
+import { SUPPORT_EMAIL, LEGAL_ENTITY } from "@/constants"
 
 export function PrivacyPolicy() {
   return (
@@ -16,7 +17,7 @@ export function PrivacyPolicy() {
 
         <div className="space-y-8 text-muted-foreground leading-relaxed">
           <p>
-            Ohgraffy is a product of Classroom X, Inc., a Delaware C Corporation. This policy
+            Ohgraffy is a product of {LEGAL_ENTITY}. This policy
             explains what data we collect, why, and how we handle it. Your data is yours, not ours.
             We never sell your personal data.
           </p>
@@ -90,7 +91,7 @@ export function PrivacyPolicy() {
             <ul className="list-disc pl-6 space-y-2">
               <li><span className="text-foreground">Access</span> your personal data. You can export your stories and comics at any time.</li>
               <li><span className="text-foreground">Correct</span> inaccurate data. Update your profile through your account settings.</li>
-              <li><span className="text-foreground">Delete</span> your data. Contact us at support@ohgraffy.com and we will delete your account and all associated data within 30 days.</li>
+              <li><span className="text-foreground">Delete</span> your data. Contact us at {SUPPORT_EMAIL} and we will delete your account and all associated data within 30 days.</li>
               <li><span className="text-foreground">Object</span> to data processing. You can opt out of analytics tracking by disabling cookies in your browser.</li>
               <li><span className="text-foreground">Portability</span>. Request a copy of your data in a standard format.</li>
             </ul>
@@ -146,8 +147,8 @@ export function PrivacyPolicy() {
             <h2 className="text-xl font-semibold text-foreground mb-3">10. Contact</h2>
             <p>
               Questions about this policy? Contact us at{" "}
-              <a href="mailto:support@ohgraffy.com" className="underline hover:text-foreground">
-                support@ohgraffy.com
+              <a href={`mailto:${SUPPORT_EMAIL}`} className="underline hover:text-foreground">
+                {SUPPORT_EMAIL}
               </a>.
             </p>
           </section>
