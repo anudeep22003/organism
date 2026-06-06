@@ -1,6 +1,8 @@
 @import "tailwindcss";
 @import "@fontsource-variable/figtree";
 
+@custom-variant dark (&:is(.dark *));
+
 @theme inline {
   --font-sans: "Figtree Variable", sans-serif;
   --color-background: var(--background);
@@ -30,15 +32,15 @@
 }
 
 :root {
-  --background: oklch(0.25 0.005 250);
-  --foreground: oklch(0.95 0 0);
-  --primary: oklch(0.95 0 0);
-  --primary-foreground: oklch(0.13 0 0);
-  --muted: oklch(0.2 0 0);
-  --muted-foreground: oklch(0.65 0 0);
-  --border: oklch(1 0 0 / 12%);
+  --background: oklch(0.98 0.005 90);
+  --foreground: oklch(0.15 0 0);
+  --primary: oklch(0.18 0 0);
+  --primary-foreground: oklch(0.98 0 0);
+  --muted: oklch(0.93 0.005 90);
+  --muted-foreground: oklch(0.45 0 0);
+  --border: oklch(0 0 0 / 10%);
   --accent: oklch(0.75 0.15 280);
-  --accent-foreground: oklch(0.98 0 0);
+  --accent-foreground: oklch(0.15 0 0);
 
   --giraffy-body: #F5A623;
   --giraffy-body-light: #FFCF6B;
@@ -55,6 +57,18 @@
   --giraffy-leaf-dark: #4CAF50;
   --giraffy-accent: #FF6B9D;
   --giraffy-accent-alt: #845EF7;
+}
+
+.dark {
+  --background: oklch(0.25 0.005 250);
+  --foreground: oklch(0.95 0 0);
+  --primary: oklch(0.95 0 0);
+  --primary-foreground: oklch(0.13 0 0);
+  --muted: oklch(0.2 0 0);
+  --muted-foreground: oklch(0.65 0 0);
+  --border: oklch(1 0 0 / 12%);
+  --accent: oklch(0.75 0.15 280);
+  --accent-foreground: oklch(0.98 0 0);
 }
 
 @layer base {

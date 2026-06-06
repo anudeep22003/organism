@@ -1,3 +1,5 @@
+import { ThemeToggle } from "./ThemeToggle"
+
 const APP_URL = import.meta.env.VITE_APP_URL ?? "https://app.ohgraffy.com"
 
 export function Header() {
@@ -11,6 +13,7 @@ export function Header() {
           <a href="#pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
             Pricing
           </a>
+          <ThemeToggle />
           <a
             href={APP_URL}
             className="text-sm px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90 transition-opacity"
