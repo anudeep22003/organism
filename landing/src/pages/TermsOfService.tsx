@@ -21,7 +21,8 @@ export function TermsOfService() {
           </p>
 
           <p>
-            When we say "Company", "we", "our", or "us" in this document, we are referring to Ohgraffy.
+            Ohgraffy is a product of Classroom X, Inc., a Delaware C Corporation ("the Company").
+            When we say "Company", "we", "our", or "us" in this document, we are referring to Classroom X, Inc.
             When we say "Service", we mean the Ohgraffy platform at ohgraffy.com and app.ohgraffy.com,
             including the comic generation engine and all related features.
             When we say "You" or "your", we are referring to you, the person or organization using the Service.
