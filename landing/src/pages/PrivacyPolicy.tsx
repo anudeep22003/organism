@@ -16,8 +16,9 @@ export function PrivacyPolicy() {
 
         <div className="space-y-8 text-muted-foreground leading-relaxed">
           <p>
-            The privacy of your data is important to us. Your data is yours, not ours. This policy
-            explains what we collect, why, and how we handle it. We never sell your personal data.
+            Ohgraffy is a product of Classroom X, Inc., a Delaware C Corporation. This policy
+            explains what data we collect, why, and how we handle it. Your data is yours, not ours.
+            We never sell your personal data.
           </p>
 
           <section>
