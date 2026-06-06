@@ -1,21 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 
 const C = {
-  body: "#F5A623",
-  bodyLight: "#FFCF6B",
-  spots: "#C47A1A",
-  spotsAlt: "#A85E0A",
-  belly: "#FFF0D4",
-  nose: "#E8935A",
-  eyes: "#2D1B00",
-  eyeWhite: "#FFFDF7",
-  cheek: "#FF8FAB",
-  horn: "#D4A853",
-  hornTip: "#6B4226",
-  leaf: "#7ECE5C",
-  leafDark: "#4CAF50",
-  accent: "#FF6B9D",
-  accentAlt: "#845EF7",
+  body: "var(--giraffy-body)",
+  bodyLight: "var(--giraffy-body-light)",
+  spots: "var(--giraffy-spots)",
+  spotsAlt: "var(--giraffy-spots-alt)",
+  belly: "var(--giraffy-belly)",
+  nose: "var(--giraffy-nose)",
+  eyes: "var(--giraffy-eyes)",
+  eyeWhite: "var(--giraffy-eye-white)",
+  cheek: "var(--giraffy-cheek)",
+  horn: "var(--giraffy-horn)",
+  hornTip: "var(--giraffy-horn-tip)",
+  leaf: "var(--giraffy-leaf)",
+  leafDark: "var(--giraffy-leaf-dark)",
+  accent: "var(--giraffy-accent)",
+  accentAlt: "var(--giraffy-accent-alt)",
 } as const
 
 export type GiraffyMood = "happy" | "ohh" | "excited" | "thinking" | "sleeping" | "waving"
