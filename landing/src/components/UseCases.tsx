@@ -1,7 +1,7 @@
 const useCases = [
   {
     title: "Teach values to your children",
-    description: "Create personalized stories that teach empathy, courage, and kindness — starring characters your kids recognize.",
+    description: "Create personalized stories that teach empathy, courage, and kindness; starring characters your kids recognize.",
   },
   {
     title: "Learn new concepts",

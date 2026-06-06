@@ -15,11 +15,11 @@ export function Vision() {
           <div className="space-y-6 text-muted-foreground leading-relaxed">
             <p>
               We study storytelling across manga, screenplays, sci-fi, animation, and
-              literary fiction &mdash; distilling the principles that make narrative
+              literary fiction: distilling the principles that make narrative
               work, then embedding them into AI.
             </p>
             <p className="text-foreground font-medium">
-              The story is separate from the projection &mdash; a comic, a film, a
+              The story is separate from the projection: a comic, a film, a
               game. That is what we are building.
             </p>
           </div>
