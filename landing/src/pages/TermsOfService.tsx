@@ -6,99 +6,134 @@ export function TermsOfService() {
       <header className="border-b border-border">
         <div className="max-w-4xl mx-auto px-6 h-16 flex items-center">
           <Link to="/" className="text-lg font-semibold tracking-tight">
-            ohgraffy
+            oh<span className="text-giraffy-body">graffy</span>
           </Link>
         </div>
       </header>
       <main className="max-w-4xl mx-auto px-6 py-16">
         <h1 className="text-4xl font-bold mb-2">Terms of Service</h1>
-        <p className="text-muted-foreground mb-12">Last updated: June 2026</p>
+        <p className="text-muted-foreground mb-12">Last updated: June 5, 2026</p>
 
         <div className="space-y-8 text-muted-foreground leading-relaxed">
+          <p>
+            Thank you for using Ohgraffy. By accessing or using our Service, you agree to these Terms.
+            If you do not agree, do not use the Service.
+          </p>
+
+          <p>
+            When we say "Company", "we", "our", or "us" in this document, we are referring to Ohgraffy.
+            When we say "Service", we mean the Ohgraffy platform at ohgraffy.com and app.ohgraffy.com,
+            including the comic generation engine and all related features.
+            When we say "You" or "your", we are referring to you, the person or organization using the Service.
+          </p>
+
           <section>
-            <h2 className="text-xl font-semibold text-foreground mb-3">1. Acceptance of Terms</h2>
-            <p>
-              By accessing or using Ohgraffy ("the Service"), operated by Ohgraffy ("we", "us", "our"),
-              you agree to be bound by these Terms of Service. If you do not agree, do not use the Service.
-            </p>
+            <h2 className="text-xl font-semibold text-foreground mb-3">1. Account Terms</h2>
+            <ul className="list-disc pl-6 space-y-2">
+              <li>You must be at least 13 years old to use the Service.</li>
+              <li>You must sign in via Google SSO. You are responsible for maintaining the security of your Google account.</li>
+              <li>You are responsible for all activity that occurs under your account.</li>
+              <li>You must be a human. Accounts registered by bots or automated methods are not permitted.</li>
+            </ul>
           </section>
 
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-3">2. Description of Service</h2>
             <p>
-              Ohgraffy provides an AI-powered storytelling platform that enables users to create
-              comics and visual narratives. The Service includes story generation, character creation,
-              panel rendering, and export capabilities.
+              Ohgraffy is an AI-powered storytelling platform. You provide story inputs, character
+              descriptions, and image references. The Service generates comics and visual narratives
+              from your inputs. You can edit, export, and share the resulting content.
             </p>
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-foreground mb-3">3. User Accounts</h2>
-            <p>
-              You must create an account to use the Service. You are responsible for maintaining the
-              confidentiality of your account credentials and for all activities under your account.
-              You must be at least 13 years old to use the Service.
-            </p>
+            <h2 className="text-xl font-semibold text-foreground mb-3">3. Payment and Billing</h2>
+            <ul className="list-disc pl-6 space-y-2">
+              <li>The Service offers a free Starter plan and paid subscription plans.</li>
+              <li>Paid subscriptions are billed monthly. Your 30-day billing cycle begins on the date you subscribe.</li>
+              <li>All payments are processed securely by Stripe. We do not store your payment card details.</li>
+              <li>Prices are listed in USD. You are responsible for any applicable taxes.</li>
+              <li>We may change pricing with 30 days notice. Existing subscriptions are honored until the end of the current billing period.</li>
+            </ul>
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-foreground mb-3">4. Subscriptions & Payments</h2>
-            <p>
-              Paid features are available through subscription plans. Payments are processed by Stripe.
-              Subscriptions renew automatically unless cancelled before the renewal date. You may cancel
-              your subscription at any time through your account settings.
-            </p>
+            <h2 className="text-xl font-semibold text-foreground mb-3">4. Cancellation</h2>
+            <ul className="list-disc pl-6 space-y-2">
+              <li>You may cancel your subscription at any time through your account settings.</li>
+              <li>Cancellation takes effect at the end of your current billing period. You retain access to paid features until then.</li>
+              <li>After cancellation, your account reverts to the free Starter plan. Your content remains accessible.</li>
+              <li>If you wish to delete your account entirely, contact us at support@ohgraffy.com. We will delete all your data within 30 days.</li>
+            </ul>
           </section>
 
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-3">5. Refund Policy</h2>
             <p>
-              If you are not satisfied with the Service, you may request a refund within 7 days of your
-              initial purchase. Refunds are processed at our discretion. To request a refund, contact us
-              at support@ohgraffy.com.
+              All purchases are final. We do not offer refunds for subscription payments. Because
+              the Service provides immediate access to AI-generated content upon payment, the digital
+              nature of the product means we cannot reverse delivery. You may cancel at any time to
+              prevent future charges.
             </p>
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-foreground mb-3">6. User Content</h2>
-            <p>
-              You retain ownership of content you create using the Service, including stories, characters,
-              and generated comics. By using the Service, you grant us a limited license to process your
-              content solely for the purpose of providing the Service. You are responsible for ensuring
-              that uploaded image references and content do not infringe on third-party rights.
-            </p>
+            <h2 className="text-xl font-semibold text-foreground mb-3">6. Content Ownership</h2>
+            <ul className="list-disc pl-6 space-y-2">
+              <li>You retain full ownership of the content you provide to the Service: your story inputs, uploaded images, and any text you write.</li>
+              <li>You own the comics and visual content generated by the Service from your inputs.</li>
+              <li>We do not claim any intellectual property rights over your content.</li>
+              <li>By using the Service, you grant us a limited license to process your content solely for the purpose of providing the Service to you. This license ends when you delete your content or account.</li>
+              <li>You are responsible for ensuring your uploaded content (especially image references) does not infringe on third-party rights.</li>
+            </ul>
           </section>
 
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-3">7. Acceptable Use</h2>
+            <p className="mb-2">You agree not to use the Service to:</p>
+            <ul className="list-disc pl-6 space-y-2">
+              <li>Generate content that is illegal, harmful, threatening, abusive, harassing, defamatory, or sexually exploitative.</li>
+              <li>Generate content depicting minors in harmful or inappropriate situations.</li>
+              <li>Impersonate another person without their consent using uploaded image references.</li>
+              <li>Infringe on the intellectual property rights of others.</li>
+              <li>Attempt to reverse-engineer, exploit, or overload the Service.</li>
+            </ul>
+            <p className="mt-2">We reserve the right to suspend or terminate accounts that violate these terms without notice.</p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold text-foreground mb-3">8. Service Availability</h2>
             <p>
-              You agree not to use the Service to create content that is illegal, harmful, threatening,
-              abusive, defamatory, or otherwise objectionable. We reserve the right to suspend or terminate
-              accounts that violate these terms.
+              The Service is provided on an "as is" and "as available" basis. We do not guarantee
+              uninterrupted access. We may modify, suspend, or discontinue features at any time. We will
+              make reasonable efforts to notify you of significant changes.
             </p>
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-foreground mb-3">8. Limitation of Liability</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-3">9. Limitation of Liability</h2>
             <p>
-              The Service is provided "as is" without warranties of any kind. We are not liable for any
-              indirect, incidental, or consequential damages arising from your use of the Service.
+              To the maximum extent permitted by law, Ohgraffy shall not be liable for any indirect,
+              incidental, special, consequential, or punitive damages, or any loss of profits or
+              revenue, whether incurred directly or indirectly, or any loss of data, use, or goodwill.
+              In no event shall our aggregate liability exceed the amount you paid us in the 12 months
+              preceding the claim.
             </p>
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-foreground mb-3">9. Changes to Terms</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-3">10. Changes to These Terms</h2>
             <p>
-              We may update these Terms from time to time. Continued use of the Service after changes
-              constitutes acceptance of the updated terms. We will notify users of material changes via
-              email or in-app notification.
+              We may update these Terms from time to time. When we make significant changes, we will
+              notify you via email. Continued use of the Service after changes take effect constitutes
+              acceptance of the updated Terms.
             </p>
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-foreground mb-3">10. Contact</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-3">11. Contact</h2>
             <p>
-              For questions about these Terms, contact us at{" "}
+              Questions about these Terms? Contact us at{" "}
               <a href="mailto:support@ohgraffy.com" className="underline hover:text-foreground">
                 support@ohgraffy.com
               </a>.
