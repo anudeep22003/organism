@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { TIMING } from "@/constants";
 import { Giraffy } from "./Giraffy";
 
 const ENTRIES = [
@@ -38,8 +39,8 @@ export function Etymology() {
       setTimeout(() => {
         setIndex((i) => (i + 1) % ENTRIES.length);
         setFading(false);
-      }, 300);
-    }, 5000);
+      }, TIMING.etymologyFade);
+    }, TIMING.etymologyInterval);
     return () => clearInterval(interval);
   }, []);
 

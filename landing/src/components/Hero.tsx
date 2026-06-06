@@ -1,4 +1,4 @@
-const APP_URL = import.meta.env.VITE_APP_URL ?? "https://app.ohgraffy.com"
+import { APP_URL } from "@/constants"
 
 export function Hero() {
   return (

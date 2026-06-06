@@ -1,7 +1,6 @@
+import { APP_URL } from "@/constants"
 import { Logo } from "./Logo"
 import { ThemeToggle } from "./ThemeToggle"
-
-const APP_URL = import.meta.env.VITE_APP_URL ?? "https://app.ohgraffy.com"
 
 export function Header() {
   return (

@@ -1,4 +1,5 @@
 import { Link } from "react-router"
+import { SUPPORT_EMAIL, ROUTES } from "@/constants"
 import { Logo } from "./Logo"
 
 export function Footer() {
@@ -13,14 +14,14 @@ export function Footer() {
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-4 text-sm text-muted-foreground">
-            <a href="mailto:support@ohgraffy.com" className="hover:text-foreground transition-colors">
+            <a href={`mailto:${SUPPORT_EMAIL}`} className="hover:text-foreground transition-colors">
               Contact
             </a>
-            <Link to="/terms" className="hover:text-foreground transition-colors">
-              Terms of Service
+            <Link to={ROUTES.terms} className="hover:text-foreground transition-colors">
+              Terms
             </Link>
-            <Link to="/privacy" className="hover:text-foreground transition-colors">
-              Privacy Policy
+            <Link to={ROUTES.privacy} className="hover:text-foreground transition-colors">
+              Privacy
             </Link>
           </div>
         </div>

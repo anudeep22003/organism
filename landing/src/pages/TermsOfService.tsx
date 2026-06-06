@@ -1,4 +1,5 @@
 import { Link } from "react-router"
+import { SUPPORT_EMAIL, LEGAL_ENTITY } from "@/constants"
 
 export function TermsOfService() {
   return (
@@ -21,8 +22,8 @@ export function TermsOfService() {
           </p>
 
           <p>
-            Ohgraffy is a product of Classroom X, Inc., a Delaware C Corporation ("the Company").
-            When we say "Company", "we", "our", or "us" in this document, we are referring to Classroom X, Inc.
+            Ohgraffy is a product of {LEGAL_ENTITY} ("the Company").
+            When we say "Company", "we", "our", or "us" in this document, we are referring to {LEGAL_ENTITY}.
             When we say "Service", we mean the Ohgraffy platform at ohgraffy.com and app.ohgraffy.com,
             including the comic generation engine and all related features.
             When we say "You" or "your", we are referring to you, the person or organization using the Service.
@@ -64,7 +65,7 @@ export function TermsOfService() {
               <li>You may cancel your subscription at any time through your account settings.</li>
               <li>Cancellation takes effect at the end of your current billing period. You retain access to paid features until then.</li>
               <li>After cancellation, your account reverts to the free Starter plan. Your content remains accessible.</li>
-              <li>If you wish to delete your account entirely, contact us at support@ohgraffy.com. We will delete all your data within 30 days.</li>
+              <li>If you wish to delete your account entirely, contact us at {SUPPORT_EMAIL}. We will delete all your data within 30 days.</li>
             </ul>
           </section>
 
@@ -135,8 +136,8 @@ export function TermsOfService() {
             <h2 className="text-xl font-semibold text-foreground mb-3">11. Contact</h2>
             <p>
               Questions about these Terms? Contact us at{" "}
-              <a href="mailto:support@ohgraffy.com" className="underline hover:text-foreground">
-                support@ohgraffy.com
+              <a href={`mailto:${SUPPORT_EMAIL}`} className="underline hover:text-foreground">
+                {SUPPORT_EMAIL}
               </a>.
             </p>
           </section>
