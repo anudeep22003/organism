@@ -10,7 +10,7 @@ export function Product() {
         </h3>
         <p className="text-lg text-muted-foreground max-w-2xl mb-12 leading-relaxed">
           Construct a story and project it into a comic. Tell stories of yourself, your
-          family, friends, and groups &mdash; with AI that honors your image references
+          family, friends, and groups, with AI that honors your image references
           to place real people into the narrative.
         </p>
 
