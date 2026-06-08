@@ -259,18 +259,23 @@ class Frontend(pulumi.ComponentResource):
         # Trailing dot = fully-qualified domain name (GCP requirement).
         # Provisioning takes 10-30 minutes after DNS propagates for both domains.
         # Adding or removing a domain triggers a cert replace (not in-place update).
+        # Bump the -vN suffix whenever the cert domains change. A domain change
+        # forces a replace (GCP cannot edit managed domains in place), and with
+        # create-before-delete the new cert must have a DIFFERENT GCP name than
+        # the live one — otherwise GCP rejects it with 409 alreadyExists. Keeping
+        # the name constant only works for non-domain changes.
         ssl_cert = gcp.compute.ManagedSslCertificate(
             f"{name}-ssl-cert",
-            name=f"{name_prefix}-cert-v2",  # GCP resource name kept as-is to avoid replace
+            name=f"{name_prefix}-cert-v3",
             managed=gcp.compute.ManagedSslCertificateManagedArgs(
                 domains=[f"{DOMAIN}.", f"{API_DOMAIN}."],
             ),
             description=f"Google-managed SSL certificate for {DOMAIN} and {API_DOMAIN}",
             opts=pulumi.ResourceOptions(
                 parent=self,
-                # Create the new cert before deleting the old one on future domain
-                # changes — GCP rejects deleting a cert while a proxy references it.
-                # aliases reconciles the Pulumi logical name as a state-only rename.
+                # Create the new cert before deleting the old one — GCP rejects
+                # deleting a cert while a proxy references it. The proxy is
+                # repointed to the new cert between create and delete.
                 delete_before_replace=False,
                 aliases=[pulumi.Alias(name="frontend-ssl-cert-v2")],
             ),
