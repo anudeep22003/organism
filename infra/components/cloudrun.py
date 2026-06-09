@@ -56,6 +56,7 @@ from components.config import (
     FRONTEND_URL,
     GOOGLE_OAUTH_CLIENT_ID,
     IMAGE_TAG,
+    LANDING_URL,
     MEDIA_BUCKET_NAME,
     PROJECT,
     REGION,
@@ -109,6 +110,9 @@ class CloudRunService(pulumi.ComponentResource):
                 # Canonical frontend origin for auth redirects and browser CORS.
                 # Not a secret — it is a public origin, not a credential.
                 "FRONTEND_URL": FRONTEND_URL,
+                # Landing/marketing origin (apex domain) — added to browser CORS
+                # so the landing page can fetch live pricing from the API.
+                "LANDING_URL": LANDING_URL,
                 # Canonical external backend origin used for absolute callback URLs.
                 "API_URL": API_URL,
                 # Parent domain for the frontend-readable CSRF double-submit cookie.
