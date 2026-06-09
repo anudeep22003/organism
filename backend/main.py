@@ -52,13 +52,12 @@ fastapi_app.add_middleware(
 
 fastapi_app.add_middleware(CSRFMiddleware)
 
-# FRONTEND_URL is the single canonical browser origin for auth redirects and CORS.
-# It is required in both local dev and Cloud Run so backend behavior is identical
-# across environments.
+# Add both the app frontend and landing page url
+cors_origins = [settings.frontend_url, settings.landing_url]
 
 fastapi_app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_url],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

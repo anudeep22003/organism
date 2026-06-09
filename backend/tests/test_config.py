@@ -19,6 +19,7 @@ def _settings(**overrides: Any) -> AppSettings:
         "fernet_encryption_key": "fernet-key",
         "frontend_url": "http://localhost:5173",
         "api_url": "http://localhost:8080",
+        "landing_url": "http://localhost:5174",
     }
     values.update(overrides)
     return AppSettings(**values)

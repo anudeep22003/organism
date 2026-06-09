@@ -1,3 +1,4 @@
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -29,8 +30,9 @@ class AppSettings(BaseSettings):
     auth_session_secret: str
     google_oauth_client_id: str
     fernet_encryption_key: str
-    frontend_url: str
-    api_url: str
+    frontend_url: str = Field(description="The app frontend, usually app.domain.com")
+    api_url: str = Field(description="Backend api url")
+    landing_url: str = Field(description="The landing page url")
     csrf_cookie_domain: str | None = None
     # Optional — only needed locally for GCS access outside Cloud Run.
     # Cloud Run services authenticate via the attached service account (no key file).
