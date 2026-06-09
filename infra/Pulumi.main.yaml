@@ -5,6 +5,7 @@ config:
   storyengine-infra:image_tag: cc5474b
   storyengine-infra:domain: app.ohgraffy.com
   storyengine-infra:api_domain: api.ohgraffy.com
+  storyengine-infra:landing_domain: ohgraffy.com
   storyengine-infra:csrf_cookie_domain: ohgraffy.com
   storyengine-infra:media_bucket_suffix: x7k2
   storyengine-infra:github_repo: anudeep22003/organism

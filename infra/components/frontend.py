@@ -75,6 +75,7 @@ from components.config import (
     APP,
     API_DOMAIN,
     DOMAIN,
+    LANDING_DOMAIN,
     REGION,
     resource_name,
 )  # REGION used for bucket location
@@ -104,9 +105,11 @@ class Frontend(pulumi.ComponentResource):
     """
 
     bucket: gcp.storage.Bucket
+    landing_bucket: gcp.storage.Bucket
     ip_address: pulumi.Output[str]
     url: str
     api_url: str
+    landing_url: str
 
     def __init__(
         self,
@@ -159,6 +162,40 @@ class Frontend(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self),
         )
 
+        # ── Landing bucket ────────────────────────────────────────────────────
+
+        # Static marketing site served from the apex domain (LANDING_DOMAIN).
+        # Same SPA config and reproducible-artifact rationale as the app bucket
+        # above — contents are always rebuildable with make deploy-landing.
+        self.landing_bucket = gcp.storage.Bucket(
+            f"{name}-landing-bucket",
+            name=LANDING_DOMAIN,
+            location=REGION,
+            uniform_bucket_level_access=True,
+            force_destroy=True,
+            website=gcp.storage.BucketWebsiteArgs(
+                main_page_suffix="index.html",
+                not_found_page="index.html",
+            ),
+            cors=[
+                gcp.storage.BucketCorArgs(
+                    origins=["*"],
+                    methods=["GET", "HEAD"],
+                    response_headers=["Content-Type"],
+                    max_age_seconds=3600,
+                )
+            ],
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+
+        gcp.storage.BucketIAMMember(
+            f"{name}-landing-bucket-public-read",
+            bucket=self.landing_bucket.name,
+            role="roles/storage.objectViewer",
+            member="allUsers",
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+
         # ── Load Balancer ─────────────────────────────────────────────────────
 
         # Static global IP — both DNS A records (DOMAIN + API_DOMAIN) point here.
@@ -179,6 +216,16 @@ class Frontend(pulumi.ComponentResource):
             bucket_name=self.bucket.name,
             enable_cdn=enable_cdn,
             description="Serves static frontend assets from GCS",
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+
+        # Backend bucket for the landing site — the LB target for the apex domain.
+        landing_backend_bucket = gcp.compute.BackendBucket(
+            f"{name}-landing-backend-bucket",
+            name=f"{name_prefix}-landing-backend",
+            bucket_name=self.landing_bucket.name,
+            enable_cdn=enable_cdn,
+            description="Serves static landing-page assets from GCS",
             opts=pulumi.ResourceOptions(parent=self),
         )
 
@@ -238,6 +285,10 @@ class Frontend(pulumi.ComponentResource):
                     hosts=[API_DOMAIN],
                     path_matcher="api",
                 ),
+                gcp.compute.URLMapHostRuleArgs(
+                    hosts=[LANDING_DOMAIN],
+                    path_matcher="landing",
+                ),
             ],
             path_matchers=[
                 gcp.compute.URLMapPathMatcherArgs(
@@ -248,16 +299,21 @@ class Frontend(pulumi.ComponentResource):
                     name="api",
                     default_service=backend_service.self_link,
                 ),
+                gcp.compute.URLMapPathMatcherArgs(
+                    name="landing",
+                    default_service=landing_backend_bucket.self_link,
+                ),
             ],
             opts=pulumi.ResourceOptions(
-                parent=self, depends_on=[backend_bucket, backend_service]
+                parent=self,
+                depends_on=[backend_bucket, backend_service, landing_backend_bucket],
             ),
         )
 
-        # Google-managed SSL certificate covering both domains.
+        # Google-managed SSL certificate covering all three domains.
         # GCP provisions and auto-renews. Free.
         # Trailing dot = fully-qualified domain name (GCP requirement).
-        # Provisioning takes 10-30 minutes after DNS propagates for both domains.
+        # Provisioning takes 10-30 minutes after DNS propagates for each domain.
         # Adding or removing a domain triggers a cert replace (not in-place update).
         # Bump the -vN suffix whenever the cert domains change. A domain change
         # forces a replace (GCP cannot edit managed domains in place), and with
@@ -266,11 +322,14 @@ class Frontend(pulumi.ComponentResource):
         # the name constant only works for non-domain changes.
         ssl_cert = gcp.compute.ManagedSslCertificate(
             f"{name}-ssl-cert",
-            name=f"{name_prefix}-cert-v3",
+            name=f"{name_prefix}-cert-v4",
             managed=gcp.compute.ManagedSslCertificateManagedArgs(
-                domains=[f"{DOMAIN}.", f"{API_DOMAIN}."],
+                domains=[f"{DOMAIN}.", f"{API_DOMAIN}.", f"{LANDING_DOMAIN}."],
             ),
-            description=f"Google-managed SSL certificate for {DOMAIN} and {API_DOMAIN}",
+            description=(
+                f"Google-managed SSL certificate for {DOMAIN}, "
+                f"{API_DOMAIN} and {LANDING_DOMAIN}"
+            ),
             opts=pulumi.ResourceOptions(
                 parent=self,
                 # Create the new cert before deleting the old one — GCP rejects
@@ -339,12 +398,15 @@ class Frontend(pulumi.ComponentResource):
 
         self.url = f"https://{DOMAIN}"
         self.api_url = f"https://{API_DOMAIN}"
+        self.landing_url = f"https://{LANDING_DOMAIN}"
 
         self.register_outputs(
             {
                 "bucket": self.bucket,
+                "landing_bucket": self.landing_bucket,
                 "ip_address": self.ip_address,
                 "url": self.url,
                 "api_url": self.api_url,
+                "landing_url": self.landing_url,
             }
         )

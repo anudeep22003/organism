@@ -15,8 +15,11 @@ REGISTRY        := $(shell PULUMI_CONFIG_PASSPHRASE="" pulumi stack output regis
 IMAGE           := $(REGISTRY)/backend
 BACKEND_DIR     := $(shell git rev-parse --show-toplevel)/backend
 FRONTEND_DIR    := $(shell git rev-parse --show-toplevel)/frontend
+LANDING_DIR     := $(shell git rev-parse --show-toplevel)/landing
 FRONTEND_BUCKET := $(shell PULUMI_CONFIG_PASSPHRASE="" pulumi stack output frontend_bucket --stack $(STACK) 2>/dev/null)
 FRONTEND_URL    := $(shell PULUMI_CONFIG_PASSPHRASE="" pulumi stack output frontend_url --stack $(STACK) 2>/dev/null)
+LANDING_BUCKET  := $(shell PULUMI_CONFIG_PASSPHRASE="" pulumi stack output landing_bucket --stack $(STACK) 2>/dev/null)
+LANDING_URL     := $(shell PULUMI_CONFIG_PASSPHRASE="" pulumi stack output landing_url --stack $(STACK) 2>/dev/null)
 SERVICE_URL     := $(shell PULUMI_CONFIG_PASSPHRASE="" pulumi stack output api_url --stack $(STACK) 2>/dev/null)
 DB_INSTANCE     := $(shell PULUMI_CONFIG_PASSPHRASE="" pulumi stack output db_instance_name --stack $(STACK) 2>/dev/null)
 MIGRATION_JOB   := $(shell PULUMI_CONFIG_PASSPHRASE="" pulumi stack output migration_job_name --stack $(STACK) 2>/dev/null)
@@ -42,6 +45,7 @@ help:
 	@echo "  Deploy"
 	@echo "    make deploy-backend     Build + push image + deploy backend to Cloud Run"
 	@echo "    make deploy-frontend    Build frontend + sync to GCS bucket"
+	@echo "    make deploy-landing     Build landing site + sync to GCS bucket"
 	@echo "    make deploy-all         Deploy both backend and frontend"
 	@echo ""
 	@echo "  Database"
@@ -384,6 +388,32 @@ deploy-frontend: build-frontend sync-frontend
 	@echo ""
 	@echo "Frontend deployed to gs://$(FRONTEND_BUCKET)"
 	@echo "Live at: $(FRONTEND_URL)"
+
+# ── Landing deploy ────────────────────────────────────────────────────────────
+
+# Build the standalone landing/marketing site and sync to its GCS bucket.
+#
+# Two URLs are baked in at build time from live stack outputs:
+#   VITE_API_URL — the Cloud Run API, for the live pricing fetch (falls back to
+#                  hardcoded defaults if unreachable, so this is best-effort).
+#   VITE_APP_URL — app.<domain>, the target for every "Start Free" / CTA link.
+# Reading these from stack outputs (not .env) keeps prod URLs from going stale.
+.PHONY: build-landing
+build-landing:
+	cd $(LANDING_DIR) && VITE_API_URL=$(SERVICE_URL) VITE_APP_URL=$(FRONTEND_URL) bun run build
+
+.PHONY: sync-landing
+sync-landing:
+	gcloud storage rsync $(LANDING_DIR)/dist/ gs://$(LANDING_BUCKET) \
+		--recursive \
+		--delete-unmatched-destination-objects \
+		--project $(PROJECT)
+
+.PHONY: deploy-landing
+deploy-landing: build-landing sync-landing
+	@echo ""
+	@echo "Landing deployed to gs://$(LANDING_BUCKET)"
+	@echo "Live at: $(LANDING_URL)"
 
 # ── Deploy both ───────────────────────────────────────────────────────────────
 
