@@ -370,7 +370,7 @@ deploy-backend: build push
 # storage and potentially serving outdated assets.
 .PHONY: build-frontend
 build-frontend:
-	cd $(FRONTEND_DIR) && VITE_BACKEND_URL=$(SERVICE_URL) npm run build
+	cd $(FRONTEND_DIR) && VITE_BACKEND_URL=$(SERVICE_URL) bun run build
 
 .PHONY: sync-frontend
 sync-frontend:
