@@ -1,12 +1,16 @@
 import { useTheme } from "@/shared/theme/ThemeContext";
 import { useAuth } from "@/features/auth";
-import { Outlet, useNavigate } from "react-router";
+import { Outlet, useLocation, useNavigate } from "react-router";
 
 export default function StoriesLayout() {
   const { logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
   const isDark = theme === "dark";
+  const isAccountRoute = location.pathname.startsWith("/account");
+  const isStoriesRoute = location.pathname.startsWith("/stories");
+  const isPaymentsRoute = location.pathname.startsWith("/payments");
 
   return (
     <div className="flex h-screen flex-col">
@@ -16,9 +20,33 @@ export default function StoriesLayout() {
           <div className="h-2.5 w-px bg-border" />
           <button
             onClick={() => void navigate("/stories")}
-            className="text-[10px] text-foreground"
+            className={`text-[10px] ${
+              isStoriesRoute
+                ? "text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
           >
             Stories
+          </button>
+          <button
+            onClick={() => void navigate("/account")}
+            className={`text-[10px] ${
+              isAccountRoute
+                ? "text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Account
+          </button>
+          <button
+            onClick={() => void navigate("/payments")}
+            className={`text-[10px] ${
+              isPaymentsRoute
+                ? "text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Payments
           </button>
         </div>
         <div className="flex items-center gap-2">

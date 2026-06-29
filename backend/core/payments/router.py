@@ -1,0 +1,149 @@
+import uuid
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from loguru import logger
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from core.auth.api import get_current_user_id
+from core.config import settings
+from core.infrastructure.database import get_async_db_session
+
+from .exceptions import BillingErrorCode
+from .schemas import (
+    BillingErrorDetail,
+    BillingMeResponse,
+    BillingPortalResponse,
+    CreateCheckoutSessionRequest,
+    CreateCheckoutSessionResponse,
+    ListPlansResponse,
+)
+from .services import (
+    BillingStatusService,
+    PaymentsService,
+    PlanConfigurationError,
+    PlanNotFoundError,
+    StripeWebhookValidationError,
+    SubscriptionAlreadyExistsError,
+    UnhandledException,
+)
+
+router = APIRouter(prefix="/billing", tags=["billing"])
+
+
+# Dependencies
+def get_payments_service(
+    db: Annotated[AsyncSession, Depends(get_async_db_session)],
+) -> PaymentsService:
+    return PaymentsService(db)
+
+
+def get_billing_status_service(
+    db: Annotated[AsyncSession, Depends(get_async_db_session)],
+) -> BillingStatusService:
+    return BillingStatusService(db)
+
+
+@router.post("/create-checkout-session")
+async def create_checkout_session(
+    request: CreateCheckoutSessionRequest,
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    service: Annotated[PaymentsService, Depends(get_payments_service)],
+) -> CreateCheckoutSessionResponse:
+    try:
+        url = await service.create_checkout_session(
+            user_id=user_id,
+            plan_id=request.plan_id,
+            return_path=request.return_path,
+        )
+    except PlanNotFoundError as e:
+        raise HTTPException(
+            status_code=404,
+            detail=BillingErrorDetail(
+                code=BillingErrorCode.PLAN_NOT_FOUND,
+                message=str(e),
+            ).model_dump(),
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=BillingErrorDetail(
+                code=BillingErrorCode.INVALID_CHECKOUT_REQUEST,
+                message=str(e),
+            ).model_dump(),
+        )
+    except SubscriptionAlreadyExistsError as e:
+        raise HTTPException(
+            status_code=409,
+            detail=BillingErrorDetail(
+                code=BillingErrorCode.SUBSCRIPTION_ALREADY_EXISTS,
+                message=str(e),
+            ).model_dump(),
+        )
+    return CreateCheckoutSessionResponse(checkout_url=url)
+
+
+@router.post("/stripe/webhook")
+async def webhook(
+    request: Request,
+    stripe_signature: Annotated[str, Header(alias="stripe-signature")],
+    service: Annotated[PaymentsService, Depends(get_payments_service)],
+) -> dict[str, str]:
+    # verify signature on raw body, do not parse yet
+    # parsing shifts whitespaces and breaks signature verification
+    body = await request.body()
+    try:
+        await service.handle_stripe_webhook_event(
+            body=body, stripe_signature=stripe_signature
+        )
+    except StripeWebhookValidationError as e:
+        logger.warning("Stripe webhook validation error: {}", e)
+        raise HTTPException(
+            status_code=400,
+            detail=BillingErrorDetail(
+                code=BillingErrorCode.STRIPE_WEBHOOK_INVALID,
+                message="Invalid Stripe webhook signature.",
+            ).model_dump(),
+        )
+    except UnhandledException as e:
+        logger.error("Unhandled error handling stripe webhook: {}", e)
+        raise HTTPException(
+            status_code=500,
+            detail=BillingErrorDetail(
+                code=BillingErrorCode.STRIPE_WEBHOOK_FAILED,
+                message=f"Unhandled error handling Stripe webhook: {e}",
+            ).model_dump(),
+        )
+    return {"message": "Webhook received"}
+
+
+@router.get("/me")
+async def get_my_billing_status(
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+    service: Annotated[BillingStatusService, Depends(get_billing_status_service)],
+) -> BillingMeResponse:
+    return await service.get_billing_status(user_id=user_id)
+
+
+@router.get("/customer-portal")
+async def get_customer_portal_url(
+    _user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
+) -> BillingPortalResponse:
+    return BillingPortalResponse(portal_url=settings.stripe_customer_portal_url)
+
+
+@router.get("/plans")
+async def list_plans(
+    service: Annotated[PaymentsService, Depends(get_payments_service)],
+) -> ListPlansResponse:
+    try:
+        return await service.list_public_plans()
+    except PlanConfigurationError as e:
+        logger.error("Payment plan configuration error: {}", e)
+        raise HTTPException(
+            status_code=500,
+            detail=BillingErrorDetail(
+                code=BillingErrorCode.PLAN_CONFIGURATION_ERROR,
+                message="Payment plans are misconfigured.",
+            ).model_dump(),
+        )

@@ -333,6 +333,7 @@ async def test_get_character_embeds_reference_images(
 
     response = await api_client.get(
         _character_url(project.id, story.id, character.id),
+        headers=_auth_headers(user.id),
     )
 
     assert response.status_code == 200

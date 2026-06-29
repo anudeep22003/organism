@@ -6,6 +6,8 @@ import {
   RequireAuth,
   RequireGuest,
 } from "../features/auth";
+import { accountRoutes } from "../features/account";
+import { paymentsRoutes } from "../features/payments";
 import { sceneEngineRoutes } from "../features/scene-engine/routes";
 import { storiesRoutes } from "../features/scene-engine/stories/stories.routes";
 
@@ -17,7 +19,9 @@ export const routes = [
         path: "/",
         element: <Navigate to="/stories" replace />,
       },
+      ...accountRoutes,
       ...storiesRoutes,
+      ...paymentsRoutes,
       ...sceneEngineRoutes,
     ],
   },

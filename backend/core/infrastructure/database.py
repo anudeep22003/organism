@@ -1,13 +1,16 @@
+import json
+from decimal import Decimal
 from functools import lru_cache
 from typing import AsyncGenerator
 
+from psycopg.types.json import set_json_dumps
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from core.config import settings
 
 
 @lru_cache(maxsize=1)
-def _get_session_maker() -> "async_sessionmaker[AsyncSession]":
+def get_async_session_maker() -> "async_sessionmaker[AsyncSession]":
     """Create the SQLAlchemy async engine and session factory — once, on first call.
 
     @lru_cache(maxsize=1) means this function body executes exactly once regardless
@@ -20,7 +23,7 @@ def _get_session_maker() -> "async_sessionmaker[AsyncSession]":
     (which transitively import this module) without needing API keys.
     """
     engine = create_async_engine(settings.database_url, echo=False)
-    return async_sessionmaker(bind=engine)
+    return async_sessionmaker(bind=engine, expire_on_commit=False)
 
 
 async def get_async_db_session() -> AsyncGenerator[AsyncSession, None]:
@@ -32,5 +35,24 @@ async def get_async_db_session() -> AsyncGenerator[AsyncSession, None]:
     The session is created from the lazily-initialised session_maker. The engine
     is opened on the very first request that touches the database, not at startup.
     """
-    async with _get_session_maker()() as session:
+    async with get_async_session_maker()() as session:
         yield session
+
+
+def _json_dumps(obj: object) -> str:
+    return json.dumps(obj, default=_default)
+
+
+def _default(o: object) -> str:
+    if isinstance(o, Decimal):
+        return str(o)
+    raise TypeError(f"Object of type {o.__class__.__name__} is not JSON serializable")
+
+
+# Run once at app startup (e.g. in your FastAPI lifespan):
+def configure_psycopg_json_dumps() -> None:
+    """
+    Stripe Decimal objects break the default psycopg JSON serializer.
+    Configure psycopg to use a custom JSON serializer for Decimal objects.
+    """
+    set_json_dumps(_json_dumps)

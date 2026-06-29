@@ -35,6 +35,7 @@ PREFIX = f"{APP}-{STACK}"  # "storyengine-main"
 IMAGE_TAG = _app.require("image_tag")  # git SHA set by make deploy-backend
 GOOGLE_OAUTH_CLIENT_ID = _app.require("google_oauth_client_id")
 CSRF_COOKIE_DOMAIN = _app.require("csrf_cookie_domain")
+STRIPE_CUSTOMER_PORTAL_URL = _app.require("stripe_customer_portal_url")
 
 # ── Derived values ─────────────────────────────────────────────────────────────
 

@@ -9,6 +9,7 @@ from core.common import AliasedBaseModel
 
 class UserResponse(AliasedBaseModel):
     id: uuid.UUID
+    name: str | None = None
     email: str
     updated_at: datetime
 

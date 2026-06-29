@@ -28,6 +28,7 @@ from ..security import (
     get_encryptor,
 )
 from ..services import AuthService
+from .errors import AuthErrorCode, AuthErrorDetail
 
 
 def get_access_token_manager() -> AccessTokenManager:
@@ -71,7 +72,10 @@ async def get_current_user_id(
     if not access_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="No access token provided",
+            detail=AuthErrorDetail(
+                code=AuthErrorCode.AUTH_REQUIRED,
+                message="Sign in to continue.",
+            ).model_dump(),
         )
 
     try:
@@ -79,12 +83,18 @@ async def get_current_user_id(
     except ExpiredAccessTokenError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Access token expired",
+            detail=AuthErrorDetail(
+                code=AuthErrorCode.AUTH_TOKEN_EXPIRED,
+                message="Your session expired. Sign in again.",
+            ).model_dump(),
         )
-    except InvalidAccessTokenError as exc:
+    except InvalidAccessTokenError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(exc) or "Invalid access token",
+            detail=AuthErrorDetail(
+                code=AuthErrorCode.AUTH_TOKEN_INVALID,
+                message="Your session is invalid. Sign in again.",
+            ).model_dump(),
         )
 
 
@@ -138,7 +148,10 @@ def _enforce_rate_limit(
             )
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Too many requests",
+                detail=AuthErrorDetail(
+                    code=AuthErrorCode.AUTH_RATE_LIMITED,
+                    message="Too many requests.",
+                ).model_dump(),
                 headers=headers,
             )
 

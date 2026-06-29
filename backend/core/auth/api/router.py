@@ -4,8 +4,10 @@ from typing import Annotated
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
 from loguru import logger
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import settings
+from core.infrastructure.database import get_async_db_session
 
 from ..config import CSRF_TOKEN_COOKIE_NAME, REFRESH_TOKEN_COOKIE_NAME
 from ..exceptions import (
@@ -28,6 +30,7 @@ from .dependencies import (
     get_current_user_id,
     get_request_client_context,
 )
+from .errors import AuthErrorCode, AuthErrorDetail
 from .oauth_client import oauth
 
 router = APIRouter(prefix="/auth", tags=["auth", "google-auth"])
@@ -73,6 +76,7 @@ async def callback(
     client_context: Annotated[
         tuple[str | None, str | None], Depends(get_request_client_context)
     ],
+    db_session: Annotated[AsyncSession, Depends(get_async_db_session)],
 ) -> RedirectResponse:
     user_agent, ip = client_context
     google_sub: str | None = None
@@ -147,7 +151,10 @@ async def me(
     except UserNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
+            detail=AuthErrorDetail(
+                code=AuthErrorCode.AUTH_USER_NOT_FOUND,
+                message="User not found.",
+            ).model_dump(),
         )
     return UserResponse.model_validate(user)
 
@@ -179,7 +186,10 @@ async def refresh(
         )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="No refresh token provided",
+            detail=AuthErrorDetail(
+                code=AuthErrorCode.AUTH_REFRESH_REQUIRED,
+                message="Refresh token is required.",
+            ).model_dump(),
         )
     try:
         tokens = await service.refresh_session(refresh_token)
@@ -194,7 +204,10 @@ async def refresh(
         )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(exc),
+            detail=AuthErrorDetail(
+                code=AuthErrorCode.AUTH_REFRESH_INVALID,
+                message=str(exc) or "Refresh token is invalid.",
+            ).model_dump(),
         )
     log_auth_event(
         "auth.refresh.succeeded",

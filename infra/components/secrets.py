@@ -108,6 +108,8 @@ class AppSecrets(pulumi.ComponentResource):
         {name}-fernet-encryption-key gcp.secretmanager.Secret
         {name}-openai-api-key      gcp.secretmanager.Secret
         {name}-fal-api-key         gcp.secretmanager.Secret
+        {name}-stripe-secret-key   gcp.secretmanager.Secret
+        {name}-stripe-webhook-secret gcp.secretmanager.Secret
         {name}-database-url        gcp.secretmanager.Secret
         {name}-db-password         gcp.secretmanager.Secret
     """
@@ -119,6 +121,8 @@ class AppSecrets(pulumi.ComponentResource):
     fernet_encryption_key: gcp.secretmanager.Secret
     openai_api_key: gcp.secretmanager.Secret
     fal_api_key: gcp.secretmanager.Secret
+    stripe_secret_key: gcp.secretmanager.Secret
+    stripe_webhook_secret: gcp.secretmanager.Secret
     database_url: gcp.secretmanager.Secret
     db_password: gcp.secretmanager.Secret
 
@@ -198,6 +202,16 @@ class AppSecrets(pulumi.ComponentResource):
             f"{PREFIX}-fal-api-key",
             parent=self,
         )
+        self.stripe_secret_key = _make_secret(
+            f"{name}-stripe-secret-key",
+            f"{PREFIX}-stripe-secret-key",
+            parent=self,
+        )
+        self.stripe_webhook_secret = _make_secret(
+            f"{name}-stripe-webhook-secret",
+            f"{PREFIX}-stripe-webhook-secret",
+            parent=self,
+        )
 
         self.register_outputs(
             {
@@ -211,5 +225,7 @@ class AppSecrets(pulumi.ComponentResource):
                 "fernet_encryption_key": self.fernet_encryption_key,
                 "openai_api_key": self.openai_api_key,
                 "fal_api_key": self.fal_api_key,
+                "stripe_secret_key": self.stripe_secret_key,
+                "stripe_webhook_secret": self.stripe_webhook_secret,
             }
         )

@@ -60,6 +60,7 @@ from components.config import (
     MEDIA_BUCKET_NAME,
     PROJECT,
     REGION,
+    STRIPE_CUSTOMER_PORTAL_URL,
     resource_name,
 )
 from components.secrets import AppSecrets
@@ -119,6 +120,11 @@ class CloudRunService(pulumi.ComponentResource):
                 "CSRF_COOKIE_DOMAIN": CSRF_COOKIE_DOMAIN,
                 # Public OAuth client identifier used to start the Google auth flow.
                 "GOOGLE_OAUTH_CLIENT_ID": GOOGLE_OAUTH_CLIENT_ID,
+                # Public Stripe-hosted billing portal URL for subscription management.
+                "STRIPE_CUSTOMER_PORTAL_URL": STRIPE_CUSTOMER_PORTAL_URL,
+                # Cloud Run is the production runtime for this stack. Local
+                # development keeps the backend default / .env.local false value.
+                "STRIPE_LIVEMODE": "true",
                 # Disables FastAPI's /docs, /redoc, and /openapi.json in Cloud Run.
                 # Locally defaults to "development" (docs available) via config.py.
                 "ENV": "production",
@@ -222,6 +228,24 @@ class CloudRunService(pulumi.ComponentResource):
                 value_source=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceArgs(
                     secret_key_ref=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceSecretKeyRefArgs(
                         secret=secrets.fal_api_key.secret_id,
+                        version="latest",
+                    ),
+                ),
+            ),
+            gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                name="STRIPE_SECRET_KEY",
+                value_source=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceArgs(
+                    secret_key_ref=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceSecretKeyRefArgs(
+                        secret=secrets.stripe_secret_key.secret_id,
+                        version="latest",
+                    ),
+                ),
+            ),
+            gcp.cloudrunv2.ServiceTemplateContainerEnvArgs(
+                name="STRIPE_WEBHOOK_SECRET",
+                value_source=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceArgs(
+                    secret_key_ref=gcp.cloudrunv2.ServiceTemplateContainerEnvValueSourceSecretKeyRefArgs(
+                        secret=secrets.stripe_webhook_secret.secret_id,
                         version="latest",
                     ),
                 ),

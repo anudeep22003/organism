@@ -276,6 +276,22 @@ class CloudRunServiceAccount(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self),
         )
 
+        gcp.secretmanager.SecretIamMember(
+            f"{name}-stripe-secret-key-accessor",
+            secret_id=secrets.stripe_secret_key.secret_id,
+            role="roles/secretmanager.secretAccessor",
+            member=member,
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+
+        gcp.secretmanager.SecretIamMember(
+            f"{name}-stripe-webhook-secret-accessor",
+            secret_id=secrets.stripe_webhook_secret.secret_id,
+            role="roles/secretmanager.secretAccessor",
+            member=member,
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+
         # --- GCS: read/write blobs and generate signed URLs at runtime ---
         gcp.storage.BucketIAMMember(
             f"{name}-object-user",

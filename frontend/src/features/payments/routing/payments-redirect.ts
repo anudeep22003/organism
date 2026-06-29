@@ -1,0 +1,96 @@
+const POST_CHECKOUT_RETURN_PATH_STORAGE_KEY = "payments.return-path";
+const RETURN_PATH_QUERY_PARAM = "returnPath";
+
+const isSafeInternalRedirect = (
+  redirectTarget: string | null | undefined
+) => {
+  return Boolean(
+    redirectTarget &&
+      redirectTarget.startsWith("/") &&
+      !redirectTarget.startsWith("//")
+  );
+};
+
+export const getSafeReturnPath = (
+  returnPath: string | null | undefined
+): string | null => {
+  if (!isSafeInternalRedirect(returnPath)) {
+    return null;
+  }
+
+  return returnPath ?? null;
+};
+
+export const getReturnPathFromSearchParams = (
+  search: string
+): string | null => {
+  const params = new URLSearchParams(search);
+  return getSafeReturnPath(params.get(RETURN_PATH_QUERY_PARAM));
+};
+
+export const getCurrentReturnPath = (): string | null => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return getSafeReturnPath(
+    `${window.location.pathname}${window.location.search}${window.location.hash}`
+  );
+};
+
+const canUseSessionStorage = () => {
+  return typeof window !== "undefined";
+};
+
+export const persistCheckoutReturnPath = (
+  returnPath: string | null | undefined
+) => {
+  const safeReturnPath = getSafeReturnPath(returnPath);
+
+  if (!canUseSessionStorage()) {
+    return;
+  }
+
+  if (!safeReturnPath) {
+    window.sessionStorage.removeItem(
+      POST_CHECKOUT_RETURN_PATH_STORAGE_KEY
+    );
+    return;
+  }
+
+  window.sessionStorage.setItem(
+    POST_CHECKOUT_RETURN_PATH_STORAGE_KEY,
+    safeReturnPath
+  );
+};
+
+export const consumeCheckoutReturnPath = (): string | null => {
+  if (!canUseSessionStorage()) {
+    return null;
+  }
+
+  const returnPath = window.sessionStorage.getItem(
+    POST_CHECKOUT_RETURN_PATH_STORAGE_KEY
+  );
+  window.sessionStorage.removeItem(
+    POST_CHECKOUT_RETURN_PATH_STORAGE_KEY
+  );
+  return getSafeReturnPath(returnPath);
+};
+
+export const buildPaymentsRoute = ({
+  returnPath,
+}: {
+  returnPath?: string | null;
+}) => {
+  const safeReturnPath = getSafeReturnPath(returnPath);
+  if (!safeReturnPath) {
+    return "/payments";
+  }
+
+  const params = new URLSearchParams({
+    [RETURN_PATH_QUERY_PARAM]: safeReturnPath,
+  });
+
+  return `/payments?${params.toString()}`;
+};

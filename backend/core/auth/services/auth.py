@@ -3,6 +3,10 @@ from dataclasses import dataclass
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.events.models import AggregateType, EventType
+from core.events.schemas import EmitEventSchema, UserCreatedEventPayload
+from core.events.service import emit_event
+
 from ..exceptions import UserNotFoundError
 from ..models import User
 from ..repositories import AuthRepository
@@ -59,6 +63,17 @@ class AuthService:
             ip=ip,
         )
         await self.db.commit()
+        # Emit only after auth commits so signup/login success is not coupled to Stripe.
+        await emit_event(
+            event=EmitEventSchema(
+                event_type=EventType.USER_CREATED,
+                aggregate_type=AggregateType.USER,
+                aggregate_id=callback_user.user_id,
+                payload=UserCreatedEventPayload(
+                    user_id=callback_user.user_id
+                ).model_dump(mode="json"),
+            ),
+        )
         return CallbackResult(user_id=callback_user.user_id, tokens=tokens)
 
     async def get_current_user(self, user_id: uuid.UUID) -> User:

@@ -1,16 +1,20 @@
 from typing import AsyncGenerator
 
 import socketio
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
 from fastapi.concurrency import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from loguru import logger
 from starlette.middleware.sessions import SessionMiddleware
 
 from core.api.routers import router as v1_router
 from core.auth.api import CSRFMiddleware
 from core.config import settings
+from core.infrastructure.database import configure_psycopg_json_dumps
 from core.logging import setup_logging
+from core.payments.exceptions import BillingEntitlementRequiredError
+from core.payments.schemas import BillingEntitlementRequiredResponse
 from core.sockets import register_sio_handlers, sio
 
 
@@ -23,6 +27,7 @@ async def lifecycle_manager(app: FastAPI) -> AsyncGenerator[None, None]:
         region=settings.gcp_region,
     )
     register_sio_handlers()
+    configure_psycopg_json_dumps()
     yield
     logger.info("StoryEngine shutting down")
 
@@ -65,6 +70,19 @@ fastapi_app.add_middleware(
 
 
 fastapi_app.include_router(v1_router)
+
+
+@fastapi_app.exception_handler(BillingEntitlementRequiredError)
+async def billing_entitlement_required_exception_handler(
+    _request: Request,
+    exc: BillingEntitlementRequiredError,
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_403_FORBIDDEN,
+        content=BillingEntitlementRequiredResponse(
+            required_feature=exc.required_feature
+        ).model_dump(),
+    )
 
 
 @fastapi_app.get("/")

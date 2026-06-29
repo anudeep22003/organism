@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import DateTime
+from sqlalchemy import DateTime, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -23,6 +23,7 @@ class User(ORMBase):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     email: Mapped[str] = mapped_column(unique=True)
+    name: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     password_hash: Mapped[str]
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=get_current_datetime_utc
@@ -48,10 +49,39 @@ class User(ORMBase):
         *,
         email: str,
         password_hash: str,
+        name: str | None = None,
         meta: dict[str, Any] | None = None,
     ) -> "User":
         return cls(
             email=email,
+            name=name,
             password_hash=password_hash,
             meta=meta or {},
         )
+
+    @classmethod
+    def upsert(
+        cls,
+        *,
+        existing_user: "User | None",
+        email: str,
+        name: str | None = None,
+        password_hash: str | None = None,
+        meta: dict[str, Any] | None = None,
+    ) -> "User":
+        if existing_user is None:
+            if password_hash is None:
+                raise ValueError("password_hash is required when creating a user")
+            return cls.create(
+                email=email,
+                name=name,
+                password_hash=password_hash,
+                meta=meta,
+            )
+
+        existing_user.email = email
+        if name is not None:
+            existing_user.name = name
+        if meta is not None:
+            existing_user.meta = meta
+        return existing_user

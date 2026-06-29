@@ -12,3 +12,6 @@ commit_details.txt
 .env.*.local
 backend/.env.local
 backend/.env.smoketest
+**/.agents/**
+**/logs.txt
+**/.DS_Store

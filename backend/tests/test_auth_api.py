@@ -1,5 +1,8 @@
+import uuid
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import jwt
 import pytest
 from httpx import AsyncClient, Response
 from sqlalchemy import delete, select
@@ -10,6 +13,9 @@ from core.auth.config import (
     ACCESS_TOKEN_COOKIE_NAME,
     CSRF_TOKEN_COOKIE_NAME,
     CSRF_TOKEN_HEADER_NAME,
+    JWT_ALGORITHM,
+    JWT_AUDIENCE,
+    JWT_ISSUER,
     REFRESH_TOKEN_COOKIE_NAME,
 )
 from core.auth.models import AuthSession, GoogleOAuthAccount, User
@@ -32,6 +38,19 @@ def _csrf_headers(api_client: AsyncClient) -> dict[str, str]:
     csrf_token = api_client.cookies.get(CSRF_TOKEN_COOKIE_NAME)
     assert csrf_token is not None
     return {CSRF_TOKEN_HEADER_NAME: csrf_token}
+
+
+def _expired_access_token(user_id: uuid.UUID) -> str:
+    now = int(datetime.now(timezone.utc).timestamp())
+    payload = {
+        "sub": str(user_id),
+        "iat": now - 3_600,
+        "exp": now - 1,
+        "jti": "expired-test-token",
+        "iss": JWT_ISSUER,
+        "aud": JWT_AUDIENCE,
+    }
+    return jwt.encode(payload, settings.jwt_secret_key, algorithm=JWT_ALGORITHM)
 
 
 def _google_token_payload(
@@ -138,6 +157,10 @@ async def test_google_auth_login_rate_limit_returns_429(
         )
 
     assert response.status_code == 429
+    assert response.json()["detail"] == {
+        "code": "auth_rate_limited",
+        "message": "Too many requests.",
+    }
 
 
 async def test_google_auth_callback_creates_user_google_account_and_session(
@@ -264,26 +287,36 @@ async def test_google_auth_callback_failure_redirects_to_frontend_failure(
 
 async def test_google_auth_callback_rate_limit_returns_429(
     api_client: AsyncClient,
+    db_session: AsyncSession,
 ) -> None:
     headers = {"x-forwarded-for": "198.51.100.20"}
+    callback_limit_email = f"callback-limit-{uuid.uuid4()}@example.com"
 
-    for _ in range(CALLBACK_RATE_LIMIT_POLICY.max_requests):
+    try:
+        for _ in range(CALLBACK_RATE_LIMIT_POLICY.max_requests):
+            response = await _login_via_callback(
+                api_client,
+                email=callback_limit_email,
+                sub="google-sub-limit",
+                headers=headers,
+            )
+            assert response.status_code in {302, 307}
+
         response = await _login_via_callback(
             api_client,
-            email="callback-limit@example.com",
+            email=callback_limit_email,
             sub="google-sub-limit",
             headers=headers,
         )
-        assert response.status_code in {302, 307}
 
-    response = await _login_via_callback(
-        api_client,
-        email="callback-limit@example.com",
-        sub="google-sub-limit",
-        headers=headers,
-    )
-
-    assert response.status_code == 429
+        assert response.status_code == 429
+        assert response.json()["detail"] == {
+            "code": "auth_rate_limited",
+            "message": "Too many requests.",
+        }
+    finally:
+        await db_session.execute(delete(User).where(User.email == callback_limit_email))
+        await db_session.commit()
 
 
 async def test_google_auth_callback_missing_userinfo_redirects_to_frontend_failure(
@@ -365,7 +398,41 @@ async def test_me_returns_current_user_from_access_cookie(
 
 async def test_me_without_access_cookie_returns_401(api_client: AsyncClient) -> None:
     response = await api_client.get("/api/auth/me")
+
     assert response.status_code == 401
+    assert response.json()["detail"] == {
+        "code": "auth_required",
+        "message": "Sign in to continue.",
+    }
+
+
+async def test_me_with_expired_access_cookie_returns_typed_401(
+    api_client: AsyncClient,
+    user: User,
+) -> None:
+    api_client.cookies.set(ACCESS_TOKEN_COOKIE_NAME, _expired_access_token(user.id))
+
+    response = await api_client.get("/api/auth/me")
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == {
+        "code": "auth_token_expired",
+        "message": "Your session expired. Sign in again.",
+    }
+
+
+async def test_me_with_invalid_access_cookie_returns_typed_401(
+    api_client: AsyncClient,
+) -> None:
+    api_client.cookies.set(ACCESS_TOKEN_COOKIE_NAME, "not-a-jwt")
+
+    response = await api_client.get("/api/auth/me")
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == {
+        "code": "auth_token_invalid",
+        "message": "Your session is invalid. Sign in again.",
+    }
 
 
 async def test_refresh_rotates_session_and_sets_new_cookies(
@@ -432,7 +499,12 @@ async def test_refresh_without_cookie_returns_401(api_client: AsyncClient) -> No
         "/api/auth/refresh",
         headers={CSRF_TOKEN_HEADER_NAME: "unused"},
     )
+
     assert response.status_code == 401
+    assert response.json()["detail"] == {
+        "code": "auth_refresh_required",
+        "message": "Refresh token is required.",
+    }
 
 
 async def test_refresh_rejects_legacy_sha256_style_session_hash(
@@ -463,6 +535,7 @@ async def test_refresh_rejects_legacy_sha256_style_session_hash(
     )
 
     assert response.status_code == 401
+    assert response.json()["detail"]["code"] == "auth_refresh_invalid"
 
 
 async def test_refresh_requires_csrf_header(api_client: AsyncClient) -> None:
@@ -503,6 +576,10 @@ async def test_refresh_rate_limit_returns_429(api_client: AsyncClient) -> None:
     response = await api_client.post("/api/auth/refresh", headers=headers)
 
     assert response.status_code == 429
+    assert response.json()["detail"] == {
+        "code": "auth_rate_limited",
+        "message": "Too many requests.",
+    }
 
 
 async def test_logout_revokes_session_and_clears_cookies(

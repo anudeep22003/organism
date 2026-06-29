@@ -11,11 +11,17 @@ import uuid
 
 from httpx import AsyncClient
 
+from core.auth.models.user import User
 from core.story_engine.models import Character, Project, Story
+from tests.auth_helpers import auth_cookie_header
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+def _auth_headers(user_id: uuid.UUID) -> dict[str, str]:
+    return auth_cookie_header(user_id)
 
 
 def character_url(project: Project, story: Story, character: Character) -> str:
@@ -51,12 +57,16 @@ def bad_story_url(project: Project, character: Character) -> str:
 
 async def test_get_character_200(
     api_client: AsyncClient,
+    user: User,
     project: Project,
     story: Story,
     character: Character,
 ) -> None:
     """Returns 200 with the correct character payload."""
-    response = await api_client.get(character_url(project, story, character))
+    response = await api_client.get(
+        character_url(project, story, character),
+        headers=_auth_headers(user.id),
+    )
 
     assert response.status_code == 200
     body = response.json()
@@ -79,24 +89,32 @@ async def test_get_character_200(
 
 async def test_get_character_404_bad_character(
     api_client: AsyncClient,
+    user: User,
     project: Project,
     story: Story,
     character: Character,  # ensures story exists — only character ID is wrong
 ) -> None:
     """Returns 404 when the character ID does not exist."""
-    response = await api_client.get(bad_character_url(project, story))
+    response = await api_client.get(
+        bad_character_url(project, story),
+        headers=_auth_headers(user.id),
+    )
 
     assert response.status_code == 404
 
 
 async def test_get_character_404_bad_story(
     api_client: AsyncClient,
+    user: User,
     project: Project,
     story: Story,
     character: Character,  # ensures character row exists — only story ID is wrong
 ) -> None:
     """Returns 404 when the story ID does not exist under the project."""
-    response = await api_client.get(bad_story_url(project, character))
+    response = await api_client.get(
+        bad_story_url(project, character),
+        headers=_auth_headers(user.id),
+    )
 
     assert response.status_code == 404
 
@@ -108,6 +126,7 @@ async def test_get_character_404_bad_story(
 
 async def test_patch_character_200_name(
     api_client: AsyncClient,
+    user: User,
     project: Project,
     story: Story,
     character: Character,
@@ -115,6 +134,7 @@ async def test_patch_character_200_name(
     """PATCH with a new name returns 200 and the updated name."""
     response = await api_client.patch(
         character_url(project, story, character),
+        headers=_auth_headers(user.id),
         json={"name": "Strider"},
     )
 
@@ -126,6 +146,7 @@ async def test_patch_character_200_name(
 
 async def test_patch_character_only_updates_provided_fields(
     api_client: AsyncClient,
+    user: User,
     project: Project,
     story: Story,
     character: Character,
@@ -133,6 +154,7 @@ async def test_patch_character_only_updates_provided_fields(
     """PATCH with one field leaves all other attribute fields untouched."""
     response = await api_client.patch(
         character_url(project, story, character),
+        headers=_auth_headers(user.id),
         json={"role": "King"},
     )
 
@@ -150,6 +172,7 @@ async def test_patch_character_only_updates_provided_fields(
 
 async def test_patch_character_404_bad_character(
     api_client: AsyncClient,
+    user: User,
     project: Project,
     story: Story,
     character: Character,  # ensures story exists — only character ID is wrong
@@ -157,6 +180,7 @@ async def test_patch_character_404_bad_character(
     """PATCH returns 404 when the character ID does not exist."""
     response = await api_client.patch(
         bad_character_url(project, story),
+        headers=_auth_headers(user.id),
         json={"name": "Ghost"},
     )
 
@@ -165,6 +189,7 @@ async def test_patch_character_404_bad_character(
 
 async def test_patch_character_404_bad_story(
     api_client: AsyncClient,
+    user: User,
     project: Project,
     story: Story,
     character: Character,
@@ -172,6 +197,7 @@ async def test_patch_character_404_bad_story(
     """PATCH returns 404 when the story ID does not exist."""
     response = await api_client.patch(
         bad_story_url(project, character),
+        headers=_auth_headers(user.id),
         json={"name": "Ghost"},
     )
 
@@ -185,12 +211,16 @@ async def test_patch_character_404_bad_story(
 
 async def test_delete_character_204(
     api_client: AsyncClient,
+    user: User,
     project: Project,
     story: Story,
     character: Character,
 ) -> None:
     """DELETE returns 204 with no response body."""
-    response = await api_client.delete(character_url(project, story, character))
+    response = await api_client.delete(
+        character_url(project, story, character),
+        headers=_auth_headers(user.id),
+    )
 
     assert response.status_code == 204
     assert response.content == b""
@@ -198,6 +228,7 @@ async def test_delete_character_204(
 
 async def test_delete_character_then_get_404(
     api_client: AsyncClient,
+    user: User,
     project: Project,
     story: Story,
     character: Character,
@@ -205,20 +236,24 @@ async def test_delete_character_then_get_404(
     """After a successful DELETE, GET on the same ID returns 404."""
     url = character_url(project, story, character)
 
-    delete_response = await api_client.delete(url)
+    delete_response = await api_client.delete(url, headers=_auth_headers(user.id))
     assert delete_response.status_code == 204
 
-    get_response = await api_client.get(url)
+    get_response = await api_client.get(url, headers=_auth_headers(user.id))
     assert get_response.status_code == 404
 
 
 async def test_delete_character_404_bad_character(
     api_client: AsyncClient,
+    user: User,
     project: Project,
     story: Story,
     character: Character,  # ensures story exists — only character ID is wrong
 ) -> None:
     """DELETE returns 404 when the character ID does not exist."""
-    response = await api_client.delete(bad_character_url(project, story))
+    response = await api_client.delete(
+        bad_character_url(project, story),
+        headers=_auth_headers(user.id),
+    )
 
     assert response.status_code == 404

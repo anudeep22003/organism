@@ -1,4 +1,6 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+
+from core.payments.dependencies import require_entitlement
 
 from .character import router as character_router
 from .export import router as export_router
@@ -7,7 +9,11 @@ from .panels import router as panels_router
 from .projects import router as projects_router
 from .story import router as story_router
 
-router = APIRouter(prefix="/v2", tags=["comic", "builder", "v2"])
+router = APIRouter(
+    prefix="/v2",
+    tags=["comic", "builder", "v2"],
+    dependencies=[Depends(require_entitlement("pro_tier"))],
+)
 
 router.include_router(projects_router)
 router.include_router(story_router)
