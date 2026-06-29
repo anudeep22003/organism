@@ -15,8 +15,11 @@ REGISTRY        := $(shell PULUMI_CONFIG_PASSPHRASE="" pulumi stack output regis
 IMAGE           := $(REGISTRY)/backend
 BACKEND_DIR     := $(shell git rev-parse --show-toplevel)/backend
 FRONTEND_DIR    := $(shell git rev-parse --show-toplevel)/frontend
+LANDING_DIR     := $(shell git rev-parse --show-toplevel)/landing
 FRONTEND_BUCKET := $(shell PULUMI_CONFIG_PASSPHRASE="" pulumi stack output frontend_bucket --stack $(STACK) 2>/dev/null)
 FRONTEND_URL    := $(shell PULUMI_CONFIG_PASSPHRASE="" pulumi stack output frontend_url --stack $(STACK) 2>/dev/null)
+LANDING_BUCKET  := $(shell PULUMI_CONFIG_PASSPHRASE="" pulumi stack output landing_bucket --stack $(STACK) 2>/dev/null)
+LANDING_URL     := $(shell PULUMI_CONFIG_PASSPHRASE="" pulumi stack output landing_url --stack $(STACK) 2>/dev/null)
 SERVICE_URL     := $(shell PULUMI_CONFIG_PASSPHRASE="" pulumi stack output api_url --stack $(STACK) 2>/dev/null)
 DB_INSTANCE     := $(shell PULUMI_CONFIG_PASSPHRASE="" pulumi stack output db_instance_name --stack $(STACK) 2>/dev/null)
 MIGRATION_JOB   := $(shell PULUMI_CONFIG_PASSPHRASE="" pulumi stack output migration_job_name --stack $(STACK) 2>/dev/null)
@@ -42,6 +45,7 @@ help:
 	@echo "  Deploy"
 	@echo "    make deploy-backend     Build + push image + deploy backend to Cloud Run"
 	@echo "    make deploy-frontend    Build frontend + sync to GCS bucket"
+	@echo "    make deploy-landing     Build landing site + sync to GCS bucket"
 	@echo "    make deploy-all         Deploy both backend and frontend"
 	@echo ""
 	@echo "  Database"
@@ -193,7 +197,15 @@ change-domain:
 	@echo "  $(PULUMI_PROJECT):api_domain: api.newdomain.com"
 	@echo "  $(PULUMI_PROJECT):csrf_cookie_domain: newdomain.com"
 	@echo ""
-	@echo "Step 2 — Apply infra:"
+	@echo "Step 2 — Bump the SSL cert name in components/frontend.py:"
+	@echo "  Increment the -vN suffix on the ManagedSslCertificate name"
+	@echo "  (e.g. ...-cert-v3 → ...-cert-v4)."
+	@echo "  Required: a domain change forces a cert REPLACE, and with"
+	@echo "  create-before-delete the new cert must have a different GCP"
+	@echo "  name than the live one — otherwise GCP rejects it with"
+	@echo "  409 alreadyExists and 'make up' fails on the cert."
+	@echo ""
+	@echo "Step 3 — Apply infra:"
 	@echo "  make up"
 	@echo ""
 	@echo "  What this does:"
@@ -202,24 +214,24 @@ change-domain:
 	@echo "    - Updates FRONTEND_URL, API_URL, and CSRF_COOKIE_DOMAIN on Cloud Run"
 	@echo "    - Updates URL map host rules"
 	@echo "  Expect brief HTTPS disruption while the new cert provisions."
-	@echo "  Frontend will be down until step 5 (bucket recreated but empty)."
+	@echo "  Frontend will be down until step 6 (bucket recreated but empty)."
 	@echo ""
-	@echo "Step 3 — Get the load balancer IP:"
+	@echo "Step 4 — Get the load balancer IP:"
 	@echo "  make outputs | grep frontend_ip"
 	@echo ""
-	@echo "Step 4 — Update DNS at your registrar (DNS-only mode, not proxied):"
-	@echo "  A  app.newdomain.com  →  <frontend_ip from step 3>"
-	@echo "  A  api.newdomain.com  →  <frontend_ip from step 3>"
+	@echo "Step 5 — Update DNS at your registrar (DNS-only mode, not proxied):"
+	@echo "  A  app.newdomain.com  →  <frontend_ip from step 4>"
+	@echo "  A  api.newdomain.com  →  <frontend_ip from step 4>"
 	@echo "  Remove old A records for the previous domain."
 	@echo ""
-	@echo "Step 5 — Redeploy frontend (syncs assets to new bucket, bakes new API URL):"
+	@echo "Step 6 — Redeploy frontend (syncs assets to new bucket, bakes new API URL):"
 	@echo "  make deploy-frontend"
 	@echo ""
-	@echo "Step 6 — Wait for SSL cert to provision (~10-30 min after DNS propagates):"
+	@echo "Step 7 — Wait for SSL cert to provision (~10-30 min after DNS propagates):"
 	@echo "  make status"
 	@echo "  Watch managed.status → ACTIVE for both new domains."
 	@echo ""
-	@echo "Step 7 — Verify:"
+	@echo "Step 8 — Verify:"
 	@echo "  curl https://app.newdomain.com"
 	@echo "  curl https://api.newdomain.com/health"
 	@echo ""
@@ -362,7 +374,7 @@ deploy-backend: build push
 # storage and potentially serving outdated assets.
 .PHONY: build-frontend
 build-frontend:
-	cd $(FRONTEND_DIR) && VITE_BACKEND_URL=$(SERVICE_URL) npm run build
+	cd $(FRONTEND_DIR) && VITE_BACKEND_URL=$(SERVICE_URL) bun run build
 
 .PHONY: sync-frontend
 sync-frontend:
@@ -376,6 +388,32 @@ deploy-frontend: build-frontend sync-frontend
 	@echo ""
 	@echo "Frontend deployed to gs://$(FRONTEND_BUCKET)"
 	@echo "Live at: $(FRONTEND_URL)"
+
+# ── Landing deploy ────────────────────────────────────────────────────────────
+
+# Build the standalone landing/marketing site and sync to its GCS bucket.
+#
+# Two URLs are baked in at build time from live stack outputs:
+#   VITE_API_URL — the Cloud Run API, for the live pricing fetch (falls back to
+#                  hardcoded defaults if unreachable, so this is best-effort).
+#   VITE_APP_URL — app.<domain>, the target for every "Start Free" / CTA link.
+# Reading these from stack outputs (not .env) keeps prod URLs from going stale.
+.PHONY: build-landing
+build-landing:
+	cd $(LANDING_DIR) && VITE_API_URL=$(SERVICE_URL) VITE_APP_URL=$(FRONTEND_URL) bun run build
+
+.PHONY: sync-landing
+sync-landing:
+	gcloud storage rsync $(LANDING_DIR)/dist/ gs://$(LANDING_BUCKET) \
+		--recursive \
+		--delete-unmatched-destination-objects \
+		--project $(PROJECT)
+
+.PHONY: deploy-landing
+deploy-landing: build-landing sync-landing
+	@echo ""
+	@echo "Landing deployed to gs://$(LANDING_BUCKET)"
+	@echo "Live at: $(LANDING_URL)"
 
 # ── Deploy both ───────────────────────────────────────────────────────────────
 

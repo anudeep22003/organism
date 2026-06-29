@@ -51,6 +51,12 @@ FRONTEND_URL = f"https://{DOMAIN}"
 API_DOMAIN = _app.require("api_domain")
 API_URL = f"https://{API_DOMAIN}"
 
+# Landing/marketing site — served from the root domain via the same load
+# balancer. A separate static bucket (the React app lives at app.<domain>,
+# the landing page at the apex <domain>).
+LANDING_DOMAIN = _app.require("landing_domain")
+LANDING_URL = f"https://{LANDING_DOMAIN}"
+
 # Media bucket name suffix — set once on first deploy, then never change.
 # GCS bucket names are globally unique and immutable; changing this suffix
 # means recreating the bucket (destructive — all media uploads are lost).
