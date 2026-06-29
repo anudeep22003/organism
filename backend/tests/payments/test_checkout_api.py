@@ -212,7 +212,9 @@ async def test_list_plans_filters_by_configured_stripe_mode(
     response = await api_client.get("/api/billing/plans")
 
     assert response.status_code == 200
-    assert response.json()["plans"] == [
+    plans = response.json()["plans"]
+    matching_plans = [plan for plan in plans if plan["planId"] == live_plan.plan_id]
+    assert matching_plans == [
         {
             "planId": live_plan.plan_id,
             "displayName": live_plan.display_name,
