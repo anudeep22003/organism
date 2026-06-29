@@ -60,14 +60,35 @@ jobs:
       - name: Build
         run: bun run build
 
+  ci-landing:
+    name: CI / Landing
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: landing
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        run: bun run build
+
   # ── Deploy ────────────────────────────────────────────────────────────────────
-  # Runs only after both CI jobs pass. Any failure in the steps below marks
+  # Runs only after all CI jobs pass. Any failure in the steps below marks
   # the commit red and halts the pipeline — partial state (a pushed image that
   # isn't yet live) is harmless and self-corrects on the next push.
 
   deploy:
     name: Deploy
-    needs: [ci-backend, ci-frontend]
+    needs: [ci-backend, ci-frontend, ci-landing]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -112,6 +133,8 @@ jobs:
           echo "SERVICE_URL=$(pulumi stack output api_url --stack main)" >> $GITHUB_ENV
           echo "FRONTEND_BUCKET=$(pulumi stack output frontend_bucket --stack main)" >> $GITHUB_ENV
           echo "FRONTEND_URL=$(pulumi stack output frontend_url --stack main)" >> $GITHUB_ENV
+          echo "LANDING_BUCKET=$(pulumi stack output landing_bucket --stack main)" >> $GITHUB_ENV
+          echo "LANDING_URL=$(pulumi stack output landing_url --stack main)" >> $GITHUB_ENV
           echo "REGION=$(pulumi config get gcp:region --stack main)" >> $GITHUB_ENV
           echo "PROJECT=$(pulumi config get gcp:project --stack main)" >> $GITHUB_ENV
 
@@ -187,6 +210,22 @@ jobs:
             --delete-unmatched-destination-objects \
             --project ${{ env.PROJECT }}
 
+      - name: Build landing
+        working-directory: landing
+        env:
+          VITE_API_URL: ${{ env.SERVICE_URL }}
+          VITE_APP_URL: ${{ env.FRONTEND_URL }}
+        run: |
+          bun install --frozen-lockfile
+          bun run build
+
+      - name: Sync landing to GCS
+        run: |
+          gcloud storage rsync landing/dist/ gs://${{ env.LANDING_BUCKET }} \
+            --recursive \
+            --delete-unmatched-destination-objects \
+            --project ${{ env.PROJECT }}
+
       # Visible in the GitHub Actions UI under the Summary tab for this run.
       - name: Write job summary
         run: |
@@ -197,3 +236,4 @@ jobs:
           echo "| **Image tag** | \`${{ env.SHA }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Backend** | ${{ env.SERVICE_URL }} |" >> $GITHUB_STEP_SUMMARY
           echo "| **Frontend** | ${{ env.FRONTEND_URL }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Landing** | ${{ env.LANDING_URL }} |" >> $GITHUB_STEP_SUMMARY
