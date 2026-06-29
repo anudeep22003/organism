@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # populate-secrets.sh
 #
-# Reads the project .env.local file and uploads values from the
+# Reads the project .env.production file and uploads values from the
 # "# --- secrets ---" section to GCP Secret Manager.
 #
 # Only keys in the secrets section are uploaded. Keys in the
@@ -17,7 +17,7 @@
 #
 # Prerequisites:
 #   - gcloud authenticated (gcloud auth login)
-#   - .env.local structured with section comments:
+#   - .env.production structured with section comments:
 #       # --- secrets ---
 #       ANTHROPIC_API_KEY=...
 #       # --- variables ---
@@ -42,7 +42,7 @@ fi
 # Path to the env file — relative to the repo root.
 # Script can be run from anywhere in the repo.
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-ENV_FILE="${REPO_ROOT}/backend/.env.local"
+ENV_FILE="${REPO_ROOT}/backend/.env.production"
 
 # ---------------------------------------------------------------------------
 # Validation
