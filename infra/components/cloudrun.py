@@ -122,6 +122,9 @@ class CloudRunService(pulumi.ComponentResource):
                 "GOOGLE_OAUTH_CLIENT_ID": GOOGLE_OAUTH_CLIENT_ID,
                 # Public Stripe-hosted billing portal URL for subscription management.
                 "STRIPE_CUSTOMER_PORTAL_URL": STRIPE_CUSTOMER_PORTAL_URL,
+                # Cloud Run is the production runtime for this stack. Local
+                # development keeps the backend default / .env.local false value.
+                "STRIPE_LIVEMODE": "true",
                 # Disables FastAPI's /docs, /redoc, and /openapi.json in Cloud Run.
                 # Locally defaults to "development" (docs available) via config.py.
                 "ENV": "production",
